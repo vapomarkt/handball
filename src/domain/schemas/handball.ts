@@ -1,0 +1,105 @@
+import { z } from "zod";
+
+export const MemberRoleSchema = z.enum([
+  "CLUB_ADMIN",
+  "COACH",
+  "ASSISTANT_COACH",
+  "PLAYER",
+  "PARENT",
+  "HELPER",
+]);
+export type MemberRole = z.infer<typeof MemberRoleSchema>;
+
+export const MEMBER_ROLE_LABELS: Record<MemberRole, string> = {
+  CLUB_ADMIN: "Vereins-Admin",
+  COACH: "Trainer:in",
+  ASSISTANT_COACH: "Co-Trainer:in",
+  PLAYER: "Spieler:in",
+  PARENT: "Elternteil",
+  HELPER: "Vereinshelfer:in",
+};
+
+export const HandballPositionSchema = z.enum([
+  "TW",
+  "LA",
+  "RL",
+  "RM",
+  "RR",
+  "RA",
+  "KM",
+]);
+export type HandballPosition = z.infer<typeof HandballPositionSchema>;
+
+export const HANDBALL_POSITION_LABELS: Record<
+  HandballPosition,
+  { short: string; full: string }
+> = {
+  TW: { short: "TW", full: "Torwart" },
+  LA: { short: "LA", full: "Linksaußen" },
+  RL: { short: "RL", full: "Rückraum Links" },
+  RM: { short: "RM", full: "Rückraum Mitte" },
+  RR: { short: "RR", full: "Rückraum Rechts" },
+  RA: { short: "RA", full: "Rechtsaußen" },
+  KM: { short: "KM", full: "Kreismitte" },
+};
+
+export const ThrowingHandSchema = z.enum(["RIGHT", "LEFT", "BOTH"]);
+export type ThrowingHand = z.infer<typeof ThrowingHandSchema>;
+
+export const THROWING_HAND_LABELS: Record<ThrowingHand, string> = {
+  RIGHT: "Rechts",
+  LEFT: "Links",
+  BOTH: "Beidhändig",
+};
+
+export const AvailabilityStatusSchema = z.enum([
+  "FIT",
+  "INJURED",
+  "UNAVAILABLE",
+]);
+export type AvailabilityStatus = z.infer<typeof AvailabilityStatusSchema>;
+
+export const AVAILABILITY_STATUS_LABELS: Record<AvailabilityStatus, string> = {
+  FIT: "Fit",
+  INJURED: "Verletzt",
+  UNAVAILABLE: "Nicht verfügbar",
+};
+
+export const TeamGenderSchema = z.enum(["MALE", "FEMALE", "MIXED"]);
+export type TeamGender = z.infer<typeof TeamGenderSchema>;
+
+export const TEAM_GENDER_LABELS: Record<TeamGender, string> = {
+  MALE: "Männlich / Herren",
+  FEMALE: "Weiblich / Damen",
+  MIXED: "Gemischt",
+};
+
+export const InviteTypeSchema = z.enum([
+  "TEAM_JOIN",
+  "PROFILE_CLAIM",
+  "GUARDIAN_LINK",
+]);
+export type InviteType = z.infer<typeof InviteTypeSchema>;
+
+export const INVITE_TYPE_LABELS: Record<InviteType, string> = {
+  TEAM_JOIN: "Team-Einladung",
+  PROFILE_CLAIM: "Profil übernehmen",
+  GUARDIAN_LINK: "Eltern-Verknüpfung",
+};
+
+export const RsvpStatusSchema = z.enum([
+  "ACCEPTED",
+  "DECLINED",
+  "MAYBE",
+  "PENDING",
+]);
+export type RsvpStatus = z.infer<typeof RsvpStatusSchema>;
+
+export const COMMON_TEAM_ROLES = [
+  "Kapitän",
+  "Vize-Kapitän",
+  "Kassenwart",
+  "Trikot-Verantwortlicher",
+  "Harz- & Ballwart",
+  "Mannschaftsrat",
+] as const;

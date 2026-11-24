@@ -1,0 +1,989 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================================
+// Enums (Meilenstein 1)
+// ============================================================================
+
+enum MemberRole {
+  CLUB_ADMIN
+  COACH
+  ASSISTANT_COACH
+  PLAYER
+  PARENT
+  HELPER
+}
+
+enum HandballPosition {
+  TW
+  LA
+  RL
+  RM
+  RR
+  RA
+  KM
+}
+
+enum ThrowingHand {
+  RIGHT
+  LEFT
+  BOTH
+}
+
+enum AvailabilityStatus {
+  FIT
+  INJURED
+  UNAVAILABLE
+}
+
+enum TeamGender {
+  MALE
+  FEMALE
+  MIXED
+}
+
+enum InviteType {
+  TEAM_JOIN
+  PROFILE_CLAIM
+  GUARDIAN_LINK
+}
+
+// ============================================================================
+// Enums (Meilenstein 2a)
+// ============================================================================
+
+enum ResinPolicy {
+  RESIN_ALLOWED
+  RESIN_FORBIDDEN
+  WATER_SOLUBLE_ONLY
+  UNKNOWN
+}
+
+enum EventType {
+  TRAINING
+  MATCH
+  TOURNAMENT
+  CLUB_EVENT
+}
+
+enum RsvpStatus {
+  ACCEPTED
+  DECLINED
+  MAYBE
+  PENDING
+}
+
+enum DeclineReasonCategory {
+  WORK
+  INJURY
+  VACATION
+  SCHOOL_UNI
+  OTHER
+}
+
+// ============================================================================
+// Enums (Meilenstein 2b)
+// ============================================================================
+
+enum LeagueProviderType {
+  ICAL_URL
+  CSV_MANUAL
+}
+
+enum SyncStatus {
+  NEVER
+  SUCCESS
+  ERROR
+}
+
+enum SyncChangeType {
+  CREATED
+  RESCHEDULED
+  VENUE_CHANGED
+  CANCELLED
+  UPDATED
+}
+
+// ============================================================================
+// Enums (Meilenstein 3)
+// ============================================================================
+
+enum DutyScope {
+  CLUB_MATCHDAY
+  TEAM
+}
+
+enum DutyCategory {
+  TIMEKEEPER
+  SECRETARY
+  HALL_SETUP
+  KIOSK
+  TICKETING
+  REFEREE_CARE
+  ANNOUNCER
+  JERSEY_LAUNDRY
+  EQUIPMENT_BAG
+  DRINKS
+  OTHER
+}
+
+enum DutyAssignmentStatus {
+  OPEN
+  ASSIGNED
+  SWAP_REQUESTED
+  COMPLETED
+}
+
+enum TrainingPhaseType {
+  WARMUP
+  TECHNIQUE
+  TACTICS
+  GAME_FORM
+  COOLDOWN
+}
+
+// ============================================================================
+// Enums (Meilenstein 4)
+// ============================================================================
+
+enum CourtMode {
+  HALF_COURT
+  FULL_COURT
+}
+
+enum TacticCategory {
+  TRIGGER_PLAY
+  DEFENSE_6_0
+  DEFENSE_5_1
+  DEFENSE_3_2_1
+  DEFENSE_4_2
+  POWERPLAY_7_6
+  SHORTHANDED
+  FREE_THROW
+  FAST_BREAK
+  OTHER
+}
+
+enum ThreatLevel {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+// ============================================================================
+// M5 Domänen-Enums: Kommunikation & Mannschaftskasse
+// ============================================================================
+
+enum AnnouncementAudience {
+  ALL
+  STAFF_ONLY
+}
+
+enum CashEntryType {
+  FINE
+  INCOME
+  EXPENSE
+}
+
+enum CashEntryStatus {
+  OPEN
+  PAID
+}
+
+// ============================================================================
+// Better Auth Tabellen
+// ============================================================================
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions       Session[]
+  accounts       Account[]
+  teamMembers    TeamMember[]
+  guardianLinks  GuardianLink[] @relation("GuardianUser")
+  createdInvites TeamInvite[]   @relation("InviteCreator")
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ============================================================================
+// M1 Domänen-Tabellen: Verein, Saison, Mannschaft, Kader, Eltern, Einladungen
+// ============================================================================
+
+model Club {
+  id        String   @id @default(cuid())
+  name      String
+  shortName String?
+  slug      String   @unique
+  city      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  seasons             Season[]
+  teams               Team[]
+  members             TeamMember[]
+  invites             TeamInvite[]
+  venues              Venue[]
+  events              Event[]
+  eventRecurrences    EventRecurrence[]
+  leagueImportSources LeagueImportSource[]
+  matchdays           Matchday[]
+  workDuties          WorkDuty[]
+  drills              Drill[]
+  trainingPlans       TrainingPlan[]
+  tacticPlays         TacticPlay[]
+  opponents           Opponent[]
+  scoutingNotes       ScoutingNote[]
+  teamAnnouncements   TeamAnnouncement[]
+  teamPolls           TeamPoll[]
+  fineCatalogItems    FineCatalogItem[]
+  teamCashEntries     TeamCashEntry[]
+
+  @@map("club")
+}
+
+model Season {
+  id        String    @id @default(cuid())
+  clubId    String
+  club      Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  name      String
+  startDate DateTime?
+  endDate   DateTime?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  teams     Team[]
+  matchdays Matchday[]
+
+  @@unique([clubId, name])
+  @@index([clubId])
+  @@map("season")
+}
+
+model Team {
+  id         String     @id @default(cuid())
+  clubId     String
+  club       Club       @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  seasonId   String
+  season     Season     @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  name       String
+  category   String     @default("Aktive")
+  gender     TeamGender @default(MALE)
+  leagueName String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  members             TeamMember[]
+  invites             TeamInvite[]
+  events              Event[]
+  eventRecurrences    EventRecurrence[]
+  leagueImportSources LeagueImportSource[]
+  leagueSyncLogs      LeagueSyncChangeLog[]
+  teamDuties          WorkDuty[]            @relation("DutyOwnerTeam")
+  delegatedDuties     WorkDuty[]            @relation("DutyDelegatedTeam")
+  drills              Drill[]
+  trainingPlans       TrainingPlan[]
+  tacticPlays         TacticPlay[]
+  opponents           Opponent[]
+  scoutingNotes       ScoutingNote[]
+  announcements       TeamAnnouncement[]
+  polls               TeamPoll[]
+  fineCatalogItems    FineCatalogItem[]
+  cashEntries         TeamCashEntry[]
+
+  @@unique([clubId, seasonId, name])
+  @@index([clubId])
+  @@index([seasonId])
+  @@map("team")
+}
+
+model TeamMember {
+  id                 String             @id @default(cuid())
+  clubId             String
+  club               Club               @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  teamId             String
+  team               Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId             String?
+  user               User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  role               MemberRole         @default(PLAYER)
+  firstName          String
+  lastName           String
+  email              String?
+  phone              String?
+  jerseyNumber       Int?
+  primaryPosition    HandballPosition?
+  secondaryPosition  HandballPosition?
+  throwingHand       ThrowingHand?
+  availabilityStatus AvailabilityStatus @default(FIT)
+  teamRoles          String[]           @default([])
+  isMinor            Boolean            @default(false)
+
+  // DSGVO-geschützte sensible Felder (serverseitig über DTO-Projektion gefiltert)
+  passNumber       String?
+  injuryNote       String?
+  emergencyContact String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  guardianLinks   GuardianLink[]       @relation("ChildMember")
+  targetInvites   TeamInvite[]         @relation("TargetMember")
+  attendances     EventAttendance[]
+  drivenCarpools  Carpool[]            @relation("CarpoolDriver")
+  carpoolBookings CarpoolBooking[]     @relation("CarpoolPassenger")
+  dutyAssignments WorkDutyAssignment[]
+  cashEntries     TeamCashEntry[]
+
+  @@unique([teamId, userId])
+  @@index([clubId])
+  @@index([teamId])
+  @@index([userId])
+  @@map("team_member")
+}
+
+model GuardianLink {
+  id             String     @id @default(cuid())
+  guardianUserId String
+  guardianUser   User       @relation("GuardianUser", fields: [guardianUserId], references: [id], onDelete: Cascade)
+  childMemberId  String
+  childMember    TeamMember @relation("ChildMember", fields: [childMemberId], references: [id], onDelete: Cascade)
+  relationship   String     @default("Elternteil")
+  createdAt      DateTime   @default(now())
+
+  @@unique([guardianUserId, childMemberId])
+  @@index([guardianUserId])
+  @@index([childMemberId])
+  @@map("guardian_link")
+}
+
+model TeamInvite {
+  id              String      @id @default(cuid())
+  clubId          String
+  club            Club        @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  teamId          String
+  team            Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  token           String      @unique
+  type            InviteType
+  role            MemberRole  @default(PLAYER)
+  targetMemberId  String?
+  targetMember    TeamMember? @relation("TargetMember", fields: [targetMemberId], references: [id], onDelete: Cascade)
+  createdByUserId String
+  createdByUser   User        @relation("InviteCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  maxUses         Int?
+  usedCount       Int         @default(0)
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  createdAt       DateTime    @default(now())
+
+  @@index([teamId])
+  @@index([token])
+  @@map("team_invite")
+}
+
+// ============================================================================
+// M2a Domänen-Tabellen: Hallen, Termine, Serientermine, RSVP, Spieltagsdetails
+// ============================================================================
+
+model Venue {
+  id          String      @id @default(cuid())
+  clubId      String
+  club        Club        @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  name        String
+  address     String?
+  mapsUrl     String?
+  latitude    Float?
+  longitude   Float?
+  resinPolicy ResinPolicy @default(UNKNOWN)
+  notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  events           Event[]
+  eventRecurrences EventRecurrence[]
+  matchdays        Matchday[]
+
+  @@unique([clubId, name])
+  @@index([clubId])
+  @@map("venue")
+}
+
+model EventRecurrence {
+  id                   String    @id @default(cuid())
+  clubId               String
+  club                 Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  teamId               String
+  team                 Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  venueId              String?
+  venue                Venue?    @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  type                 EventType @default(TRAINING)
+  title                String
+  description          String?
+  daysOfWeek           Int[]
+  startTime            String // HH:mm
+  endTime              String // HH:mm
+  startDate            DateTime
+  endDate              DateTime
+  excludedDates        String[]  @default([]) // ISO YYYY-MM-DD (z. B. Schulferien)
+  rsvpDeadlineHours    Int?
+  requireDeclineReason Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  events Event[]
+
+  @@index([clubId])
+  @@index([teamId])
+  @@map("event_recurrence")
+}
+
+model Event {
+  id                   String           @id @default(cuid())
+  clubId               String
+  club                 Club             @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  teamId               String
+  team                 Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  recurrenceId         String?
+  recurrence           EventRecurrence? @relation(fields: [recurrenceId], references: [id], onDelete: SetNull)
+  venueId              String?
+  venue                Venue?           @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  type                 EventType
+  title                String
+  description          String?
+  startAt              DateTime
+  endAt                DateTime?
+  meetingAt            DateTime?
+  rsvpDeadlineAt       DateTime?
+  requireDeclineReason Boolean          @default(false)
+  isCancelled          Boolean          @default(false)
+  externalId           String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  attendances    EventAttendance[]
+  matchDetails   MatchDetails?
+  carpools       Carpool[]
+  leagueSyncLogs LeagueSyncChangeLog[]
+  workDuties     WorkDuty[]
+  trainingPlans  TrainingPlan[]
+  scoutingNotes  ScoutingNote[]
+
+  @@unique([teamId, externalId])
+  @@index([clubId])
+  @@index([teamId, startAt])
+  @@map("event")
+}
+
+model EventAttendance {
+  id                    String                 @id @default(cuid())
+  eventId               String
+  event                 Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  memberId              String
+  member                TeamMember             @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  status                RsvpStatus             @default(PENDING)
+  // DSGVO-geschützte Absagegründe (serverseitig über DTO-Projektion gefiltert)
+  declineReasonCategory DeclineReasonCategory?
+  declineReason         String?
+  respondedByUserId     String?
+  respondedAt           DateTime?
+  updatedAt             DateTime               @updatedAt
+
+  @@unique([eventId, memberId])
+  @@index([eventId])
+  @@index([memberId])
+  @@map("event_attendance")
+}
+
+model MatchDetails {
+  id                 String    @id @default(cuid())
+  eventId            String    @unique
+  event              Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  opponentName       String
+  isHome             Boolean   @default(true)
+  throwOffAt         DateTime?
+  jerseyColor        String?
+  refereeNote        String?
+  nominatedMemberIds String[]  @default([])
+  homeScoreHalf      Int?
+  awayScoreHalf      Int?
+  homeScoreFull      Int?
+  awayScoreFull      Int?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@map("match_details")
+}
+
+// ============================================================================
+// M2b Domänen-Tabellen: Liga-Import, Sync-ChangeLog & Fahrgemeinschaften
+// ============================================================================
+
+model LeagueImportSource {
+  id                  String             @id @default(cuid())
+  clubId              String
+  club                Club               @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  teamId              String
+  team                Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  provider            LeagueProviderType @default(ICAL_URL)
+  name                String
+  sourceUrl           String?
+  teamNameMatch       String?
+  isEnabled           Boolean            @default(true)
+  syncIntervalMinutes Int                @default(60)
+  lastSyncedAt        DateTime?
+  lastSyncStatus      SyncStatus         @default(NEVER)
+  lastSyncError       String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  changeLogs LeagueSyncChangeLog[]
+
+  @@index([clubId])
+  @@index([teamId])
+  @@map("league_import_source")
+}
+
+model LeagueSyncChangeLog {
+  id           String             @id @default(cuid())
+  sourceId     String
+  source       LeagueImportSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  teamId       String
+  team         Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  eventId      String?
+  event        Event?             @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  externalId   String
+  changeType   SyncChangeType
+  summary      String
+  oldStartAt   DateTime?
+  newStartAt   DateTime?
+  oldVenueName String?
+  newVenueName String?
+  detectedAt   DateTime           @default(now())
+
+  @@index([teamId, detectedAt])
+  @@index([sourceId])
+  @@map("league_sync_change_log")
+}
+
+model Carpool {
+  id                String     @id @default(cuid())
+  eventId           String
+  event             Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  driverMemberId    String
+  driverMember      TeamMember @relation("CarpoolDriver", fields: [driverMemberId], references: [id], onDelete: Cascade)
+  departureLocation String
+  departureTime     String?
+  totalSeats        Int
+  notes             String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  bookings CarpoolBooking[]
+
+  @@index([eventId])
+  @@index([driverMemberId])
+  @@map("carpool")
+}
+
+model CarpoolBooking {
+  id                String     @id @default(cuid())
+  carpoolId         String
+  carpool           Carpool    @relation(fields: [carpoolId], references: [id], onDelete: Cascade)
+  passengerMemberId String
+  passengerMember   TeamMember @relation("CarpoolPassenger", fields: [passengerMemberId], references: [id], onDelete: Cascade)
+  bookedByUserId    String
+  createdAt         DateTime   @default(now())
+
+  @@unique([carpoolId, passengerMemberId])
+  @@index([carpoolId])
+  @@index([passengerMemberId])
+  @@map("carpool_booking")
+}
+
+// ============================================================================
+// M3 Domänen-Tabellen: Heimspieltage, Zweistufige Dienste & Trainingsplaner
+// ============================================================================
+
+model Matchday {
+  id        String   @id @default(cuid())
+  clubId    String
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  seasonId  String?
+  season    Season?  @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  venueId   String?
+  venue     Venue?   @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  title     String
+  date      DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  duties WorkDuty[]
+
+  @@index([clubId, date])
+  @@map("matchday")
+}
+
+model WorkDuty {
+  id              String       @id @default(cuid())
+  clubId          String
+  club            Club         @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  teamId          String?
+  team            Team?        @relation("DutyOwnerTeam", fields: [teamId], references: [id], onDelete: Cascade)
+  matchdayId      String?
+  matchday        Matchday?    @relation(fields: [matchdayId], references: [id], onDelete: Cascade)
+  eventId         String?
+  event           Event?       @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  scope           DutyScope    @default(CLUB_MATCHDAY)
+  category        DutyCategory @default(OTHER)
+  title           String
+  description     String?
+  startAt         DateTime?
+  endAt           DateTime?
+  hoursCredit     Float        @default(2.0)
+  requiresLicense Boolean      @default(false)
+  slotsNeeded     Int          @default(1)
+  // Delegation an ein Team (z. B. "Herren 1 stellt Kampfgericht für Damen 1")
+  assignedTeamId  String?
+  assignedTeam    Team?        @relation("DutyDelegatedTeam", fields: [assignedTeamId], references: [id], onDelete: SetNull)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  assignments WorkDutyAssignment[]
+
+  @@index([clubId])
+  @@index([teamId])
+  @@index([matchdayId])
+  @@index([assignedTeamId])
+  @@map("work_duty")
+}
+
+model WorkDutyAssignment {
+  id               String               @id @default(cuid())
+  dutyId           String
+  duty             WorkDuty             @relation(fields: [dutyId], references: [id], onDelete: Cascade)
+  assignedMemberId String?
+  assignedMember   TeamMember?          @relation(fields: [assignedMemberId], references: [id], onDelete: SetNull)
+  status           DutyAssignmentStatus @default(OPEN)
+  swapNote         String?
+  completedAt      DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@index([dutyId])
+  @@index([assignedMemberId])
+  @@map("work_duty_assignment")
+}
+
+model Drill {
+  id              String            @id @default(cuid())
+  clubId          String
+  club            Club              @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  teamId          String?
+  team            Team?             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdByUserId String
+  title           String
+  description     String?
+  phase           TrainingPhaseType @default(TECHNIQUE)
+  durationMinutes Int               @default(15)
+  tags            String[]          @default([])
+  equipment       String?
+  tacticPlayId    String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([clubId])
+  @@index([teamId])
+  @@map("drill")
+}
+
+model TrainingPlan {
+  id                    String   @id @default(cuid())
+  clubId                String
+  club                  Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  teamId                String
+  team                  Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  eventId               String?
+  event                 Event?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  createdByUserId       String
+  title                 String
+  focus                 String?
+  targetDurationMinutes Int      @default(90)
+  phases                Json     @default("[]")
+  isSharedWithTeam      Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([clubId])
+  @@index([teamId])
+  @@map("training_plan")
+}
+
+// ============================================================================
+// M4 Domänen-Tabellen: Taktikboard & Gegner-Scouting
+// ============================================================================
+
+model TacticPlay {
+  id               String         @id @default(cuid())
+  clubId           String
+  club             Club           @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  teamId           String
+  team             Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdByUserId  String
+  title            String
+  description      String?
+  category         TacticCategory @default(TRIGGER_PLAY)
+  courtMode        CourtMode      @default(HALF_COURT)
+  boardData        Json
+  tags             String[]       @default([])
+  isSharedWithTeam Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  scoutingNotes ScoutingNote[]
+
+  @@index([clubId])
+  @@index([teamId])
+  @@map("tactic_play")
+}
+
+model Opponent {
+  id              String   @id @default(cuid())
+  clubId          String
+  club            Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  teamId          String
+  team            Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  name            String
+  leagueName      String?
+  defenseSystems  String[] @default([])
+  attackSystems   String[] @default([])
+  transitionNotes String?
+  strengths       String?
+  weaknesses      String?
+  generalNotes    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  keyPlayers    OpponentPlayer[]
+  scoutingNotes ScoutingNote[]
+
+  @@unique([teamId, name])
+  @@index([clubId])
+  @@index([teamId])
+  @@map("opponent")
+}
+
+model OpponentPlayer {
+  id                  String            @id @default(cuid())
+  opponentId          String
+  opponent            Opponent          @relation(fields: [opponentId], references: [id], onDelete: Cascade)
+  name                String
+  jerseyNumber        Int?
+  position            HandballPosition?
+  throwingHand        ThrowingHand?
+  shotZones           Json              @default("{}")
+  feintPreference     String?
+  isSevenMeterShooter Boolean           @default(false)
+  threatLevel         ThreatLevel       @default(MEDIUM)
+  notes               String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([opponentId])
+  @@map("opponent_player")
+}
+
+model ScoutingNote {
+  id               String      @id @default(cuid())
+  clubId           String
+  club             Club        @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  teamId           String
+  team             Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  opponentId       String
+  opponent         Opponent    @relation(fields: [opponentId], references: [id], onDelete: Cascade)
+  eventId          String?
+  event            Event?      @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  tacticPlayId     String?
+  tacticPlay       TacticPlay? @relation(fields: [tacticPlayId], references: [id], onDelete: SetNull)
+  createdByUserId  String
+  title            String
+  content          String
+  videoUrl         String?
+  isSharedWithTeam Boolean     @default(false)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@index([teamId])
+  @@index([opponentId])
+  @@index([eventId])
+  @@map("scouting_note")
+}
+
+// ============================================================================
+// M5 Domänen-Tabellen: Schwarzes Brett, Umfragen & Mannschaftskasse
+// ============================================================================
+
+model TeamAnnouncement {
+  id              String               @id @default(cuid())
+  clubId          String
+  club            Club                 @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  teamId          String
+  team            Team                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  authorUserId    String
+  authorName      String
+  title           String
+  body            String
+  audience        AnnouncementAudience @default(ALL)
+  isPinned        Boolean              @default(false)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([teamId, isPinned, createdAt])
+  @@map("team_announcement")
+}
+
+model TeamPoll {
+  id              String           @id @default(cuid())
+  clubId          String
+  club            Club             @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  teamId          String
+  team            Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdByUserId String
+  createdByName   String
+  question        String
+  allowMultiple   Boolean          @default(false)
+  closesAt        DateTime?
+  isClosed        Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  options TeamPollOption[]
+
+  @@index([teamId, createdAt])
+  @@map("team_poll")
+}
+
+model TeamPollOption {
+  id        String         @id @default(cuid())
+  pollId    String
+  poll      TeamPoll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  label     String
+  sortOrder Int            @default(0)
+
+  votes TeamPollVote[]
+
+  @@index([pollId])
+  @@map("team_poll_option")
+}
+
+model TeamPollVote {
+  id        String         @id @default(cuid())
+  optionId  String
+  option    TeamPollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  userId    String
+  voterName String
+  createdAt DateTime       @default(now())
+
+  @@unique([optionId, userId])
+  @@index([optionId])
+  @@index([userId])
+  @@map("team_poll_vote")
+}
+
+model FineCatalogItem {
+  id          String   @id @default(cuid())
+  clubId      String
+  club        Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  teamId      String
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  title       String
+  amountCents Int
+  category    String   @default("Allgemein")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([teamId, title])
+  @@index([teamId])
+  @@map("fine_catalog_item")
+}
+
+model TeamCashEntry {
+  id              String          @id @default(cuid())
+  clubId          String
+  club            Club            @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  teamId          String
+  team            Team            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  memberId        String?
+  member          TeamMember?     @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  type            CashEntryType   @default(FINE)
+  status          CashEntryStatus @default(OPEN)
+  title           String
+  amountCents     Int
+  notes           String?
+  createdByUserId String
+  paidAt          DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([teamId, status, createdAt])
+  @@index([memberId])
+  @@map("team_cash_entry")
+}

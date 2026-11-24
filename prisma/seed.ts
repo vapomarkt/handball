@@ -26,9 +26,14 @@ import {
 import { hashPassword } from "better-auth/crypto";
 import { Pool } from "pg";
 
-const connectionString = process.env.DATABASE_URL;
+const connectionString =
+  process.env.DATABASE_URL ??
+  process.env.POSTGRES_PRISMA_URL ??
+  process.env.POSTGRES_URL;
 if (!connectionString) {
-  throw new Error("DATABASE_URL ist nicht gesetzt.");
+  throw new Error(
+    "Keine Datenbank-URL gefunden (DATABASE_URL / POSTGRES_PRISMA_URL / POSTGRES_URL)."
+  );
 }
 
 const pool = new Pool({ connectionString });

@@ -17,11 +17,11 @@ function createPrismaClient(): PrismaClient {
     globalForPrisma.pgPool ??
     new Pool({
       connectionString,
+      max: process.env.VERCEL ? 5 : 10,
+      idleTimeoutMillis: 20_000,
     });
 
-  if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.pgPool = pool;
-  }
+  globalForPrisma.pgPool = pool;
 
   const adapter = new PrismaPg(pool);
   return new PrismaClient({ adapter });
@@ -30,6 +30,4 @@ function createPrismaClient(): PrismaClient {
 export const prisma: PrismaClient =
   globalForPrisma.prisma ?? createPrismaClient();
 
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}
+globalForPrisma.prisma = prisma;

@@ -3,6 +3,32 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { prisma } from "../db/prisma";
 
+function resolveBaseUrl(): string {
+  if (process.env.BETTER_AUTH_URL) return process.env.BETTER_AUTH_URL;
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return "http://localhost:3000";
+}
+
+function resolveTrustedOrigins(): string[] {
+  const origins = new Set<string>(["http://localhost:3000"]);
+  if (process.env.BETTER_AUTH_URL) origins.add(process.env.BETTER_AUTH_URL);
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    origins.add(process.env.NEXT_PUBLIC_APP_URL);
+  }
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    origins.add(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
+  }
+  if (process.env.VERCEL_URL) {
+    origins.add(`https://${process.env.VERCEL_URL}`);
+  }
+  return Array.from(origins);
+}
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
@@ -10,7 +36,8 @@ export const auth = betterAuth({
   secret:
     process.env.BETTER_AUTH_SECRET ||
     "anwurf-dev-fallback-secret-change-in-production",
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+  baseURL: resolveBaseUrl(),
+  trustedOrigins: resolveTrustedOrigins(),
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,

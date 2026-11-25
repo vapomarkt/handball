@@ -32,6 +32,10 @@ describe("HVNB-Live-Crawler", () => {
       ageGroup: "ADULT",
       gender: "FEMALE",
     });
+    expect(parseAgeGroupAndGender("Anfänger MJF")).toEqual({
+      ageGroup: "YOUTH_F_MINI",
+      gender: "MALE",
+    });
   });
 
   it("filtert Sammel- und Verwaltungsseiten aus", () => {

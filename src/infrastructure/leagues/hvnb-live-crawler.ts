@@ -103,7 +103,7 @@ export function parseAgeGroupAndGender(name: string): {
   const letter = (jugend?.[1] ?? short?.[2])?.toUpperCase();
   if (letter) {
     return {
-      ageGroup: `YOUTH_${letter}` as LeagueAgeGroup,
+      ageGroup: (letter === "F" ? "YOUTH_F_MINI" : `YOUTH_${letter}`) as LeagueAgeGroup,
       gender,
     };
   }

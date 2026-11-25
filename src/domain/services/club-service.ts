@@ -18,6 +18,7 @@ import {
   CreateTeamSchema,
   UpdateTeamSchema,
 } from "../schemas/club";
+import { resolveTeamUsesResin } from "../data/german-leagues";
 import { LeagueDirectoryService } from "./league-directory-service";
 
 function slugify(value: string): string {
@@ -132,6 +133,7 @@ export class ClubService {
 
     let resolvedLeagueId = parsed.data.leagueId ?? null;
     let resolvedLeagueName = parsed.data.leagueName ?? null;
+    let resolvedAgeGroup = parsed.data.ageGroup ?? null;
     if (resolvedLeagueId && this.leagueCatalog) {
       const league = await this.leagueCatalog.findById(resolvedLeagueId);
       if (!league) {
@@ -142,14 +144,26 @@ export class ClubService {
       }
       resolvedLeagueId = league.id;
       resolvedLeagueName = league.displayName;
+      if (!resolvedAgeGroup) {
+        resolvedAgeGroup = league.ageGroup;
+      }
     }
+
+    const resolvedUsesResin = resolveTeamUsesResin({
+      usesResin: parsed.data.usesResin,
+      ageGroup: resolvedAgeGroup,
+      category: parsed.data.category,
+      teamName: parsed.data.name,
+    });
 
     const team = await this.teams.create({
       clubId,
       seasonId: parsed.data.seasonId,
       name: parsed.data.name,
       category: parsed.data.category,
+      ageGroup: resolvedAgeGroup,
       gender: parsed.data.gender,
+      usesResin: resolvedUsesResin,
       leagueId: resolvedLeagueId,
       leagueName: resolvedLeagueName,
     });

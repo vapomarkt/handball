@@ -333,14 +333,16 @@ model Season {
 }
 
 model Team {
-  id         String     @id @default(cuid())
-  clubId     String
-  club       Club       @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  seasonId   String
-  season     Season     @relation(fields: [seasonId], references: [id], onDelete: Cascade)
-  name       String
-  category   String     @default("Aktive")
-  gender     TeamGender @default(MALE)
+  id                String           @id @default(cuid())
+  clubId            String
+  club              Club             @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  seasonId          String
+  season            Season           @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  name              String
+  category          String           @default("Aktive")
+  ageGroup          LeagueAgeGroup?
+  gender            TeamGender       @default(MALE)
+  usesResin         Boolean          @default(true)
   leagueId          String?
   league            League?          @relation(fields: [leagueId], references: [id], onDelete: SetNull)
   leagueName        String?

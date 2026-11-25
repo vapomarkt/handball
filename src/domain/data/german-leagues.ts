@@ -10,6 +10,8 @@ export interface AgeGroupOption {
   defaultCategory: "Aktive" | "Jugend" | "Senioren";
   allowedGenders: TeamGender[];
   defaultGender: TeamGender;
+  /** Standardwert, ob in dieser Altersklasse mit Harz (Backe) gespielt wird. */
+  defaultUsesResin: boolean;
 }
 
 export const GERMAN_AGE_GROUPS: AgeGroupOption[] = [
@@ -22,6 +24,7 @@ export const GERMAN_AGE_GROUPS: AgeGroupOption[] = [
     defaultCategory: "Aktive",
     allowedGenders: ["MALE", "FEMALE"],
     defaultGender: "MALE",
+    defaultUsesResin: true,
   },
   {
     value: "SENIOR",
@@ -32,6 +35,7 @@ export const GERMAN_AGE_GROUPS: AgeGroupOption[] = [
     defaultCategory: "Senioren",
     allowedGenders: ["MALE", "FEMALE", "MIXED"],
     defaultGender: "MALE",
+    defaultUsesResin: true,
   },
   {
     value: "YOUTH_A",
@@ -42,6 +46,7 @@ export const GERMAN_AGE_GROUPS: AgeGroupOption[] = [
     defaultCategory: "Jugend",
     allowedGenders: ["MALE", "FEMALE"],
     defaultGender: "MALE",
+    defaultUsesResin: true,
   },
   {
     value: "YOUTH_B",
@@ -52,6 +57,7 @@ export const GERMAN_AGE_GROUPS: AgeGroupOption[] = [
     defaultCategory: "Jugend",
     allowedGenders: ["MALE", "FEMALE"],
     defaultGender: "MALE",
+    defaultUsesResin: true,
   },
   {
     value: "YOUTH_C",
@@ -62,6 +68,7 @@ export const GERMAN_AGE_GROUPS: AgeGroupOption[] = [
     defaultCategory: "Jugend",
     allowedGenders: ["MALE", "FEMALE"],
     defaultGender: "MALE",
+    defaultUsesResin: false,
   },
   {
     value: "YOUTH_D",
@@ -72,6 +79,7 @@ export const GERMAN_AGE_GROUPS: AgeGroupOption[] = [
     defaultCategory: "Jugend",
     allowedGenders: ["MALE", "FEMALE", "MIXED"],
     defaultGender: "MALE",
+    defaultUsesResin: false,
   },
   {
     value: "YOUTH_E",
@@ -82,6 +90,7 @@ export const GERMAN_AGE_GROUPS: AgeGroupOption[] = [
     defaultCategory: "Jugend",
     allowedGenders: ["MALE", "FEMALE", "MIXED"],
     defaultGender: "MIXED",
+    defaultUsesResin: false,
   },
   {
     value: "YOUTH_F_MINI",
@@ -92,8 +101,57 @@ export const GERMAN_AGE_GROUPS: AgeGroupOption[] = [
     defaultCategory: "Jugend",
     allowedGenders: ["MIXED"],
     defaultGender: "MIXED",
+    defaultUsesResin: false,
   },
 ];
+
+const NO_RESIN_AGE_GROUPS = new Set<LeagueAgeGroup>([
+  "YOUTH_C",
+  "YOUTH_D",
+  "YOUTH_E",
+  "YOUTH_F_MINI",
+]);
+
+/**
+ * Liefert den sinnvollen Standardwert, ob eine Altersklasse mit Harz (Backe) spielt.
+ * In der D-Jugend und jünger wird grundsätzlich ohne Harz gespielt; in der C-Jugend
+ * ist es standardmäßig deaktiviert und kann pro Team jederzeit aktiviert werden.
+ */
+export function defaultUsesResinForAgeGroup(
+  ageGroup?: LeagueAgeGroup | null
+): boolean {
+  if (!ageGroup) return true;
+  return !NO_RESIN_AGE_GROUPS.has(ageGroup);
+}
+
+/**
+ * Bestimmt `usesResin` beim Anlegen einer Mannschaft:
+ * 1. Explizite Angabe hat immer Vorrang.
+ * 2. Ansonsten Ableitung aus `ageGroup`.
+ * 3. Fallback auf `category` / `teamName` (z. B. "D-Jugend", "E-Jugend", "Minis").
+ */
+export function resolveTeamUsesResin(input: {
+  usesResin?: boolean;
+  ageGroup?: LeagueAgeGroup | null;
+  category?: string | null;
+  teamName?: string | null;
+}): boolean {
+  if (typeof input.usesResin === "boolean") {
+    return input.usesResin;
+  }
+  if (input.ageGroup) {
+    return defaultUsesResinForAgeGroup(input.ageGroup);
+  }
+  const haystack = `${input.category ?? ""} ${input.teamName ?? ""}`.toLowerCase();
+  if (
+    /\b([mwg]?[cdef]-?jugend|minis?|minihandball|u9|u11|u13|u15)\b/i.test(
+      haystack
+    )
+  ) {
+    return false;
+  }
+  return true;
+}
 
 export function suggestTeamName(
   ageGroup: LeagueAgeGroup,

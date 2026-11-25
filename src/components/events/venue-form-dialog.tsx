@@ -24,6 +24,7 @@ interface VenueFormDialogProps {
   onOpenChange: (open: boolean) => void;
   clubId: string;
   venue?: VenueDTO | null;
+  usesResin?: boolean;
   onSaved: () => void;
 }
 
@@ -34,6 +35,7 @@ export function VenueFormDialog({
   onOpenChange,
   clubId,
   venue,
+  usesResin = true,
   onSaved,
 }: VenueFormDialogProps) {
   const isEdit = Boolean(venue);
@@ -90,8 +92,9 @@ export function VenueFormDialog({
             {isEdit ? "Halle bearbeiten" : "Neue Halle anlegen"}
           </DialogTitle>
           <DialogDescription>
-            Hinterlege Adresse, Maps-Link und die verbindliche
-            Harz-/Haftmittel-Regelung.
+            {usesResin
+              ? "Hinterlege Adresse, Maps-Link und die verbindliche Harz-/Haftmittel-Regelung."
+              : "Hinterlege Adresse, Maps-Link und wichtige Hinweise zur Halle."}
           </DialogDescription>
         </DialogHeader>
 
@@ -116,20 +119,48 @@ export function VenueFormDialog({
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="v-resin">Harz- / Haftmittel-Regelung</Label>
-            <SelectNative
-              id="v-resin"
-              value={resinPolicy}
-              onChange={(e) => setResinPolicy(e.target.value as ResinPolicy)}
-            >
-              {RESIN_POLICIES.map((p) => (
-                <option key={p} value={p}>
-                  {RESIN_POLICY_LABELS[p]}
-                </option>
-              ))}
-            </SelectNative>
-          </div>
+          {usesResin ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="v-resin">Harz- / Haftmittel-Regelung</Label>
+              <SelectNative
+                id="v-resin"
+                value={resinPolicy}
+                onChange={(e) => setResinPolicy(e.target.value as ResinPolicy)}
+              >
+                {RESIN_POLICIES.map((p) => (
+                  <option key={p} value={p}>
+                    {RESIN_POLICY_LABELS[p]}
+                  </option>
+                ))}
+              </SelectNative>
+            </div>
+          ) : (
+            <details className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs">
+              <summary className="cursor-pointer font-medium text-muted-foreground hover:text-foreground">
+                Harz-Regelung für andere Vereinsmannschaften (optional)
+              </summary>
+              <div className="mt-2.5 space-y-1.5">
+                <Label htmlFor="v-resin" className="text-xs">
+                  Harz- / Haftmittel-Regelung der Halle
+                </Label>
+                <SelectNative
+                  id="v-resin"
+                  value={resinPolicy}
+                  onChange={(e) => setResinPolicy(e.target.value as ResinPolicy)}
+                >
+                  {RESIN_POLICIES.map((p) => (
+                    <option key={p} value={p}>
+                      {RESIN_POLICY_LABELS[p]}
+                    </option>
+                  ))}
+                </SelectNative>
+                <p className="text-[11px] text-muted-foreground">
+                  Für deine Mannschaft ist Harz deaktiviert. Dieser Wert gilt
+                  vereinsweit für ältere Mannschaften in derselben Halle.
+                </p>
+              </div>
+            </details>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="v-address">Adresse</Label>
@@ -156,7 +187,11 @@ export function VenueFormDialog({
             <Label htmlFor="v-notes">Hallennotizen</Label>
             <Input
               id="v-notes"
-              placeholder="z. B. Kabinenschlüssel, Parkmöglichkeiten, Harzverbot-Hinweis"
+              placeholder={
+                usesResin
+                  ? "z. B. Kabinenschlüssel, Parkmöglichkeiten, Harzverbot-Hinweis"
+                  : "z. B. Kabinenschlüssel, Parkmöglichkeiten, Eingang"
+              }
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />

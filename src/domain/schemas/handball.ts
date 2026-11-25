@@ -103,3 +103,12 @@ export const COMMON_TEAM_ROLES = [
   "Harz- & Ballwart",
   "Mannschaftsrat",
 ] as const;
+
+export function getCommonTeamRoles(usesResin: boolean): readonly string[] {
+  if (usesResin) {
+    return COMMON_TEAM_ROLES;
+  }
+  return COMMON_TEAM_ROLES.map((role) =>
+    role === "Harz- & Ballwart" ? "Ballwart" : role
+  );
+}

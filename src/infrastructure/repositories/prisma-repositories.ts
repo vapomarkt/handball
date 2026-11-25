@@ -11,6 +11,7 @@ import {
 } from "@/domain/adapters/repositories";
 import { ClubDTO, SeasonDTO } from "@/domain/schemas/club";
 import { InviteType, MemberRole, TeamGender } from "@/domain/schemas/handball";
+import { LeagueAgeGroup } from "@/domain/schemas/league-catalog";
 import { GuardianLinkDTO, TeamInviteEntity } from "@/domain/schemas/invite";
 import {
   CreateTeamMemberInput,
@@ -102,7 +103,9 @@ export class PrismaClubRepository implements ClubRepository {
         seasonId: t.seasonId,
         name: t.name,
         category: t.category,
+        ageGroup: t.ageGroup,
         gender: t.gender,
+        usesResin: t.usesResin,
         leagueId: t.leagueId,
         leagueName: t.leagueName,
         leagueGroupTeamId: t.leagueGroupTeamId,
@@ -202,7 +205,9 @@ export class PrismaTeamRepository implements TeamRepository {
       seasonId: t.seasonId,
       name: t.name,
       category: t.category,
+      ageGroup: t.ageGroup,
       gender: t.gender,
+      usesResin: t.usesResin,
       leagueId: t.leagueId,
       leagueName: t.leagueName,
       leagueGroupTeamId: t.leagueGroupTeamId,
@@ -226,7 +231,9 @@ export class PrismaTeamRepository implements TeamRepository {
       seasonId: t.seasonId,
       name: t.name,
       category: t.category,
+      ageGroup: t.ageGroup,
       gender: t.gender,
+      usesResin: t.usesResin,
       leagueId: t.leagueId,
       leagueName: t.leagueName,
       leagueGroupTeamId: t.leagueGroupTeamId,
@@ -243,7 +250,9 @@ export class PrismaTeamRepository implements TeamRepository {
     seasonId: string;
     name: string;
     category: string;
+    ageGroup?: LeagueAgeGroup | null;
     gender: TeamGender;
+    usesResin?: boolean;
     leagueId?: string | null;
     leagueName?: string | null;
     leagueGroupTeamId?: string | null;
@@ -254,7 +263,9 @@ export class PrismaTeamRepository implements TeamRepository {
         seasonId: input.seasonId,
         name: input.name,
         category: input.category,
+        ageGroup: input.ageGroup ?? null,
         gender: input.gender,
+        usesResin: input.usesResin ?? true,
         leagueId: input.leagueId ?? null,
         leagueName: input.leagueName ?? null,
         leagueGroupTeamId: input.leagueGroupTeamId ?? null,
@@ -267,7 +278,9 @@ export class PrismaTeamRepository implements TeamRepository {
       seasonId: t.seasonId,
       name: t.name,
       category: t.category,
+      ageGroup: t.ageGroup,
       gender: t.gender,
+      usesResin: t.usesResin,
       leagueId: t.leagueId,
       leagueName: t.leagueName,
       leagueGroupTeamId: t.leagueGroupTeamId,
@@ -284,7 +297,9 @@ export class PrismaTeamRepository implements TeamRepository {
     input: {
       name?: string;
       category?: string;
+      ageGroup?: LeagueAgeGroup | null;
       gender?: TeamGender;
+      usesResin?: boolean;
       leagueId?: string | null;
       leagueName?: string | null;
       leagueGroupTeamId?: string | null;
@@ -301,7 +316,9 @@ export class PrismaTeamRepository implements TeamRepository {
       seasonId: t.seasonId,
       name: t.name,
       category: t.category,
+      ageGroup: t.ageGroup,
       gender: t.gender,
+      usesResin: t.usesResin,
       leagueId: t.leagueId,
       leagueName: t.leagueName,
       leagueGroupTeamId: t.leagueGroupTeamId,

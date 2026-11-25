@@ -9,6 +9,7 @@ import { DomainError } from "../errors";
 import { ViewerContext } from "../policies/rbac";
 import { OnboardingInput, OnboardingSchema } from "../schemas/club";
 import { TeamLeagueLinkResultDTO } from "../schemas/league-directory";
+import { resolveTeamUsesResin } from "../data/german-leagues";
 import { LeagueDirectoryService } from "./league-directory-service";
 
 function slugify(value: string): string {
@@ -97,6 +98,7 @@ export class OnboardingService {
 
     let resolvedLeagueId: string | null = input.leagueId ?? null;
     let resolvedLeagueName: string | null = input.leagueName ?? null;
+    let resolvedAgeGroup = input.ageGroup ?? null;
 
     if (input.leagueId && this.leagueCatalog) {
       const league = await this.leagueCatalog.findById(input.leagueId);
@@ -108,7 +110,17 @@ export class OnboardingService {
       }
       resolvedLeagueId = league.id;
       resolvedLeagueName = league.displayName;
+      if (!resolvedAgeGroup) {
+        resolvedAgeGroup = league.ageGroup;
+      }
     }
+
+    const resolvedUsesResin = resolveTeamUsesResin({
+      usesResin: input.usesResin,
+      ageGroup: resolvedAgeGroup,
+      category: input.category,
+      teamName: input.teamName,
+    });
 
     const baseSlug = slugify(input.clubName) || "verein";
     const existing = await this.clubs.findBySlug(baseSlug);
@@ -131,7 +143,9 @@ export class OnboardingService {
       seasonId: season.id,
       name: input.teamName,
       category: input.category,
+      ageGroup: resolvedAgeGroup,
       gender: input.gender,
+      usesResin: resolvedUsesResin,
       leagueId: resolvedLeagueId,
       leagueName: resolvedLeagueName,
     });

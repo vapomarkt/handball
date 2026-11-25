@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TeamGenderSchema } from "./handball";
+import { LeagueAgeGroup, LeagueAgeGroupSchema } from "./league-catalog";
 
 export const CreateClubSchema = z.object({
   name: z.string().trim().min(2, "Vereinsname muss mindestens 2 Zeichen lang sein.").max(100),
@@ -26,7 +27,9 @@ export const CreateTeamSchema = z.object({
   name: z.string().trim().min(2, "Mannschaftsname muss mindestens 2 Zeichen lang sein.").max(80),
   seasonId: z.string().min(1, "Saison muss ausgewählt sein."),
   category: z.string().trim().min(2).max(50).default("Aktive"),
+  ageGroup: LeagueAgeGroupSchema.optional().nullable(),
   gender: TeamGenderSchema.default("MALE"),
+  usesResin: z.boolean().optional(),
   leagueId: z.string().trim().min(1).optional().nullable(),
   leagueName: z.string().trim().max(100).optional().nullable(),
   leagueGroupTeamId: z.string().trim().min(1).optional().nullable(),
@@ -38,7 +41,9 @@ export type CreateTeamInput = z.infer<typeof CreateTeamSchema>;
 export const UpdateTeamSchema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
   category: z.string().trim().min(2).max(50).optional(),
+  ageGroup: LeagueAgeGroupSchema.optional().nullable(),
   gender: TeamGenderSchema.optional(),
+  usesResin: z.boolean().optional(),
   leagueId: z.string().trim().min(1).optional().nullable(),
   leagueName: z.string().trim().max(100).optional().nullable(),
   leagueGroupTeamId: z.string().trim().min(1).optional().nullable(),
@@ -57,7 +62,9 @@ export const OnboardingSchema = z.object({
   seasonName: z.string().trim().min(3).max(30).default("2026/27"),
   teamName: z.string().trim().min(2, "Mannschaftsname erforderlich.").max(80),
   category: z.string().trim().min(2).max(50).default("Aktive"),
+  ageGroup: LeagueAgeGroupSchema.optional().nullable(),
   gender: TeamGenderSchema.default("MALE"),
+  usesResin: z.boolean().optional(),
   leagueId: z.string().trim().min(1).optional(),
   leagueName: z.string().trim().max(100).optional(),
   leagueGroupTeamId: z.string().trim().min(1).optional().nullable(),
@@ -94,7 +101,9 @@ export interface TeamDTO {
   seasonId: string;
   name: string;
   category: string;
+  ageGroup?: LeagueAgeGroup | null;
   gender: "MALE" | "FEMALE" | "MIXED";
+  usesResin: boolean;
   leagueId?: string | null;
   leagueName: string | null;
   leagueGroupTeamId?: string | null;

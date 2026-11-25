@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ChevronRight,
+  Droplets,
   Link2,
+  Loader2,
   Lock,
   Search,
   ShieldAlert,
@@ -50,12 +52,13 @@ const POSITION_FILTERS: Array<"ALL" | HandballPosition> = [
 ];
 
 export default function TeamRosterPage() {
-  const { me, activeTeam } = useAppContext();
+  const { me, activeTeam, refreshMe } = useAppContext();
 
   const [members, setMembers] = useState<TeamMemberResponseDTO[]>([]);
   const [guardianLinks, setGuardianLinks] = useState<GuardianLinkDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [savingResin, setSavingResin] = useState(false);
 
   const [posFilter, setPosFilter] = useState<"ALL" | HandballPosition>("ALL");
   const [query, setQuery] = useState("");
@@ -220,6 +223,35 @@ export default function TeamRosterPage() {
     }
   }
 
+  async function handleToggleResin() {
+    if (!activeTeam || savingResin) return;
+    setSavingResin(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/v1/teams/${encodeURIComponent(activeTeam.teamId)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ usesResin: !activeTeam.usesResin }),
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(
+          data?.error?.message ||
+            "Harz-Einstellung konnte nicht gespeichert werden."
+        );
+        return;
+      }
+      await refreshMe();
+    } catch {
+      setError("Netzwerkfehler beim Speichern der Harz-Einstellung.");
+    } finally {
+      setSavingResin(false);
+    }
+  }
+
   if (!activeTeam || !me) return null;
 
   return (
@@ -233,10 +265,40 @@ export default function TeamRosterPage() {
           <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
             Kader · {activeTeam.teamName}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            {members.length} Mitglieder im Team
-            {activeTeam.leagueName ? ` · ${activeTeam.leagueName}` : ""}
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <span>
+              {members.length} Mitglieder im Team
+              {activeTeam.leagueName ? ` · ${activeTeam.leagueName}` : ""}
+            </span>
+            {isStaff ? (
+              <button
+                type="button"
+                onClick={handleToggleResin}
+                disabled={savingResin}
+                title="Umschalten, ob diese Mannschaft mit Harz (Backe) spielt. Bei ‚Ohne Harz‘ werden Hallen-Harzhinweise bei Terminen ausgeblendet."
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors cursor-pointer disabled:opacity-60",
+                  activeTeam.usesResin
+                    ? "border-primary/30 bg-primary/10 text-primary hover:bg-primary/15"
+                    : "border-border bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted"
+                )}
+              >
+                {savingResin ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Droplets className="h-3 w-3" />
+                )}
+                {activeTeam.usesResin
+                  ? "Mit Harz (Backe)"
+                  : "Ohne Harz (Backe)"}
+              </button>
+            ) : !activeTeam.usesResin ? (
+              <Badge variant="secondary" className="gap-1 text-xs">
+                <Droplets className="h-3 w-3" />
+                Ohne Harz
+              </Badge>
+            ) : null}
+          </div>
         </div>
 
         {isStaff && (
@@ -567,6 +629,7 @@ export default function TeamRosterPage() {
         teamId={activeTeam.teamId}
         mode={memberDialogMode}
         member={selectedMember}
+        usesResin={activeTeam.usesResin}
         onSaved={loadRoster}
       />
 

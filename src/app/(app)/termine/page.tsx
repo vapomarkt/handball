@@ -247,7 +247,9 @@ function TerminePageContent() {
             Termine & Spielplan · {activeTeam.teamName}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Trainings, Punktspiele, Hallen-Harzregelung & 1-Klick-Rückmeldung
+            {activeTeam.usesResin
+              ? "Trainings, Punktspiele, Hallen-Harzregelung & 1-Klick-Rückmeldung"
+              : "Trainings, Punktspiele, Hallen & 1-Klick-Rückmeldung"}
           </p>
         </div>
 
@@ -297,7 +299,9 @@ function TerminePageContent() {
           }`}
         >
           <MapPin className="h-4 w-4" />
-          Hallen & Harz-Info ({venues.length})
+          {activeTeam.usesResin
+            ? `Hallen & Harz-Info (${venues.length})`
+            : `Hallen (${venues.length})`}
         </button>
         <button
           type="button"
@@ -405,7 +409,7 @@ function TerminePageContent() {
                               {ev.matchDetails.isHome ? "Heim" : "Auswärts"}
                             </Badge>
                           )}
-                          {ev.venue && (
+                          {activeTeam.usesResin && ev.venue && (
                             <ResinBadge policy={ev.venue.resinPolicy} />
                           )}
                           {ev.matchDetails?.homeScoreFull !== null &&
@@ -573,7 +577,9 @@ function TerminePageContent() {
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <ResinBadge policy={v.resinPolicy} />
+                    {activeTeam.usesResin && (
+                      <ResinBadge policy={v.resinPolicy} />
+                    )}
                     {isStaff && (
                       <ChevronRight
                         className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
@@ -705,6 +711,7 @@ function TerminePageContent() {
             onOpenChange={setVenueFormOpen}
             clubId={activeTeam.clubId}
             venue={editingVenue}
+            usesResin={activeTeam.usesResin}
             onSaved={loadAll}
           />
         </>
@@ -725,6 +732,7 @@ function TerminePageContent() {
         event={selectedEvent}
         roster={roster}
         isStaff={isStaff}
+        usesResin={activeTeam.usesResin}
         onUpdated={loadAll}
       />
     </div>

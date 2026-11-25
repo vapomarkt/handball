@@ -10,6 +10,7 @@ import {
   EventType,
   HandballPosition,
   InviteType,
+  LeagueAgeGroup,
   LeagueProviderType,
   MemberRole,
   PrismaClient,
@@ -252,7 +253,9 @@ async function main() {
     },
     update: {
       category: "Jugend",
+      ageGroup: LeagueAgeGroup.YOUTH_D,
       gender: TeamGender.MALE,
+      usesResin: false,
       leagueName: "Regionsoberliga MJD Nord",
     },
     create: {
@@ -261,7 +264,9 @@ async function main() {
       seasonId: season.id,
       name: "männliche D-Jugend",
       category: "Jugend",
+      ageGroup: LeagueAgeGroup.YOUTH_D,
       gender: TeamGender.MALE,
+      usesResin: false,
       leagueName: "Regionsoberliga MJD Nord",
     },
   });
@@ -276,7 +281,9 @@ async function main() {
     },
     update: {
       category: "Aktive",
+      ageGroup: LeagueAgeGroup.ADULT,
       gender: TeamGender.MALE,
+      usesResin: true,
       leagueName: "Landesliga Männer",
     },
     create: {
@@ -285,7 +292,9 @@ async function main() {
       seasonId: season.id,
       name: "1. Herren",
       category: "Aktive",
+      ageGroup: LeagueAgeGroup.ADULT,
       gender: TeamGender.MALE,
+      usesResin: true,
       leagueName: "Landesliga Männer",
     },
   });
@@ -300,7 +309,9 @@ async function main() {
     },
     update: {
       category: "Aktive",
+      ageGroup: LeagueAgeGroup.ADULT,
       gender: TeamGender.FEMALE,
+      usesResin: true,
       leagueName: "Regionalliga Nord",
     },
     create: {
@@ -309,7 +320,9 @@ async function main() {
       seasonId: season.id,
       name: "1. Damen",
       category: "Aktive",
+      ageGroup: LeagueAgeGroup.ADULT,
       gender: TeamGender.FEMALE,
+      usesResin: true,
       leagueName: "Regionalliga Nord",
     },
   });

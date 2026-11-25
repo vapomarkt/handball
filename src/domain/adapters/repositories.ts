@@ -1,5 +1,6 @@
 import { ClubDTO, SeasonDTO, TeamDTO } from "../schemas/club";
 import { InviteType, MemberRole, TeamGender } from "../schemas/handball";
+import { LeagueAgeGroup } from "../schemas/league-catalog";
 import {
   GuardianLinkDTO,
   TeamInviteEntity,
@@ -22,7 +23,9 @@ export interface TeamRecord {
   seasonId: string;
   name: string;
   category: string;
+  ageGroup?: LeagueAgeGroup | null;
   gender: TeamGender;
+  usesResin?: boolean;
   leagueId?: string | null;
   leagueName: string | null;
   leagueGroupTeamId?: string | null;
@@ -63,7 +66,9 @@ export interface TeamRepository {
     seasonId: string;
     name: string;
     category: string;
+    ageGroup?: LeagueAgeGroup | null;
     gender: TeamGender;
+    usesResin?: boolean;
     leagueId?: string | null;
     leagueName?: string | null;
     leagueGroupTeamId?: string | null;
@@ -73,7 +78,9 @@ export interface TeamRepository {
     input: {
       name?: string;
       category?: string;
+      ageGroup?: LeagueAgeGroup | null;
       gender?: TeamGender;
+      usesResin?: boolean;
       leagueId?: string | null;
       leagueName?: string | null;
       leagueGroupTeamId?: string | null;

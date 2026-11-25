@@ -37,6 +37,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectNative } from "@/components/ui/select-native";
 import {
+  defaultUsesResinForAgeGroup,
   GERMAN_AGE_GROUPS,
   getAgeGroupPrefix,
   suggestTeamName,
@@ -108,6 +109,10 @@ export default function OnboardingPage() {
   const [gender, setGender] = useState<TeamGender>("MALE");
   const [teamName, setTeamName] = useState("Herren 1");
   const [teamNameTouched, setTeamNameTouched] = useState(false);
+  const [usesResin, setUsesResin] = useState<boolean>(() =>
+    defaultUsesResinForAgeGroup("ADULT")
+  );
+  const [usesResinTouched, setUsesResinTouched] = useState(false);
 
   // Schritt 3: Liga aus Katalog + direkte HVNB-Mannschaftszuordnung
   const [selectedLeague, setSelectedLeague] = useState<LeagueDTO | null>(null);
@@ -223,6 +228,9 @@ export default function OnboardingPage() {
     if (!teamNameTouched) {
       setTeamName(suggestTeamName(nextAgeGroup, nextGender));
     }
+    if (!usesResinTouched) {
+      setUsesResin(defaultUsesResinForAgeGroup(nextAgeGroup));
+    }
   }
 
   function handleSelectGender(nextGender: TeamGender) {
@@ -310,7 +318,9 @@ export default function OnboardingPage() {
           seasonName: selectedSeason.name,
           teamName: teamName.trim(),
           category: activeAgeGroupMeta.defaultCategory,
+          ageGroup,
           gender,
+          usesResin,
           leagueId: resolvedLeagueId,
           leagueGroupTeamId: selectedHvnbTeam?.team.id ?? undefined,
           autoImportSchedule,
@@ -752,6 +762,31 @@ export default function OnboardingPage() {
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Harz / Backe */}
+                  <div className="rounded-xl border border-border bg-muted/30 p-3.5">
+                    <label className="flex items-start gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={usesResin}
+                        onChange={(e) => {
+                          setUsesResin(e.target.checked);
+                          setUsesResinTouched(true);
+                        }}
+                        className="mt-0.5 h-4 w-4 rounded border-border accent-primary"
+                      />
+                      <span className="space-y-0.5">
+                        <span className="block text-sm font-semibold text-foreground">
+                          Diese Mannschaft spielt mit Harz (Backe)
+                        </span>
+                        <span className="block text-xs text-muted-foreground">
+                          {usesResin
+                            ? "Bei Terminen und Hallen wird die jeweilige Harz-Regelung angezeigt."
+                            : "Ohne Harz: Hallen-Harzhinweise werden bei Terminen automatisch ausgeblendet. Kann jederzeit im Kader geändert werden."}
+                        </span>
+                      </span>
+                    </label>
                   </div>
 
                   <div className="flex items-center justify-between pt-2">

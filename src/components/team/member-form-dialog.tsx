@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { SelectNative } from "@/components/ui/select-native";
 import {
   AVAILABILITY_STATUS_LABELS,
-  COMMON_TEAM_ROLES,
+  getCommonTeamRoles,
   HANDBALL_POSITION_LABELS,
   MEMBER_ROLE_LABELS,
   THROWING_HAND_LABELS,
@@ -32,6 +32,7 @@ interface MemberFormDialogProps {
   teamId: string;
   mode: "create" | "edit-full" | "edit-self";
   member?: TeamMemberResponseDTO | null;
+  usesResin?: boolean;
   onSaved: () => void;
 }
 
@@ -44,11 +45,13 @@ export function MemberFormDialog({
   teamId,
   mode,
   member,
+  usesResin = true,
   onSaved,
 }: MemberFormDialogProps) {
   const isCreate = mode === "create";
   const isFull = mode === "create" || mode === "edit-full";
   const initial = !isCreate && member ? member : null;
+  const availableTeamRoles = getCommonTeamRoles(usesResin);
 
   const [firstName, setFirstName] = useState(initial?.firstName ?? "");
   const [lastName, setLastName] = useState(initial?.lastName ?? "");
@@ -316,7 +319,7 @@ export function MemberFormDialog({
               <div className="space-y-1.5">
                 <Label>Team-Ämter</Label>
                 <div className="flex flex-wrap gap-1.5">
-                  {COMMON_TEAM_ROLES.map((tr) => {
+                  {availableTeamRoles.map((tr) => {
                     const active = teamRoles.includes(tr);
                     return (
                       <button

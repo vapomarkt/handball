@@ -364,7 +364,9 @@ export default function DashboardPage() {
                       <MapPin className="h-3.5 w-3.5 text-primary" />
                       {nextEvent.venue.name}
                     </span>
-                    <ResinBadge policy={nextEvent.venue.resinPolicy} />
+                    {activeTeam.usesResin && (
+                      <ResinBadge policy={nextEvent.venue.resinPolicy} />
+                    )}
                   </div>
                 )}
               </div>
@@ -450,7 +452,9 @@ export default function DashboardPage() {
                     <MapPin className="h-3.5 w-3.5 text-primary" />
                     {nextMatch.venue.name}
                   </span>
-                  <ResinBadge policy={nextMatch.venue.resinPolicy} />
+                  {activeTeam.usesResin && (
+                    <ResinBadge policy={nextMatch.venue.resinPolicy} />
+                  )}
                 </div>
               )}
               {nextMatch.matchDetails.jerseyColor && (

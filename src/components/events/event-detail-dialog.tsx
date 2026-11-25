@@ -39,6 +39,7 @@ interface EventDetailDialogProps {
   event: EventDTO | null;
   roster: TeamMemberResponseDTO[];
   isStaff: boolean;
+  usesResin?: boolean;
   onUpdated: () => void;
 }
 
@@ -60,6 +61,7 @@ export function EventDetailDialog({
   event,
   roster,
   isStaff,
+  usesResin = true,
   onUpdated,
 }: EventDetailDialogProps) {
   const md = event?.matchDetails ?? null;
@@ -151,7 +153,9 @@ export function EventDetailDialog({
             <Badge variant={event.type === "MATCH" ? "default" : "secondary"}>
               {EVENT_TYPE_LABELS[event.type]}
             </Badge>
-            {event.venue && <ResinBadge policy={event.venue.resinPolicy} />}
+            {usesResin && event.venue && (
+              <ResinBadge policy={event.venue.resinPolicy} />
+            )}
           </div>
           <DialogTitle>{event.title}</DialogTitle>
           <DialogDescription>

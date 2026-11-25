@@ -15,6 +15,7 @@ import type {
   MemberRole,
 } from "@/domain/schemas/handball";
 import type { GuardianLinkDTO } from "@/domain/schemas/invite";
+import type { LeagueAgeGroup } from "@/domain/schemas/league-catalog";
 
 export interface MeMembership {
   memberId: string;
@@ -35,7 +36,9 @@ export interface MeMembership {
     id: string;
     name: string;
     category: string;
+    ageGroup: LeagueAgeGroup | null;
     gender: "MALE" | "FEMALE" | "MIXED";
+    usesResin: boolean;
     leagueName: string | null;
     seasonName: string;
   };
@@ -44,6 +47,8 @@ export interface MeMembership {
 export interface SelectableTeam {
   teamId: string;
   teamName: string;
+  ageGroup: LeagueAgeGroup | null;
+  usesResin: boolean;
   leagueName: string | null;
   seasonName: string;
   clubId: string;
@@ -64,7 +69,9 @@ export interface MePayload {
     id: string;
     name: string;
     category: string;
+    ageGroup: LeagueAgeGroup | null;
     gender: "MALE" | "FEMALE" | "MIXED";
+    usesResin: boolean;
     leagueName: string | null;
     seasonName: string;
     club: {
@@ -170,6 +177,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       map.set(m.team.id, {
         teamId: m.team.id,
         teamName: m.team.name,
+        ageGroup: m.team.ageGroup ?? null,
+        usesResin: m.team.usesResin ?? true,
         leagueName: m.team.leagueName,
         seasonName: m.team.seasonName,
         clubId: m.club.id,
@@ -185,6 +194,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         map.set(t.id, {
           teamId: t.id,
           teamName: t.name,
+          ageGroup: t.ageGroup ?? null,
+          usesResin: t.usesResin ?? true,
           leagueName: t.leagueName,
           seasonName: t.seasonName,
           clubId: t.club.id,

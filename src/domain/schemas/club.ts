@@ -29,6 +29,9 @@ export const CreateTeamSchema = z.object({
   gender: TeamGenderSchema.default("MALE"),
   leagueId: z.string().trim().min(1).optional().nullable(),
   leagueName: z.string().trim().max(100).optional().nullable(),
+  leagueGroupTeamId: z.string().trim().min(1).optional().nullable(),
+  autoImportSchedule: z.boolean().optional().default(true),
+  seedGroupOpponents: z.boolean().optional().default(true),
 });
 export type CreateTeamInput = z.infer<typeof CreateTeamSchema>;
 
@@ -38,6 +41,7 @@ export const UpdateTeamSchema = z.object({
   gender: TeamGenderSchema.optional(),
   leagueId: z.string().trim().min(1).optional().nullable(),
   leagueName: z.string().trim().max(100).optional().nullable(),
+  leagueGroupTeamId: z.string().trim().min(1).optional().nullable(),
 });
 export type UpdateTeamInput = z.infer<typeof UpdateTeamSchema>;
 
@@ -56,6 +60,9 @@ export const OnboardingSchema = z.object({
   gender: TeamGenderSchema.default("MALE"),
   leagueId: z.string().trim().min(1).optional(),
   leagueName: z.string().trim().max(100).optional(),
+  leagueGroupTeamId: z.string().trim().min(1).optional().nullable(),
+  autoImportSchedule: z.boolean().optional().default(true),
+  seedGroupOpponents: z.boolean().optional().default(true),
   creatorFirstName: z.string().trim().min(1, "Vorname erforderlich.").max(60),
   creatorLastName: z.string().trim().min(1, "Nachname erforderlich.").max(60),
   creatorRole: z.enum(["CLUB_ADMIN", "COACH"]).default("COACH"),
@@ -90,6 +97,9 @@ export interface TeamDTO {
   gender: "MALE" | "FEMALE" | "MIXED";
   leagueId?: string | null;
   leagueName: string | null;
+  leagueGroupTeamId?: string | null;
+  leagueGroupName?: string | null;
+  leagueOfficialTeamName?: string | null;
   memberCount?: number;
   seasonName?: string;
   clubName?: string;

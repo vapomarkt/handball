@@ -19,6 +19,10 @@ import {
 } from "lucide-react";
 import { BrandLogo } from "@/components/branding/logo";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import {
+  HvnbTeamPicker,
+  SelectedHvnbTeam,
+} from "@/components/leagues/hvnb-team-picker";
 import { LeagueSelector } from "@/components/leagues/league-selector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -105,8 +109,12 @@ export default function OnboardingPage() {
   const [teamName, setTeamName] = useState("Herren 1");
   const [teamNameTouched, setTeamNameTouched] = useState(false);
 
-  // Schritt 3: Liga aus Katalog (kein Freitext!)
+  // Schritt 3: Liga aus Katalog + direkte HVNB-Mannschaftszuordnung
   const [selectedLeague, setSelectedLeague] = useState<LeagueDTO | null>(null);
+  const [selectedHvnbTeam, setSelectedHvnbTeam] =
+    useState<SelectedHvnbTeam | null>(null);
+  const [autoImportSchedule, setAutoImportSchedule] = useState(true);
+  const [seedGroupOpponents, setSeedGroupOpponents] = useState(true);
 
   // Einladungscode
   const [inviteCode, setInviteCode] = useState("");
@@ -209,6 +217,7 @@ export default function OnboardingPage() {
     setAgeGroup(nextAgeGroup);
     setGender(nextGender);
     setSelectedLeague(null);
+    setSelectedHvnbTeam(null);
     setError(null);
 
     if (!teamNameTouched) {
@@ -219,6 +228,7 @@ export default function OnboardingPage() {
   function handleSelectGender(nextGender: TeamGender) {
     setGender(nextGender);
     setSelectedLeague(null);
+    setSelectedHvnbTeam(null);
     setError(null);
 
     if (!teamNameTouched) {
@@ -279,8 +289,8 @@ export default function OnboardingPage() {
       setError("Bitte wähle eine Saison aus der Liste aus.");
       return;
     }
-    if (!selectedLeague) {
-      setError("Bitte wähle eine Liga aus dem Katalog aus.");
+    if (!selectedLeague && !selectedHvnbTeam) {
+      setError("Bitte wähle eine Liga oder deine HVNB-Mannschaft aus.");
       return;
     }
 
@@ -288,6 +298,8 @@ export default function OnboardingPage() {
     setSubmitting(true);
 
     try {
+      const resolvedLeagueId =
+        selectedLeague?.id ?? selectedHvnbTeam?.group.leagueId ?? undefined;
       const res = await fetch("/api/v1/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -299,7 +311,10 @@ export default function OnboardingPage() {
           teamName: teamName.trim(),
           category: activeAgeGroupMeta.defaultCategory,
           gender,
-          leagueId: selectedLeague.id,
+          leagueId: resolvedLeagueId,
+          leagueGroupTeamId: selectedHvnbTeam?.team.id ?? undefined,
+          autoImportSchedule,
+          seedGroupOpponents,
           creatorFirstName: creatorFirstName.trim(),
           creatorLastName: creatorLastName.trim(),
           creatorRole,
@@ -759,18 +774,63 @@ export default function OnboardingPage() {
                 </div>
               )}
 
-              {/* SCHRITT 3: Mehrstufige Liga-Auswahl & Zusammenfassung */}
+              {/* SCHRITT 3: Mehrstufige Liga-Auswahl, direkte HVNB-Zuordnung & Zusammenfassung */}
               {step === 3 && (
                 <div className="space-y-5">
-                  <LeagueSelector
-                    ageGroup={ageGroup}
-                    gender={gender}
-                    selectedLeague={selectedLeague}
-                    onSelect={(league) => {
-                      setSelectedLeague(league);
-                      setError(null);
-                    }}
-                  />
+                  {/* Sofort-Vorschlag: HVNB-Treffer anhand des Vereinsnamens */}
+                  {!selectedHvnbTeam && (
+                    <HvnbTeamPicker
+                      suggestionsOnly
+                      clubName={clubName}
+                      seasonName={selectedSeason?.name}
+                      ageGroup={ageGroup}
+                      gender={gender}
+                      selected={selectedHvnbTeam}
+                      onSelect={(selection) => {
+                        setSelectedHvnbTeam(selection);
+                        setError(null);
+                      }}
+                      autoImportSchedule={autoImportSchedule}
+                      onAutoImportScheduleChange={setAutoImportSchedule}
+                      seedGroupOpponents={seedGroupOpponents}
+                      onSeedGroupOpponentsChange={setSeedGroupOpponents}
+                    />
+                  )}
+
+                  {/* Standard Liga-Katalog (nur wenn noch kein HVNB-Direkttreffer gewählt wurde) */}
+                  {!selectedHvnbTeam && (
+                    <LeagueSelector
+                      ageGroup={ageGroup}
+                      gender={gender}
+                      selectedLeague={selectedLeague}
+                      onSelect={(league) => {
+                        setSelectedLeague(league);
+                        setSelectedHvnbTeam(null);
+                        setError(null);
+                      }}
+                    />
+                  )}
+
+                  {/* Direkte HVNB-Staffel- & Mannschafts-Zuordnung (sobald HVNB gewählt oder direkt übernommen) */}
+                  {(selectedHvnbTeam ||
+                    selectedLeague?.federationCode === "HVNB") && (
+                    <HvnbTeamPicker
+                      clubName={clubName}
+                      seasonName={selectedSeason?.name}
+                      ageGroup={ageGroup}
+                      gender={gender}
+                      leagueId={selectedLeague?.id ?? null}
+                      selected={selectedHvnbTeam}
+                      onSelect={(selection) => {
+                        setSelectedHvnbTeam(selection);
+                        setError(null);
+                      }}
+                      autoImportSchedule={autoImportSchedule}
+                      onAutoImportScheduleChange={setAutoImportSchedule}
+                      seedGroupOpponents={seedGroupOpponents}
+                      onSeedGroupOpponentsChange={setSeedGroupOpponents}
+                    />
+                  )}
 
                   {/* Kompakte Zusammenfassung vor dem Anlegen */}
                   <div className="rounded-xl border border-border bg-muted/30 p-3.5 space-y-2">
@@ -806,9 +866,11 @@ export default function OnboardingPage() {
                       <div>
                         <span className="text-muted-foreground">Liga: </span>
                         <span className="font-semibold text-foreground">
-                          {selectedLeague
-                            ? selectedLeague.displayName
-                            : "Noch nicht ausgewählt"}
+                          {selectedHvnbTeam
+                            ? `${selectedHvnbTeam.group.name} (${selectedHvnbTeam.team.name})`
+                            : selectedLeague
+                              ? selectedLeague.displayName
+                              : "Noch nicht ausgewählt"}
                         </span>
                       </div>
                     </div>
@@ -828,7 +890,9 @@ export default function OnboardingPage() {
                     </Button>
                     <Button
                       type="submit"
-                      disabled={submitting || !selectedLeague}
+                      disabled={
+                        submitting || (!selectedLeague && !selectedHvnbTeam)
+                      }
                       className="min-w-[200px]"
                     >
                       {submitting && (

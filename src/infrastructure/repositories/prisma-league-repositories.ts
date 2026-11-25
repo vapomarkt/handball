@@ -21,6 +21,7 @@ function mapSource(s: {
   id: string;
   clubId: string;
   teamId: string;
+  leagueGroupTeamId?: string | null;
   provider: LeagueImportSourceDTO["provider"];
   name: string;
   sourceUrl: string | null;
@@ -36,6 +37,7 @@ function mapSource(s: {
     id: s.id,
     clubId: s.clubId,
     teamId: s.teamId,
+    leagueGroupTeamId: s.leagueGroupTeamId ?? null,
     provider: s.provider,
     name: s.name,
     sourceUrl: s.sourceUrl,
@@ -93,7 +95,7 @@ export class PrismaLeagueSyncRepository implements LeagueSyncRepository {
   async listEnabledIcalSources(): Promise<LeagueImportSourceDTO[]> {
     const rows = await prisma.leagueImportSource.findMany({
       where: {
-        provider: "ICAL_URL",
+        provider: { in: ["ICAL_URL", "HVNB_NULIGA"] },
         isEnabled: true,
         sourceUrl: { not: null },
       },
@@ -117,6 +119,7 @@ export class PrismaLeagueSyncRepository implements LeagueSyncRepository {
       data: {
         clubId,
         teamId,
+        leagueGroupTeamId: input.leagueGroupTeamId ?? null,
         provider: input.provider,
         name: input.name,
         sourceUrl: input.sourceUrl ?? null,

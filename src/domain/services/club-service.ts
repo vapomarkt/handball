@@ -18,6 +18,7 @@ import {
   CreateTeamSchema,
   UpdateTeamSchema,
 } from "../schemas/club";
+import { LeagueDirectoryService } from "./league-directory-service";
 
 function slugify(value: string): string {
   return value
@@ -35,7 +36,8 @@ export class ClubService {
   constructor(
     private readonly clubs: ClubRepository,
     private readonly teams: TeamRepository,
-    private readonly leagueCatalog?: LeagueCatalogRepository
+    private readonly leagueCatalog?: LeagueCatalogRepository,
+    private readonly leagueDirectory?: LeagueDirectoryService
   ) {}
 
   async listClubsForUser(viewer: ViewerContext) {
@@ -142,7 +144,7 @@ export class ClubService {
       resolvedLeagueName = league.displayName;
     }
 
-    return this.teams.create({
+    const team = await this.teams.create({
       clubId,
       seasonId: parsed.data.seasonId,
       name: parsed.data.name,
@@ -151,6 +153,18 @@ export class ClubService {
       leagueId: resolvedLeagueId,
       leagueName: resolvedLeagueName,
     });
+
+    if (parsed.data.leagueGroupTeamId && this.leagueDirectory) {
+      await this.leagueDirectory.linkTeamInternal(clubId, team.id, {
+        leagueGroupTeamId: parsed.data.leagueGroupTeamId,
+        autoImportSchedule: parsed.data.autoImportSchedule ?? true,
+        seedGroupOpponents: parsed.data.seedGroupOpponents ?? true,
+      });
+      const updated = await this.teams.findById(team.id);
+      if (updated) return updated;
+    }
+
+    return team;
   }
 
   async getTeam(viewer: ViewerContext, teamId: string) {

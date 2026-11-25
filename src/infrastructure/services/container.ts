@@ -7,6 +7,7 @@ import { EventService } from "@/domain/services/event-service";
 import { GuardianService } from "@/domain/services/guardian-service";
 import { InviteService } from "@/domain/services/invite-service";
 import { LeagueCatalogService } from "@/domain/services/league-catalog-service";
+import { LeagueDirectoryService } from "@/domain/services/league-directory-service";
 import { LeagueSyncService } from "@/domain/services/league-sync-service";
 import { OnboardingService } from "@/domain/services/onboarding-service";
 import { RosterService } from "@/domain/services/roster-service";
@@ -20,6 +21,7 @@ import {
   PrismaVenueRepository,
 } from "../repositories/prisma-event-repositories";
 import { PrismaLeagueCatalogRepository } from "../repositories/prisma-league-catalog-repository";
+import { PrismaLeagueDirectoryRepository } from "../repositories/prisma-league-directory-repository";
 import {
   PrismaCarpoolRepository,
   PrismaLeagueSyncRepository,
@@ -56,6 +58,7 @@ const venueRepo = new PrismaVenueRepository();
 const eventRepo = new PrismaEventRepository();
 const leagueCatalogRepo = new PrismaLeagueCatalogRepository();
 const seasonCatalogRepo = new PrismaSeasonCatalogRepository();
+const leagueDirectoryRepo = new PrismaLeagueDirectoryRepository();
 const leagueSyncRepo = new PrismaLeagueSyncRepository();
 const carpoolRepo = new PrismaCarpoolRepository();
 const dutyRepo = new PrismaDutyRepository();
@@ -76,17 +79,38 @@ async function fetchUrlText(url: string): Promise<string> {
   return res.text();
 }
 
+const leagueSyncService = new LeagueSyncService(
+  teamRepo,
+  leagueSyncRepo,
+  fetchUrlText
+);
+
+const leagueDirectoryService = new LeagueDirectoryService(
+  leagueDirectoryRepo,
+  teamRepo,
+  leagueSyncRepo,
+  leagueSyncService,
+  scoutingRepo
+);
+
 export const services = {
   onboarding: new OnboardingService(
     clubRepo,
     teamRepo,
     memberRepo,
     leagueCatalogRepo,
-    seasonCatalogRepo
+    seasonCatalogRepo,
+    leagueDirectoryService
   ),
-  club: new ClubService(clubRepo, teamRepo, leagueCatalogRepo),
+  club: new ClubService(
+    clubRepo,
+    teamRepo,
+    leagueCatalogRepo,
+    leagueDirectoryService
+  ),
   leagueCatalog: new LeagueCatalogService(leagueCatalogRepo),
   seasonCatalog: new SeasonCatalogService(seasonCatalogRepo),
+  leagueDirectory: leagueDirectoryService,
   roster: new RosterService(teamRepo, memberRepo),
   invite: new InviteService(teamRepo, memberRepo, inviteRepo, guardianRepo),
   guardian: new GuardianService(
@@ -97,7 +121,7 @@ export const services = {
   ),
   venue: new VenueService(venueRepo),
   event: new EventService(teamRepo, memberRepo, venueRepo, eventRepo),
-  leagueSync: new LeagueSyncService(teamRepo, leagueSyncRepo, fetchUrlText),
+  leagueSync: leagueSyncService,
   carpool: new CarpoolService(eventRepo, memberRepo, carpoolRepo),
   duty: new DutyService(teamRepo, memberRepo, dutyRepo),
   training: new TrainingService(teamRepo, trainingRepo),

@@ -25,6 +25,7 @@ import {
 } from "@prisma/client";
 import { hashPassword } from "better-auth/crypto";
 import { Pool } from "pg";
+import { importHvnbDirectory } from "./import-hvnb-directory";
 import { importGermanLeagues } from "./import-leagues-de";
 import { importDefaultSeasons } from "./import-seasons";
 
@@ -163,6 +164,12 @@ async function main() {
   const seasonImportResult = await importDefaultSeasons(prisma);
   console.log(
     `Saison-Katalog synchronisiert: ${seasonImportResult.created} neu angelegt (${seasonImportResult.total} Standardsaisons geprüft).`
+  );
+
+  // 0b. HVNB-Staffel- und Mannschaftsverzeichnis (Niedersachsen/Bremen) synchronisieren
+  const hvnbDirResult = await importHvnbDirectory(prisma);
+  console.log(
+    `HVNB-Verzeichnis synchronisiert: ${hvnbDirResult.groupsUpserted} Staffeln, ${hvnbDirResult.teamsUpserted} Mannschaften.`
   );
 
   const passwordHash = await hashPassword(DEMO_PASSWORD);

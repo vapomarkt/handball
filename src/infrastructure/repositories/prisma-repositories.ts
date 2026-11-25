@@ -78,6 +78,13 @@ export class PrismaClubRepository implements ClubRepository {
         teams: {
           include: {
             season: { select: { name: true } },
+            leagueGroupTeam: {
+              select: {
+                id: true,
+                name: true,
+                leagueGroup: { select: { name: true } },
+              },
+            },
             _count: { select: { members: true } },
           },
           orderBy: { name: "asc" },
@@ -96,7 +103,11 @@ export class PrismaClubRepository implements ClubRepository {
         name: t.name,
         category: t.category,
         gender: t.gender,
+        leagueId: t.leagueId,
         leagueName: t.leagueName,
+        leagueGroupTeamId: t.leagueGroupTeamId,
+        leagueGroupName: t.leagueGroupTeam?.leagueGroup.name ?? null,
+        leagueOfficialTeamName: t.leagueGroupTeam?.name ?? null,
         seasonName: t.season.name,
         clubName: club.name,
         memberCount: t._count.members,
@@ -165,15 +176,24 @@ export class PrismaClubRepository implements ClubRepository {
   }
 }
 
+const TEAM_INCLUDE = {
+  season: { select: { name: true } },
+  club: { select: { name: true } },
+  leagueGroupTeam: {
+    select: {
+      id: true,
+      name: true,
+      leagueGroup: { select: { name: true } },
+    },
+  },
+  _count: { select: { members: true } },
+} as const;
+
 export class PrismaTeamRepository implements TeamRepository {
   async findById(teamId: string): Promise<TeamRecord | null> {
     const t = await prisma.team.findUnique({
       where: { id: teamId },
-      include: {
-        season: { select: { name: true } },
-        club: { select: { name: true } },
-        _count: { select: { members: true } },
-      },
+      include: TEAM_INCLUDE,
     });
     if (!t) return null;
     return {
@@ -185,6 +205,9 @@ export class PrismaTeamRepository implements TeamRepository {
       gender: t.gender,
       leagueId: t.leagueId,
       leagueName: t.leagueName,
+      leagueGroupTeamId: t.leagueGroupTeamId,
+      leagueGroupName: t.leagueGroupTeam?.leagueGroup.name ?? null,
+      leagueOfficialTeamName: t.leagueGroupTeam?.name ?? null,
       seasonName: t.season.name,
       clubName: t.club.name,
       memberCount: t._count.members,
@@ -194,11 +217,7 @@ export class PrismaTeamRepository implements TeamRepository {
   async findByClubId(clubId: string): Promise<TeamRecord[]> {
     const teams = await prisma.team.findMany({
       where: { clubId },
-      include: {
-        season: { select: { name: true } },
-        club: { select: { name: true } },
-        _count: { select: { members: true } },
-      },
+      include: TEAM_INCLUDE,
       orderBy: { name: "asc" },
     });
     return teams.map((t) => ({
@@ -210,6 +229,9 @@ export class PrismaTeamRepository implements TeamRepository {
       gender: t.gender,
       leagueId: t.leagueId,
       leagueName: t.leagueName,
+      leagueGroupTeamId: t.leagueGroupTeamId,
+      leagueGroupName: t.leagueGroupTeam?.leagueGroup.name ?? null,
+      leagueOfficialTeamName: t.leagueGroupTeam?.name ?? null,
       seasonName: t.season.name,
       clubName: t.club.name,
       memberCount: t._count.members,
@@ -224,6 +246,7 @@ export class PrismaTeamRepository implements TeamRepository {
     gender: TeamGender;
     leagueId?: string | null;
     leagueName?: string | null;
+    leagueGroupTeamId?: string | null;
   }): Promise<TeamRecord> {
     const t = await prisma.team.create({
       data: {
@@ -234,12 +257,9 @@ export class PrismaTeamRepository implements TeamRepository {
         gender: input.gender,
         leagueId: input.leagueId ?? null,
         leagueName: input.leagueName ?? null,
+        leagueGroupTeamId: input.leagueGroupTeamId ?? null,
       },
-      include: {
-        season: { select: { name: true } },
-        club: { select: { name: true } },
-        _count: { select: { members: true } },
-      },
+      include: TEAM_INCLUDE,
     });
     return {
       id: t.id,
@@ -250,6 +270,9 @@ export class PrismaTeamRepository implements TeamRepository {
       gender: t.gender,
       leagueId: t.leagueId,
       leagueName: t.leagueName,
+      leagueGroupTeamId: t.leagueGroupTeamId,
+      leagueGroupName: t.leagueGroupTeam?.leagueGroup.name ?? null,
+      leagueOfficialTeamName: t.leagueGroupTeam?.name ?? null,
       seasonName: t.season.name,
       clubName: t.club.name,
       memberCount: t._count.members,
@@ -264,16 +287,13 @@ export class PrismaTeamRepository implements TeamRepository {
       gender?: TeamGender;
       leagueId?: string | null;
       leagueName?: string | null;
+      leagueGroupTeamId?: string | null;
     }
   ): Promise<TeamRecord> {
     const t = await prisma.team.update({
       where: { id: teamId },
       data: input,
-      include: {
-        season: { select: { name: true } },
-        club: { select: { name: true } },
-        _count: { select: { members: true } },
-      },
+      include: TEAM_INCLUDE,
     });
     return {
       id: t.id,
@@ -284,6 +304,9 @@ export class PrismaTeamRepository implements TeamRepository {
       gender: t.gender,
       leagueId: t.leagueId,
       leagueName: t.leagueName,
+      leagueGroupTeamId: t.leagueGroupTeamId,
+      leagueGroupName: t.leagueGroupTeam?.leagueGroup.name ?? null,
+      leagueOfficialTeamName: t.leagueGroupTeam?.name ?? null,
       seasonName: t.season.name,
       clubName: t.club.name,
       memberCount: t._count.members,

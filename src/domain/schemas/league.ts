@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-export const LeagueProviderTypeSchema = z.enum(["ICAL_URL", "CSV_MANUAL"]);
+export const LeagueProviderTypeSchema = z.enum([
+  "ICAL_URL",
+  "CSV_MANUAL",
+  "HVNB_NULIGA",
+]);
 export type LeagueProviderType = z.infer<typeof LeagueProviderTypeSchema>;
 
 export const SyncStatusSchema = z.enum(["NEVER", "SUCCESS", "ERROR"]);
@@ -26,6 +30,7 @@ export const SYNC_CHANGE_TYPE_LABELS: Record<SyncChangeType, string> = {
 export const CreateLeagueSourceSchema = z
   .object({
     provider: LeagueProviderTypeSchema.default("ICAL_URL"),
+    leagueGroupTeamId: z.string().trim().min(1).nullable().optional(),
     name: z.string().trim().min(2, "Bezeichnung erforderlich.").max(120),
     sourceUrl: z
       .string()
@@ -82,6 +87,7 @@ export interface LeagueImportSourceDTO {
   id: string;
   clubId: string;
   teamId: string;
+  leagueGroupTeamId?: string | null;
   provider: LeagueProviderType;
   name: string;
   sourceUrl: string | null;

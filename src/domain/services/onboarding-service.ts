@@ -5,9 +5,11 @@ import {
   TeamRepository,
 } from "../adapters/repositories";
 import { SeasonCatalogRepository } from "../adapters/season-catalog-repository";
-import { OnboardingInput, OnboardingSchema } from "../schemas/club";
 import { DomainError } from "../errors";
 import { ViewerContext } from "../policies/rbac";
+import { OnboardingInput, OnboardingSchema } from "../schemas/club";
+import { TeamLeagueLinkResultDTO } from "../schemas/league-directory";
+import { LeagueDirectoryService } from "./league-directory-service";
 
 function slugify(value: string): string {
   return value
@@ -27,13 +29,16 @@ export class OnboardingService {
     private readonly teams: TeamRepository,
     private readonly members: MemberRepository,
     private readonly leagueCatalog?: LeagueCatalogRepository,
-    private readonly seasonCatalog?: SeasonCatalogRepository
+    private readonly seasonCatalog?: SeasonCatalogRepository,
+    private readonly leagueDirectory?: LeagueDirectoryService
   ) {}
 
   /**
    * Schlanker Einzelteam-Start oder Vereins-Onboarding in einem Schritt:
    * Legt automatisch Verein (Club), aktive Saison, erste Mannschaft (Team)
    * und das eigene Kader-Profil (TeamMember) an.
+   * Wenn eine HVNB-Verzeichnismannschaft (`leagueGroupTeamId`) gewählt wurde,
+   * werden automatisch Liga-Verknüpfung, Spielplan-Import & Staffel-Gegner eingerichtet.
    */
   async completeOnboarding(viewer: ViewerContext, rawInput: unknown) {
     const parsed = OnboardingSchema.safeParse(rawInput);
@@ -152,6 +157,15 @@ export class OnboardingService {
       phone: null,
     });
 
-    return { club, season, team, member };
+    let leagueLink: TeamLeagueLinkResultDTO | null = null;
+    if (input.leagueGroupTeamId && this.leagueDirectory) {
+      leagueLink = await this.leagueDirectory.linkTeamInternal(club.id, team.id, {
+        leagueGroupTeamId: input.leagueGroupTeamId,
+        autoImportSchedule: input.autoImportSchedule ?? true,
+        seedGroupOpponents: input.seedGroupOpponents ?? true,
+      });
+    }
+
+    return { club, season, team, member, leagueLink };
   }
 }

@@ -272,6 +272,7 @@ export class LeagueDirectoryService {
           teamName: groupTeam.name,
           groupName: groupTeam.group.name,
           groupUrl: groupTeam.group.externalUrl,
+          teamUrl: groupTeam.externalUrl,
         });
         if (feedUrl) {
           await this.directory.updateGroupTeamIcalUrl(groupTeam.id, feedUrl);

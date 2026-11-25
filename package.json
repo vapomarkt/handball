@@ -16,6 +16,7 @@
     "db:import-leagues:de": "tsx prisma/import-leagues-de.ts",
     "db:import-seasons": "tsx prisma/import-seasons.ts",
     "db:import-hvnb": "tsx prisma/import-hvnb-directory.ts",
+    "db:import-hvnb-live": "tsx prisma/import-hvnb-live.ts",
     "db:migrate": "prisma migrate deploy",
     "worker": "tsx src/infrastructure/jobs/run-worker.ts"
   },

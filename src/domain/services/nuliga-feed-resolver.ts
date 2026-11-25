@@ -6,6 +6,8 @@ export interface NuligaFeedTarget {
   groupName: string;
   /** Staffelseite aus dem HVNB-Verzeichnis (liefert Host und WebObjects-Pfad). */
   groupUrl: string | null;
+  /** Mannschaftsseite aus dem Verzeichnis – spart die Suche, wenn vorhanden. */
+  teamUrl?: string | null;
 }
 
 interface Link {
@@ -67,16 +69,30 @@ function pickGroupLink(html: string, target: NuligaFeedTarget): Link | null {
   return null;
 }
 
+function extractFeedUrl(html: string): string | null {
+  const feed = html.match(
+    /(?:webcal|https?):\/\/[^"'\s]*getTeamMeetingsWebcal[^"'\s]*/i
+  )?.[0];
+  if (!feed) return null;
+  return decodeHtml(feed).replace(/^webcal:\/\//i, "https://");
+}
+
 /**
  * Ermittelt den offiziellen nuLiga-Spielplan-Feed einer Mannschaft, wenn im
  * Verzeichnis noch keine Feed-URL hinterlegt ist:
- * Verein suchen → Mannschaften des Vereins → Staffelseite → Mannschaftsseite → Webcal-Link.
+ * Mannschaftsseite (falls bekannt) → sonst Verein suchen → Mannschaften des
+ * Vereins → Staffelseite → Mannschaftsseite → Webcal-Link.
  * Best effort: liefert null, sobald ein Schritt nicht eindeutig auflösbar ist.
  */
 export async function resolveNuligaTeamFeed(
   fetchText: FetchTextFn,
   target: NuligaFeedTarget
 ): Promise<string | null> {
+  if (target.teamUrl) {
+    const feed = extractFeedUrl(await fetchText(target.teamUrl));
+    if (feed) return feed;
+  }
+
   if (!target.groupUrl) return null;
 
   const url = new URL(target.groupUrl);
@@ -115,10 +131,5 @@ export async function resolveNuligaTeamFeed(
   if (!teamLink) return null;
 
   const teamPage = await fetchText(new URL(teamLink.href, base).toString());
-  const feed = teamPage.match(
-    /(?:webcal|https?):\/\/[^"'\s]*getTeamMeetingsWebcal[^"'\s]*/i
-  )?.[0];
-  if (!feed) return null;
-
-  return decodeHtml(feed).replace(/^webcal:\/\//i, "https://");
+  return extractFeedUrl(teamPage);
 }

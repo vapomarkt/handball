@@ -7,6 +7,7 @@ import {
   ClipboardList,
   LayoutDashboard,
   LogOut,
+  Settings,
   Shield,
   Users,
   Wallet,
@@ -134,6 +135,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+
+          {activeTeam?.isClubAdmin && (
+            <div className="pt-3 mt-3 border-t border-border">
+              <Link
+                href="/verwaltung"
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-semibold transition-colors",
+                  pathname === "/verwaltung" ||
+                    pathname.startsWith("/verwaltung/")
+                    ? "bg-primary/12 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Settings className="h-5 w-5 shrink-0" />
+                <span>Verwaltung</span>
+              </Link>
+            </div>
+          )}
         </nav>
 
         {/* User Footer */}
@@ -194,6 +213,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
 
         <div className="flex items-center gap-1">
+          {activeTeam?.isClubAdmin && (
+            <Link
+              href="/verwaltung"
+              aria-label="Verwaltung"
+              title="Saison-Verwaltung"
+              className={cn(
+                "inline-flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
+                pathname === "/verwaltung"
+                  ? "bg-primary/12 text-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              <Settings className="h-4 w-4" />
+            </Link>
+          )}
           <ThemeToggle />
           <Button
             type="button"

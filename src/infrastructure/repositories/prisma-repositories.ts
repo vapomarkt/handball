@@ -115,6 +115,8 @@ export class PrismaClubRepository implements ClubRepository {
     slug: string;
     city?: string | null;
     seasonName: string;
+    seasonStartDate?: Date | null;
+    seasonEndDate?: Date | null;
   }): Promise<{ club: ClubDTO; season: SeasonDTO }> {
     const result = await prisma.$transaction(async (tx) => {
       const club = await tx.club.create({
@@ -129,6 +131,8 @@ export class PrismaClubRepository implements ClubRepository {
         data: {
           clubId: club.id,
           name: input.seasonName,
+          startDate: input.seasonStartDate ?? null,
+          endDate: input.seasonEndDate ?? null,
           isActive: true,
         },
       });

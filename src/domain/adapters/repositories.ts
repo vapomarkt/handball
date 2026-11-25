@@ -40,6 +40,8 @@ export interface ClubRepository {
     slug: string;
     city?: string | null;
     seasonName: string;
+    seasonStartDate?: Date | null;
+    seasonEndDate?: Date | null;
   }): Promise<{ club: ClubDTO; season: SeasonDTO }>;
   createSeason(input: {
     clubId: string;

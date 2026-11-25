@@ -49,6 +49,7 @@ export const OnboardingSchema = z.object({
     .max(100),
   clubShortName: z.string().trim().max(20).optional(),
   city: z.string().trim().max(80).optional(),
+  seasonId: z.string().trim().min(1).optional(),
   seasonName: z.string().trim().min(3).max(30).default("2026/27"),
   teamName: z.string().trim().min(2, "Mannschaftsname erforderlich.").max(80),
   category: z.string().trim().min(2).max(50).default("Aktive"),

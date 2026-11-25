@@ -11,6 +11,7 @@ import { LeagueSyncService } from "@/domain/services/league-sync-service";
 import { OnboardingService } from "@/domain/services/onboarding-service";
 import { RosterService } from "@/domain/services/roster-service";
 import { ScoutingService } from "@/domain/services/scouting-service";
+import { SeasonCatalogService } from "@/domain/services/season-catalog-service";
 import { TacticService } from "@/domain/services/tactic-service";
 import { TrainingService } from "@/domain/services/training-service";
 import { VenueService } from "@/domain/services/venue-service";
@@ -43,6 +44,7 @@ import {
   PrismaTeamRepository,
   PrismaUserLookupRepository,
 } from "../repositories/prisma-repositories";
+import { PrismaSeasonCatalogRepository } from "../repositories/prisma-season-catalog-repository";
 
 const clubRepo = new PrismaClubRepository();
 const teamRepo = new PrismaTeamRepository();
@@ -53,6 +55,7 @@ const userLookupRepo = new PrismaUserLookupRepository();
 const venueRepo = new PrismaVenueRepository();
 const eventRepo = new PrismaEventRepository();
 const leagueCatalogRepo = new PrismaLeagueCatalogRepository();
+const seasonCatalogRepo = new PrismaSeasonCatalogRepository();
 const leagueSyncRepo = new PrismaLeagueSyncRepository();
 const carpoolRepo = new PrismaCarpoolRepository();
 const dutyRepo = new PrismaDutyRepository();
@@ -78,10 +81,12 @@ export const services = {
     clubRepo,
     teamRepo,
     memberRepo,
-    leagueCatalogRepo
+    leagueCatalogRepo,
+    seasonCatalogRepo
   ),
   club: new ClubService(clubRepo, teamRepo, leagueCatalogRepo),
   leagueCatalog: new LeagueCatalogService(leagueCatalogRepo),
+  seasonCatalog: new SeasonCatalogService(seasonCatalogRepo),
   roster: new RosterService(teamRepo, memberRepo),
   invite: new InviteService(teamRepo, memberRepo, inviteRepo, guardianRepo),
   guardian: new GuardianService(

@@ -4,6 +4,7 @@ import {
   MemberRepository,
   TeamRepository,
 } from "../adapters/repositories";
+import { SeasonCatalogRepository } from "../adapters/season-catalog-repository";
 import { OnboardingInput, OnboardingSchema } from "../schemas/club";
 import { DomainError } from "../errors";
 import { ViewerContext } from "../policies/rbac";
@@ -25,7 +26,8 @@ export class OnboardingService {
     private readonly clubs: ClubRepository,
     private readonly teams: TeamRepository,
     private readonly members: MemberRepository,
-    private readonly leagueCatalog?: LeagueCatalogRepository
+    private readonly leagueCatalog?: LeagueCatalogRepository,
+    private readonly seasonCatalog?: SeasonCatalogRepository
   ) {}
 
   /**
@@ -43,6 +45,50 @@ export class OnboardingService {
     }
 
     const input: OnboardingInput = parsed.data;
+
+    let resolvedSeasonName = input.seasonName;
+    let resolvedSeasonStartDate: Date | null = null;
+    let resolvedSeasonEndDate: Date | null = null;
+
+    if (this.seasonCatalog) {
+      if (input.seasonId) {
+        const catalogSeason = await this.seasonCatalog.findById(input.seasonId);
+        if (!catalogSeason || !catalogSeason.isActive) {
+          throw DomainError.validation(
+            "Die ausgewählte Saison existiert nicht oder ist nicht mehr aktiv.",
+            { seasonId: ["Bitte wähle eine gültige Saison aus der Liste aus."] }
+          );
+        }
+        resolvedSeasonName = catalogSeason.name;
+        resolvedSeasonStartDate = catalogSeason.startDate
+          ? new Date(catalogSeason.startDate)
+          : null;
+        resolvedSeasonEndDate = catalogSeason.endDate
+          ? new Date(catalogSeason.endDate)
+          : null;
+      } else {
+        const catalogSeason = await this.seasonCatalog.findByName(
+          input.seasonName
+        );
+        if (!catalogSeason || !catalogSeason.isActive) {
+          throw DomainError.validation(
+            "Die ausgewählte Saison ist nicht im Saison-Katalog hinterlegt.",
+            {
+              seasonId: [
+                "Bitte wähle eine gültige Saison aus der Auswahl-Liste.",
+              ],
+            }
+          );
+        }
+        resolvedSeasonName = catalogSeason.name;
+        resolvedSeasonStartDate = catalogSeason.startDate
+          ? new Date(catalogSeason.startDate)
+          : null;
+        resolvedSeasonEndDate = catalogSeason.endDate
+          ? new Date(catalogSeason.endDate)
+          : null;
+      }
+    }
 
     let resolvedLeagueId: string | null = input.leagueId ?? null;
     let resolvedLeagueName: string | null = input.leagueName ?? null;
@@ -70,7 +116,9 @@ export class OnboardingService {
       shortName: input.clubShortName ?? null,
       slug,
       city: input.city ?? null,
-      seasonName: input.seasonName,
+      seasonName: resolvedSeasonName,
+      seasonStartDate: resolvedSeasonStartDate,
+      seasonEndDate: resolvedSeasonEndDate,
     });
 
     const team = await this.teams.create({

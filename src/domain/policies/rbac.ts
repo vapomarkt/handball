@@ -25,6 +25,10 @@ export function isClubAdmin(viewer: ViewerContext, clubId: string): boolean {
   );
 }
 
+export function isAnyClubAdmin(viewer: ViewerContext): boolean {
+  return viewer.memberships.some((m) => m.role === "CLUB_ADMIN");
+}
+
 export function getTeamRolesForViewer(
   viewer: ViewerContext,
   teamId: string

@@ -26,6 +26,7 @@ import {
 import { hashPassword } from "better-auth/crypto";
 import { Pool } from "pg";
 import { importGermanLeagues } from "./import-leagues-de";
+import { importDefaultSeasons } from "./import-seasons";
 
 const connectionString =
   process.env.DATABASE_URL ??
@@ -154,10 +155,14 @@ async function main() {
     "Starte idempotentes Seeding für TuS Jahn Hollenstedt (männliche D-Jugend, nuLiga-Kader)..."
   );
 
-  // 0. Deutschen Liga-Katalog (DHB & alle Landesverbände) synchronisieren
+  // 0. Deutschen Liga-Katalog (DHB & alle Landesverbände) und Saison-Katalog synchronisieren
   const leagueImportResult = await importGermanLeagues(prisma);
   console.log(
     `Liga-Katalog Deutschland synchronisiert: ${leagueImportResult.total} Ligen (${leagueImportResult.federationCount} Verbände).`
+  );
+  const seasonImportResult = await importDefaultSeasons(prisma);
+  console.log(
+    `Saison-Katalog synchronisiert: ${seasonImportResult.created} neu angelegt (${seasonImportResult.total} Standardsaisons geprüft).`
   );
 
   const passwordHash = await hashPassword(DEMO_PASSWORD);

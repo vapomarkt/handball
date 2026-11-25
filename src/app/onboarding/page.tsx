@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  RefreshCw,
   Shield,
   Ticket,
   Trophy,
@@ -38,6 +39,7 @@ import {
 } from "@/domain/data/german-leagues";
 import { TeamGender } from "@/domain/schemas/handball";
 import { LeagueAgeGroup, LeagueDTO } from "@/domain/schemas/league-catalog";
+import { SeasonCatalogDTO } from "@/domain/schemas/season-catalog";
 import { cn } from "@/lib/utils";
 
 type WizardStep = 1 | 2 | 3;
@@ -87,7 +89,10 @@ export default function OnboardingPage() {
   // Schritt 1: Verein & Profil
   const [clubName, setClubName] = useState("");
   const [city, setCity] = useState("");
-  const [seasonName, setSeasonName] = useState("2026/27");
+  const [seasons, setSeasons] = useState<SeasonCatalogDTO[]>([]);
+  const [seasonsLoading, setSeasonsLoading] = useState(true);
+  const [seasonsError, setSeasonsError] = useState<string | null>(null);
+  const [selectedSeasonId, setSelectedSeasonId] = useState("");
   const [creatorFirstName, setCreatorFirstName] = useState("");
   const [creatorLastName, setCreatorLastName] = useState("");
   const [creatorRole, setCreatorRole] = useState<"COACH" | "CLUB_ADMIN">(
@@ -108,6 +113,71 @@ export default function OnboardingPage() {
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const loadSeasons = useCallback(async () => {
+    setSeasonsLoading(true);
+    setSeasonsError(null);
+    try {
+      const res = await fetch("/api/v1/seasons", { cache: "no-store" });
+      const data = await res.json();
+      if (!res.ok) {
+        setSeasonsError(
+          data?.error?.message || "Saisons konnten nicht geladen werden."
+        );
+        return;
+      }
+      const list: SeasonCatalogDTO[] = data.seasons ?? [];
+      setSeasons(list);
+      setSelectedSeasonId((prev) => {
+        if (prev && list.some((s) => s.id === prev)) return prev;
+        const preferred = list.find((s) => s.isDefault) ?? list[0];
+        return preferred ? preferred.id : "";
+      });
+    } catch {
+      setSeasonsError("Netzwerkfehler beim Laden der Saisons.");
+    } finally {
+      setSeasonsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/v1/seasons", { cache: "no-store" })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!active) return;
+        if (!res.ok) {
+          setSeasonsError(
+            data?.error?.message || "Saisons konnten nicht geladen werden."
+          );
+          return;
+        }
+        const list: SeasonCatalogDTO[] = data.seasons ?? [];
+        setSeasons(list);
+        setSelectedSeasonId((prev) => {
+          if (prev && list.some((s) => s.id === prev)) return prev;
+          const preferred = list.find((s) => s.isDefault) ?? list[0];
+          return preferred ? preferred.id : "";
+        });
+      })
+      .catch(() => {
+        if (active) {
+          setSeasonsError("Netzwerkfehler beim Laden der Saisons.");
+        }
+      })
+      .finally(() => {
+        if (active) setSeasonsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const selectedSeason = useMemo(
+    () => seasons.find((s) => s.id === selectedSeasonId) ?? null,
+    [seasons, selectedSeasonId]
+  );
 
   const activeAgeGroupMeta = useMemo(
     () => GERMAN_AGE_GROUPS.find((g) => g.value === ageGroup) ?? GERMAN_AGE_GROUPS[0],
@@ -161,8 +231,8 @@ export default function OnboardingPage() {
       setError("Bitte gib deinen Vereinsnamen ein (mind. 2 Zeichen).");
       return false;
     }
-    if (seasonName.trim().length < 3) {
-      setError("Bitte gib eine gültige Saison an (z. B. 2026/27).");
+    if (!selectedSeason) {
+      setError("Bitte wähle eine Saison aus der Liste aus.");
       return false;
     }
     if (!creatorFirstName.trim() || !creatorLastName.trim()) {
@@ -205,6 +275,10 @@ export default function OnboardingPage() {
 
   async function handleCreateClubTeam(e: React.FormEvent) {
     e.preventDefault();
+    if (!selectedSeason) {
+      setError("Bitte wähle eine Saison aus der Liste aus.");
+      return;
+    }
     if (!selectedLeague) {
       setError("Bitte wähle eine Liga aus dem Katalog aus.");
       return;
@@ -220,7 +294,8 @@ export default function OnboardingPage() {
         body: JSON.stringify({
           clubName: clubName.trim(),
           city: city.trim() || undefined,
-          seasonName: seasonName.trim(),
+          seasonId: selectedSeason.id,
+          seasonName: selectedSeason.name,
           teamName: teamName.trim(),
           category: activeAgeGroupMeta.defaultCategory,
           gender,
@@ -416,14 +491,47 @@ export default function OnboardingPage() {
                     </div>
                   </div>
 
-                  <div className="sm:max-w-[200px] space-y-1.5">
+                  <div className="sm:max-w-[260px] space-y-1.5">
                     <Label htmlFor="ob-season">Aktuelle Saison *</Label>
-                    <Input
-                      id="ob-season"
-                      required
-                      value={seasonName}
-                      onChange={(e) => setSeasonName(e.target.value)}
-                    />
+                    {seasonsLoading ? (
+                      <div className="flex h-10 items-center gap-2 rounded-lg border border-input bg-muted/40 px-3 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Saisons werden geladen…
+                      </div>
+                    ) : seasonsError || seasons.length === 0 ? (
+                      <div className="space-y-2">
+                        <p className="text-xs text-red-600 dark:text-red-400">
+                          {seasonsError ??
+                            "Derzeit sind keine aktiven Saisons hinterlegt."}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void loadSeasons()}
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                          Erneut laden
+                        </Button>
+                      </div>
+                    ) : (
+                      <SelectNative
+                        id="ob-season"
+                        required
+                        value={selectedSeasonId}
+                        onChange={(e) => {
+                          setSelectedSeasonId(e.target.value);
+                          setError(null);
+                        }}
+                      >
+                        {seasons.map((season) => (
+                          <option key={season.id} value={season.id}>
+                            {season.name}
+                            {season.isDefault ? " (Aktuell)" : ""}
+                          </option>
+                        ))}
+                      </SelectNative>
+                    )}
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-3 pt-4 border-t border-border">
@@ -681,7 +789,7 @@ export default function OnboardingPage() {
                       <div>
                         <span className="text-muted-foreground">Saison: </span>
                         <span className="font-semibold text-foreground">
-                          {seasonName}
+                          {selectedSeason?.name ?? "Noch nicht ausgewählt"}
                         </span>
                       </div>
                       <div>

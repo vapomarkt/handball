@@ -27,32 +27,29 @@ Mobile-First Webapp & PWA für Handballvereine, Trainer, Spieler und Eltern (Nex
 
 ---
 
-## Self-Hosting / Produktion (Hetzner + Docker + `nginx-proxy`)
+## Self-Hosting / Produktion (Hetzner + Docker + nginx)
 
-1. Auf dem Server klonen und `.env` anlegen:
+Betrieb wie VapoMarkt: Images werden auf dem Server aus dem exakten Commit gebaut, die App lauscht nur auf `127.0.0.1:3003`, TLS macht das Host-nginx.
+
+1. Env-Datei anlegen (nicht in Git):
    ```bash
-   git clone https://github.com/vapomarkt/handball.git throwoff
-   cd throwoff
-   cp .env.prod.example .env
-   # .env ausfüllen (POSTGRES_PASSWORD, BETTER_AUTH_SECRET, PROXY_NETWORK)
-   # Hinweis: Den exakten Netzwerknamen deines nginx-proxy findest du mit: docker network ls
+   sudo mkdir -p /srv/throwoff/shared/env
+   sudo install -m 600 -o vmadmin -g vmadmin .env.prod.example /srv/throwoff/shared/env/.env.prod
+   # POSTGRES_PASSWORD (openssl rand -hex 24) und BETTER_AUTH_SECRET (openssl rand -hex 32) eintragen
    ```
-2. Bauen und starten (inkl. PostgreSQL 16, automatischer Prisma-Migration & `pg-boss`-Worker):
+2. Deployen (baut `throwoff-app:<sha>` / `throwoff-worker:<sha>`, migriert, startet neu, prüft `/api/health`):
    ```bash
-   docker compose -f docker-compose.prod.yml up -d --build
+   git pull
+   /srv/throwoff/deploy/update-app "$(git rev-parse HEAD)"
    ```
-3. Optional Demo-Daten (TSV Musterstadt) einmalig einspielen:
+3. Optional Demo-Daten einmalig einspielen:
    ```bash
-   docker compose -f docker-compose.prod.yml run --rm migrate npm run db:seed
+   IMAGE_TAG="$(git rev-parse HEAD)" docker compose --env-file /srv/throwoff/shared/env/.env.prod \
+     -f docker-compose.prod.yml run --rm migrate npm run db:seed
    ```
 4. Healthcheck prüfen:
    ```bash
-   docker compose -f docker-compose.prod.yml ps
    curl -i https://throwoff.app/api/health
-   ```
-5. Updates deployen:
-   ```bash
-   git pull && docker compose -f docker-compose.prod.yml up -d --build
    ```
 
 ---

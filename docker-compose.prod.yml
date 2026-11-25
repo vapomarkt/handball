@@ -1,96 +1,97 @@
+name: throwoff-production
+
+x-logging: &default-logging
+  driver: local
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-service-security: &service-security
+  security_opt:
+    - no-new-privileges:true
+
 services:
-  postgres:
+  app:
+    image: throwoff-app:${IMAGE_TAG:?Set IMAGE_TAG to the exact production commit SHA}
+    container_name: throwoff-app
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ${THROWOFF_ENV_FILE:-/srv/throwoff/shared/env/.env.prod}
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-throwoff}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD muss gesetzt sein}@db:5432/${POSTGRES_DB:-throwoff}?schema=public
+    ports:
+      - "127.0.0.1:${THROWOFF_APP_PORT:-3003}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    stop_grace_period: 30s
+    networks:
+      - internal
+    logging: *default-logging
+    <<: *service-security
+
+  worker:
+    image: throwoff-worker:${IMAGE_TAG:?Set IMAGE_TAG to the exact production commit SHA}
+    container_name: throwoff-worker
+    restart: unless-stopped
+    init: true
+    command: ["npm", "run", "worker"]
+    env_file:
+      - ${THROWOFF_ENV_FILE:-/srv/throwoff/shared/env/.env.prod}
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-throwoff}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD muss gesetzt sein}@db:5432/${POSTGRES_DB:-throwoff}?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    stop_grace_period: 30s
+    networks:
+      - internal
+    logging: *default-logging
+    <<: *service-security
+
+  migrate:
+    image: throwoff-worker:${IMAGE_TAG:?Set IMAGE_TAG to the exact production commit SHA}
+    container_name: throwoff-migrate
+    profiles: ["migration"]
+    restart: "no"
+    command: ["npx", "prisma", "migrate", "deploy"]
+    env_file:
+      - ${THROWOFF_ENV_FILE:-/srv/throwoff/shared/env/.env.prod}
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-throwoff}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD muss gesetzt sein}@db:5432/${POSTGRES_DB:-throwoff}?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+    logging: *default-logging
+    <<: *service-security
+
+  db:
     image: postgres:16-alpine
-    container_name: throwoff-postgres
+    container_name: throwoff-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-throwoff}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD muss gesetzt sein}
       POSTGRES_DB: ${POSTGRES_DB:-throwoff}
     volumes:
-      - throwoff_pgdata:/var/lib/postgresql/data
+      - /srv/throwoff/shared/db/postgres:/var/lib/postgresql/data
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER:-throwoff} -d ${POSTGRES_DB:-throwoff}",
-        ]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-throwoff} -d ${POSTGRES_DB:-throwoff}"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 12
+    stop_grace_period: 60s
     networks:
       - internal
-
-  migrate:
-    build:
-      context: .
-      target: worker
-    container_name: throwoff-migrate
-    restart: "no"
-    command: ["npx", "prisma", "migrate", "deploy"]
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-throwoff}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-throwoff}?schema=public
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - internal
-
-  app:
-    build:
-      context: .
-      target: runner
-      args:
-        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://throwoff.app}
-    container_name: throwoff-app
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-throwoff}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-throwoff}?schema=public
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET muss gesetzt sein}
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-https://throwoff.app}
-      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://throwoff.app}
-      BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-https://www.throwoff.app}
-      # nginx-proxy & acme-companion (Let's Encrypt)
-      VIRTUAL_HOST: ${VIRTUAL_HOST:-throwoff.app,www.throwoff.app}
-      VIRTUAL_PORT: 3000
-      LETSENCRYPT_HOST: ${LETSENCRYPT_HOST:-throwoff.app,www.throwoff.app}
-      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-hello@throwoff.app}
-    expose:
-      - "3000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
-    networks:
-      - internal
-      - proxy
-
-  worker:
-    build:
-      context: .
-      target: worker
-    container_name: throwoff-worker
-    restart: unless-stopped
-    command: ["npm", "run", "worker"]
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-throwoff}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-throwoff}?schema=public
-    depends_on:
-      postgres:
-        condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
-    networks:
-      - internal
-
-volumes:
-  throwoff_pgdata:
+    logging: *default-logging
+    <<: *service-security
 
 networks:
   internal:
-    driver: bridge
-  proxy:
-    external: true
-    name: ${PROXY_NETWORK:-nginx-proxy}
+    name: throwoff-internal

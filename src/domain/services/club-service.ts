@@ -1,3 +1,4 @@
+import { LeagueCatalogRepository } from "../adapters/league-catalog-repository";
 import {
   ClubRepository,
   TeamRepository,
@@ -33,7 +34,8 @@ function slugify(value: string): string {
 export class ClubService {
   constructor(
     private readonly clubs: ClubRepository,
-    private readonly teams: TeamRepository
+    private readonly teams: TeamRepository,
+    private readonly leagueCatalog?: LeagueCatalogRepository
   ) {}
 
   async listClubsForUser(viewer: ViewerContext) {
@@ -126,13 +128,28 @@ export class ClubService {
       );
     }
 
+    let resolvedLeagueId = parsed.data.leagueId ?? null;
+    let resolvedLeagueName = parsed.data.leagueName ?? null;
+    if (resolvedLeagueId && this.leagueCatalog) {
+      const league = await this.leagueCatalog.findById(resolvedLeagueId);
+      if (!league) {
+        throw DomainError.validation(
+          "Die ausgewählte Liga existiert nicht im Liga-Katalog.",
+          { leagueId: ["Bitte wähle eine gültige Liga aus der Liste aus."] }
+        );
+      }
+      resolvedLeagueId = league.id;
+      resolvedLeagueName = league.displayName;
+    }
+
     return this.teams.create({
       clubId,
       seasonId: parsed.data.seasonId,
       name: parsed.data.name,
       category: parsed.data.category,
       gender: parsed.data.gender,
-      leagueName: parsed.data.leagueName ?? null,
+      leagueId: resolvedLeagueId,
+      leagueName: resolvedLeagueName,
     });
   }
 
@@ -166,6 +183,19 @@ export class ClubService {
       );
     }
 
-    return this.teams.update(teamId, parsed.data);
+    const updateData = { ...parsed.data };
+    if (updateData.leagueId && this.leagueCatalog) {
+      const league = await this.leagueCatalog.findById(updateData.leagueId);
+      if (!league) {
+        throw DomainError.validation(
+          "Die ausgewählte Liga existiert nicht im Liga-Katalog.",
+          { leagueId: ["Bitte wähle eine gültige Liga aus der Liste aus."] }
+        );
+      }
+      updateData.leagueId = league.id;
+      updateData.leagueName = league.displayName;
+    }
+
+    return this.teams.update(teamId, updateData);
   }
 }

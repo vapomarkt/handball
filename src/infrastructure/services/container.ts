@@ -6,6 +6,7 @@ import { DutyService } from "@/domain/services/duty-service";
 import { EventService } from "@/domain/services/event-service";
 import { GuardianService } from "@/domain/services/guardian-service";
 import { InviteService } from "@/domain/services/invite-service";
+import { LeagueCatalogService } from "@/domain/services/league-catalog-service";
 import { LeagueSyncService } from "@/domain/services/league-sync-service";
 import { OnboardingService } from "@/domain/services/onboarding-service";
 import { RosterService } from "@/domain/services/roster-service";
@@ -17,6 +18,7 @@ import {
   PrismaEventRepository,
   PrismaVenueRepository,
 } from "../repositories/prisma-event-repositories";
+import { PrismaLeagueCatalogRepository } from "../repositories/prisma-league-catalog-repository";
 import {
   PrismaCarpoolRepository,
   PrismaLeagueSyncRepository,
@@ -50,6 +52,7 @@ const guardianRepo = new PrismaGuardianRepository();
 const userLookupRepo = new PrismaUserLookupRepository();
 const venueRepo = new PrismaVenueRepository();
 const eventRepo = new PrismaEventRepository();
+const leagueCatalogRepo = new PrismaLeagueCatalogRepository();
 const leagueSyncRepo = new PrismaLeagueSyncRepository();
 const carpoolRepo = new PrismaCarpoolRepository();
 const dutyRepo = new PrismaDutyRepository();
@@ -71,8 +74,14 @@ async function fetchUrlText(url: string): Promise<string> {
 }
 
 export const services = {
-  onboarding: new OnboardingService(clubRepo, teamRepo, memberRepo),
-  club: new ClubService(clubRepo, teamRepo),
+  onboarding: new OnboardingService(
+    clubRepo,
+    teamRepo,
+    memberRepo,
+    leagueCatalogRepo
+  ),
+  club: new ClubService(clubRepo, teamRepo, leagueCatalogRepo),
+  leagueCatalog: new LeagueCatalogService(leagueCatalogRepo),
   roster: new RosterService(teamRepo, memberRepo),
   invite: new InviteService(teamRepo, memberRepo, inviteRepo, guardianRepo),
   guardian: new GuardianService(

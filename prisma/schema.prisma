@@ -53,6 +53,17 @@ enum InviteType {
   GUARDIAN_LINK
 }
 
+enum LeagueAgeGroup {
+  ADULT
+  YOUTH_A
+  YOUTH_B
+  YOUTH_C
+  YOUTH_D
+  YOUTH_E
+  YOUTH_F_MINI
+  SENIOR
+}
+
 // ============================================================================
 // Enums (Meilenstein 2a)
 // ============================================================================
@@ -329,6 +340,8 @@ model Team {
   name       String
   category   String     @default("Aktive")
   gender     TeamGender @default(MALE)
+  leagueId   String?
+  league     League?    @relation(fields: [leagueId], references: [id], onDelete: SetNull)
   leagueName String?
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
@@ -354,6 +367,7 @@ model Team {
   @@unique([clubId, seasonId, name])
   @@index([clubId])
   @@index([seasonId])
+  @@index([leagueId])
   @@map("team")
 }
 
@@ -987,4 +1001,31 @@ model TeamCashEntry {
   @@index([teamId, status, createdAt])
   @@index([memberId])
   @@map("team_cash_entry")
+}
+
+// ============================================================================
+// Liga-Katalog (Stammdaten, z. B. Deutschland DHB & Landesverbände)
+// ============================================================================
+
+model League {
+  id             String         @id @default(cuid())
+  code           String         @unique
+  countryCode    String         @default("DE")
+  federationCode String
+  federationName String
+  ageGroup       LeagueAgeGroup
+  gender         TeamGender
+  tier           Int
+  name           String
+  shortName      String?
+  displayName    String
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  teams Team[]
+
+  @@index([countryCode, ageGroup, gender, federationCode])
+  @@index([countryCode, federationCode])
+  @@map("league")
 }

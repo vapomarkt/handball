@@ -1,3 +1,4 @@
+import { LeagueCatalogRepository } from "../adapters/league-catalog-repository";
 import {
   ClubRepository,
   MemberRepository,
@@ -23,7 +24,8 @@ export class OnboardingService {
   constructor(
     private readonly clubs: ClubRepository,
     private readonly teams: TeamRepository,
-    private readonly members: MemberRepository
+    private readonly members: MemberRepository,
+    private readonly leagueCatalog?: LeagueCatalogRepository
   ) {}
 
   /**
@@ -41,6 +43,22 @@ export class OnboardingService {
     }
 
     const input: OnboardingInput = parsed.data;
+
+    let resolvedLeagueId: string | null = input.leagueId ?? null;
+    let resolvedLeagueName: string | null = input.leagueName ?? null;
+
+    if (input.leagueId && this.leagueCatalog) {
+      const league = await this.leagueCatalog.findById(input.leagueId);
+      if (!league) {
+        throw DomainError.validation(
+          "Die ausgewählte Liga existiert nicht im Liga-Katalog.",
+          { leagueId: ["Bitte wähle eine gültige Liga aus der Liste aus."] }
+        );
+      }
+      resolvedLeagueId = league.id;
+      resolvedLeagueName = league.displayName;
+    }
+
     const baseSlug = slugify(input.clubName) || "verein";
     const existing = await this.clubs.findBySlug(baseSlug);
     const slug = existing
@@ -61,7 +79,8 @@ export class OnboardingService {
       name: input.teamName,
       category: input.category,
       gender: input.gender,
-      leagueName: input.leagueName ?? null,
+      leagueId: resolvedLeagueId,
+      leagueName: resolvedLeagueName,
     });
 
     // Beim Einzelteam-Start erhält der Ersteller mindestens CLUB_ADMIN oder COACH

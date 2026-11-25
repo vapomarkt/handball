@@ -23,6 +23,7 @@ export interface TeamRecord {
   name: string;
   category: string;
   gender: TeamGender;
+  leagueId?: string | null;
   leagueName: string | null;
   seasonName?: string;
   clubName?: string;
@@ -58,6 +59,7 @@ export interface TeamRepository {
     name: string;
     category: string;
     gender: TeamGender;
+    leagueId?: string | null;
     leagueName?: string | null;
   }): Promise<TeamRecord>;
   update(
@@ -66,6 +68,7 @@ export interface TeamRepository {
       name?: string;
       category?: string;
       gender?: TeamGender;
+      leagueId?: string | null;
       leagueName?: string | null;
     }
   ): Promise<TeamRecord>;

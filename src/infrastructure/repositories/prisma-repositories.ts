@@ -179,6 +179,7 @@ export class PrismaTeamRepository implements TeamRepository {
       name: t.name,
       category: t.category,
       gender: t.gender,
+      leagueId: t.leagueId,
       leagueName: t.leagueName,
       seasonName: t.season.name,
       clubName: t.club.name,
@@ -203,6 +204,7 @@ export class PrismaTeamRepository implements TeamRepository {
       name: t.name,
       category: t.category,
       gender: t.gender,
+      leagueId: t.leagueId,
       leagueName: t.leagueName,
       seasonName: t.season.name,
       clubName: t.club.name,
@@ -216,6 +218,7 @@ export class PrismaTeamRepository implements TeamRepository {
     name: string;
     category: string;
     gender: TeamGender;
+    leagueId?: string | null;
     leagueName?: string | null;
   }): Promise<TeamRecord> {
     const t = await prisma.team.create({
@@ -225,6 +228,7 @@ export class PrismaTeamRepository implements TeamRepository {
         name: input.name,
         category: input.category,
         gender: input.gender,
+        leagueId: input.leagueId ?? null,
         leagueName: input.leagueName ?? null,
       },
       include: {
@@ -240,6 +244,7 @@ export class PrismaTeamRepository implements TeamRepository {
       name: t.name,
       category: t.category,
       gender: t.gender,
+      leagueId: t.leagueId,
       leagueName: t.leagueName,
       seasonName: t.season.name,
       clubName: t.club.name,
@@ -253,6 +258,7 @@ export class PrismaTeamRepository implements TeamRepository {
       name?: string;
       category?: string;
       gender?: TeamGender;
+      leagueId?: string | null;
       leagueName?: string | null;
     }
   ): Promise<TeamRecord> {
@@ -272,6 +278,7 @@ export class PrismaTeamRepository implements TeamRepository {
       name: t.name,
       category: t.category,
       gender: t.gender,
+      leagueId: t.leagueId,
       leagueName: t.leagueName,
       seasonName: t.season.name,
       clubName: t.club.name,

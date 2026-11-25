@@ -27,6 +27,7 @@ export const CreateTeamSchema = z.object({
   seasonId: z.string().min(1, "Saison muss ausgewählt sein."),
   category: z.string().trim().min(2).max(50).default("Aktive"),
   gender: TeamGenderSchema.default("MALE"),
+  leagueId: z.string().trim().min(1).optional().nullable(),
   leagueName: z.string().trim().max(100).optional().nullable(),
 });
 export type CreateTeamInput = z.infer<typeof CreateTeamSchema>;
@@ -35,6 +36,7 @@ export const UpdateTeamSchema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
   category: z.string().trim().min(2).max(50).optional(),
   gender: TeamGenderSchema.optional(),
+  leagueId: z.string().trim().min(1).optional().nullable(),
   leagueName: z.string().trim().max(100).optional().nullable(),
 });
 export type UpdateTeamInput = z.infer<typeof UpdateTeamSchema>;
@@ -51,6 +53,7 @@ export const OnboardingSchema = z.object({
   teamName: z.string().trim().min(2, "Mannschaftsname erforderlich.").max(80),
   category: z.string().trim().min(2).max(50).default("Aktive"),
   gender: TeamGenderSchema.default("MALE"),
+  leagueId: z.string().trim().min(1).optional(),
   leagueName: z.string().trim().max(100).optional(),
   creatorFirstName: z.string().trim().min(1, "Vorname erforderlich.").max(60),
   creatorLastName: z.string().trim().min(1, "Nachname erforderlich.").max(60),
@@ -84,6 +87,7 @@ export interface TeamDTO {
   name: string;
   category: string;
   gender: "MALE" | "FEMALE" | "MIXED";
+  leagueId?: string | null;
   leagueName: string | null;
   memberCount?: number;
   seasonName?: string;

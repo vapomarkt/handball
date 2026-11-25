@@ -25,6 +25,7 @@ import {
 } from "@prisma/client";
 import { hashPassword } from "better-auth/crypto";
 import { Pool } from "pg";
+import { importGermanLeagues } from "./import-leagues-de";
 
 const connectionString =
   process.env.DATABASE_URL ??
@@ -151,6 +152,12 @@ async function upsertTeamMember(params: {
 async function main() {
   console.log(
     "Starte idempotentes Seeding für TuS Jahn Hollenstedt (männliche D-Jugend, nuLiga-Kader)..."
+  );
+
+  // 0. Deutschen Liga-Katalog (DHB & alle Landesverbände) synchronisieren
+  const leagueImportResult = await importGermanLeagues(prisma);
+  console.log(
+    `Liga-Katalog Deutschland synchronisiert: ${leagueImportResult.total} Ligen (${leagueImportResult.federationCount} Verbände).`
   );
 
   const passwordHash = await hashPassword(DEMO_PASSWORD);

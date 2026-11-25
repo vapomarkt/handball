@@ -107,6 +107,7 @@ async function upsertTeamMember(params: {
   return prisma.teamMember.upsert({
     where: { id: params.id },
     update: {
+      userId: params.userId ?? null,
       role: params.role,
       firstName: params.firstName,
       lastName: params.lastName,
@@ -172,14 +173,14 @@ async function main() {
   const playerUser = await upsertDemoUser({
     id: "user-tjh-player",
     email: "spieler@tus-jahn-hollenstedt.de",
-    name: "Matti Borgmann",
+    name: "Jarle Hofmann",
     passwordHash,
   });
 
   const parentUser = await upsertDemoUser({
     id: "user-tjh-parent",
     email: "eltern@tus-jahn-hollenstedt.de",
-    name: "Familie Ruser",
+    name: "Familie Hofmann",
     passwordHash,
   });
 
@@ -366,9 +367,19 @@ async function main() {
     userId: parentUser.id,
     role: MemberRole.PARENT,
     firstName: "Familie",
-    lastName: "Ruser",
+    lastName: "Hofmann",
     email: parentUser.email,
     teamRoles: ["Elternvertretung"],
+  });
+
+  // Falls vorheriger Seed user-tjh-player einem anderen Spieler zugeordnet hatte, zuerst lösen
+  await prisma.teamMember.updateMany({
+    where: {
+      teamId: mjdTeam.id,
+      userId: playerUser.id,
+      id: { not: "member-mjd-jarle-hofmann" },
+    },
+    data: { userId: null, email: null },
   });
 
   // 6. Echter Spielerkader männliche D-Jugend (aus den nuLiga-Spielberichten #4, #6 & #15)
@@ -480,14 +491,15 @@ async function main() {
     isMinor: true,
   });
 
-  await upsertTeamMember({
+  const jarleHofmann = await upsertTeamMember({
     id: "member-mjd-jarle-hofmann",
     clubId: club.id,
     teamId: mjdTeam.id,
-    userId: null,
+    userId: playerUser.id,
     role: MemberRole.PLAYER,
     firstName: "Jarle",
     lastName: "Hofmann",
+    email: playerUser.email,
     jerseyNumber: 9,
     primaryPosition: HandballPosition.RA,
     throwingHand: ThrowingHand.RIGHT,
@@ -531,11 +543,10 @@ async function main() {
     id: "member-mjd-matti-borgmann",
     clubId: club.id,
     teamId: mjdTeam.id,
-    userId: playerUser.id,
+    userId: null,
     role: MemberRole.PLAYER,
     firstName: "Matti",
     lastName: "Borgmann",
-    email: playerUser.email,
     jerseyNumber: 14,
     primaryPosition: HandballPosition.RM,
     secondaryPosition: HandballPosition.RR,
@@ -575,20 +586,10 @@ async function main() {
     isMinor: true,
   });
 
-  // 7. Eltern-Kind-Verknüpfungen (Familie Ruser -> Fiete #1 & Piet #12)
-  await prisma.guardianLink.upsert({
+  // 7. Eltern-Kind-Verknüpfung (Familie Hofmann -> Jarle Hofmann #9)
+  await prisma.guardianLink.deleteMany({
     where: {
-      guardianUserId_childMemberId: {
-        guardianUserId: parentUser.id,
-        childMemberId: fieteRuser.id,
-      },
-    },
-    update: { relationship: "Elternteil" },
-    create: {
-      id: "guardian-tjh-ruser-fiete",
-      guardianUserId: parentUser.id,
-      childMemberId: fieteRuser.id,
-      relationship: "Elternteil",
+      id: { in: ["guardian-tjh-ruser-fiete", "guardian-tjh-ruser-piet"] },
     },
   });
 
@@ -596,14 +597,14 @@ async function main() {
     where: {
       guardianUserId_childMemberId: {
         guardianUserId: parentUser.id,
-        childMemberId: pietRuser.id,
+        childMemberId: jarleHofmann.id,
       },
     },
     update: { relationship: "Elternteil" },
     create: {
-      id: "guardian-tjh-ruser-piet",
+      id: "guardian-tjh-hofmann-jarle",
       guardianUserId: parentUser.id,
-      childMemberId: pietRuser.id,
+      childMemberId: jarleHofmann.id,
       relationship: "Elternteil",
     },
   });
@@ -1146,6 +1147,7 @@ async function main() {
     "member-mjd-jonas-mayer",
     RsvpStatus.MAYBE
   );
+  await upsertRsvp(mjdTrainingNext.id, jarleHofmann.id, RsvpStatus.ACCEPTED);
   await upsertRsvp(mjdTrainingNext.id, fieteRuser.id, RsvpStatus.PENDING);
   await upsertRsvp(mjdTrainingNext.id, pietRuser.id, RsvpStatus.PENDING);
   await upsertRsvp(
@@ -1156,6 +1158,7 @@ async function main() {
     "Schulveranstaltung am Nachmittag"
   );
 
+  await upsertRsvp(nextAwayMatchId, jarleHofmann.id, RsvpStatus.ACCEPTED);
   await upsertRsvp(
     nextAwayMatchId,
     "member-mjd-matti-borgmann",
@@ -1184,6 +1187,7 @@ async function main() {
   await upsertRsvp(nextAwayMatchId, fieteRuser.id, RsvpStatus.ACCEPTED);
   await upsertRsvp(nextAwayMatchId, pietRuser.id, RsvpStatus.ACCEPTED);
 
+  await upsertRsvp(nextHomeMatchId, jarleHofmann.id, RsvpStatus.PENDING);
   await upsertRsvp(
     nextHomeMatchId,
     "member-mjd-matti-borgmann",

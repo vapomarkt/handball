@@ -22,8 +22,8 @@ Mobile-First Webapp & PWA für Handballvereine, Trainer, Spieler und Eltern (Nex
 ### Demo-Zugänge – TuS Jahn Hollenstedt · männliche D-Jugend (Passwort: `ThrowOff2026!`)
 - **Trainer (`COACH`) – Hans-Peter Lehmann**: `trainer@tus-jahn-hollenstedt.de`
 - **Vereins-Admin (`CLUB_ADMIN`) – Kay Kröpfl**: `admin@tus-jahn-hollenstedt.de`
-- **Spieler (`PLAYER`) – Matti Borgmann (#14)**: `spieler@tus-jahn-hollenstedt.de`
-- **Elternteil (`PARENT`) – Familie Ruser (Fiete #1 & Piet #12)**: `eltern@tus-jahn-hollenstedt.de`
+- **Spieler (`PLAYER`) – Jarle Hofmann (#9)**: `spieler@tus-jahn-hollenstedt.de`
+- **Elternteil (`PARENT`) – Familie Hofmann (Jarle #9)**: `eltern@tus-jahn-hollenstedt.de`
 
 ---
 

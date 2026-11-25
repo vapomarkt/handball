@@ -19,10 +19,10 @@ import { Label } from "@/components/ui/label";
 import { signIn } from "@/infrastructure/auth/auth-client";
 
 const DEMO_ACCOUNTS = [
-  { label: "Trainer (mD-Jugend)", email: "trainer@tus-jahn-hollenstedt.de" },
-  { label: "Vereins-Admin", email: "admin@tus-jahn-hollenstedt.de" },
-  { label: "Spieler (mD-Jugend)", email: "spieler@tus-jahn-hollenstedt.de" },
-  { label: "Elternteil (mD-Jugend)", email: "eltern@tus-jahn-hollenstedt.de" },
+  { label: "Trainer · Hans-Peter Lehmann", email: "trainer@tus-jahn-hollenstedt.de" },
+  { label: "Admin · Kay Kröpfl", email: "admin@tus-jahn-hollenstedt.de" },
+  { label: "Spieler · Matti Borgmann (#14)", email: "spieler@tus-jahn-hollenstedt.de" },
+  { label: "Eltern · Familie Ruser", email: "eltern@tus-jahn-hollenstedt.de" },
 ];
 
 function LoginForm() {

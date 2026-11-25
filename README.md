@@ -20,10 +20,10 @@ Mobile-First Webapp & PWA für Handballvereine, Trainer, Spieler und Eltern (Nex
 4. **Deploy** klicken – `npm run vercel-build` führt automatisch `prisma generate`, `prisma migrate deploy`, optional `db:seed` und `next build` aus.
 
 ### Demo-Zugänge – TuS Jahn Hollenstedt · männliche D-Jugend (Passwort: `ThrowOff2026!`)
-- **Trainer (`COACH`)**: `trainer@tus-jahn-hollenstedt.de`
-- **Vereins-Admin (`CLUB_ADMIN`)**: `admin@tus-jahn-hollenstedt.de`
-- **Spieler (`PLAYER`)**: `spieler@tus-jahn-hollenstedt.de`
-- **Elternteil (`PARENT`)**: `eltern@tus-jahn-hollenstedt.de`
+- **Trainer (`COACH`) – Hans-Peter Lehmann**: `trainer@tus-jahn-hollenstedt.de`
+- **Vereins-Admin (`CLUB_ADMIN`) – Kay Kröpfl**: `admin@tus-jahn-hollenstedt.de`
+- **Spieler (`PLAYER`) – Matti Borgmann (#14)**: `spieler@tus-jahn-hollenstedt.de`
+- **Elternteil (`PARENT`) – Familie Ruser (Fiete #1 & Piet #12)**: `eltern@tus-jahn-hollenstedt.de`
 
 ---
 

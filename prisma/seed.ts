@@ -149,37 +149,37 @@ async function upsertTeamMember(params: {
 
 async function main() {
   console.log(
-    "Starte idempotentes Seeding für TuS Jahn Hollenstedt (männliche D-Jugend)..."
+    "Starte idempotentes Seeding für TuS Jahn Hollenstedt (männliche D-Jugend, nuLiga-Kader)..."
   );
 
   const passwordHash = await hashPassword(DEMO_PASSWORD);
 
-  // 1. Demo-Benutzerkonten (TuS Jahn Hollenstedt)
+  // 1. Demo-Benutzerkonten (TuS Jahn Hollenstedt – basierend auf nuLiga-Offiziellen & Kader)
   const adminUser = await upsertDemoUser({
     id: "user-tjh-admin",
     email: "admin@tus-jahn-hollenstedt.de",
-    name: "Sabine Krause",
+    name: "Kay Kröpfl",
     passwordHash,
   });
 
   const coachUser = await upsertDemoUser({
     id: "user-tjh-coach",
     email: "trainer@tus-jahn-hollenstedt.de",
-    name: "Markus Brenner",
+    name: "Hans-Peter Lehmann",
     passwordHash,
   });
 
   const playerUser = await upsertDemoUser({
     id: "user-tjh-player",
     email: "spieler@tus-jahn-hollenstedt.de",
-    name: "Lukas Hartmann",
+    name: "Matti Borgmann",
     passwordHash,
   });
 
   const parentUser = await upsertDemoUser({
     id: "user-tjh-parent",
     email: "eltern@tus-jahn-hollenstedt.de",
-    name: "Katrin Weber",
+    name: "Familie Ruser",
     passwordHash,
   });
 
@@ -294,18 +294,35 @@ async function main() {
     },
   });
 
-  // 5. Kader männliche D-Jugend (TuS Jahn Hollenstedt)
+  // Alte fiktive Platzhalter-Profile bereinigen, falls vorheriger Seed bereits lief
+  await prisma.teamMember.deleteMany({
+    where: {
+      id: {
+        in: [
+          "member-mjd-lukas",
+          "member-mjd-leo",
+          "member-mjd-tim",
+          "member-mjd-jonas",
+          "member-mjd-finn",
+          "member-mjd-max",
+          "member-mjd-nico",
+          "member-mjd-ben",
+        ],
+      },
+    },
+  });
+
+  // 5. Trainerteam & Offizielle (aus den nuLiga-Spielberichten der Regionsoberliga MJD Nord)
   await upsertTeamMember({
     id: "member-mjd-admin",
     clubId: club.id,
     teamId: mjdTeam.id,
     userId: adminUser.id,
     role: MemberRole.CLUB_ADMIN,
-    firstName: "Sabine",
-    lastName: "Krause",
+    firstName: "Kay",
+    lastName: "Kröpfl",
     email: adminUser.email,
-    phone: "+49 170 1112233",
-    teamRoles: ["Jugendleitung"],
+    teamRoles: ["Offizieller B", "Vereins-Admin"],
   });
 
   await upsertTeamMember({
@@ -314,11 +331,32 @@ async function main() {
     teamId: mjdTeam.id,
     userId: coachUser.id,
     role: MemberRole.COACH,
-    firstName: "Markus",
-    lastName: "Brenner",
+    firstName: "Hans-Peter",
+    lastName: "Lehmann",
     email: coachUser.email,
-    phone: "+49 171 2223344",
-    teamRoles: ["Cheftrainer mJD"],
+    teamRoles: ["Cheftrainer (MV)", "Offizieller A"],
+  });
+
+  await upsertTeamMember({
+    id: "member-mjd-co-tjard",
+    clubId: club.id,
+    teamId: mjdTeam.id,
+    userId: null,
+    role: MemberRole.ASSISTANT_COACH,
+    firstName: "Tjard",
+    lastName: "Svejka",
+    teamRoles: ["Co-Trainer", "Offizieller B"],
+  });
+
+  await upsertTeamMember({
+    id: "member-mjd-co-samuel",
+    clubId: club.id,
+    teamId: mjdTeam.id,
+    userId: null,
+    role: MemberRole.ASSISTANT_COACH,
+    firstName: "Samuel",
+    lastName: "Franz",
+    teamRoles: ["Co-Trainer", "Offizieller C"],
   });
 
   await upsertTeamMember({
@@ -327,180 +365,250 @@ async function main() {
     teamId: mjdTeam.id,
     userId: parentUser.id,
     role: MemberRole.PARENT,
-    firstName: "Katrin",
-    lastName: "Weber",
+    firstName: "Familie",
+    lastName: "Ruser",
     email: parentUser.email,
-    phone: "+49 177 1234567",
     teamRoles: ["Elternvertretung"],
   });
 
-  await upsertTeamMember({
-    id: "member-mjd-lukas",
-    clubId: club.id,
-    teamId: mjdTeam.id,
-    userId: playerUser.id,
-    role: MemberRole.PLAYER,
-    firstName: "Lukas",
-    lastName: "Hartmann",
-    email: playerUser.email,
-    phone: "+49 172 3334455",
-    jerseyNumber: 10,
-    primaryPosition: HandballPosition.RM,
-    secondaryPosition: HandballPosition.RL,
-    throwingHand: ThrowingHand.RIGHT,
-    availabilityStatus: AvailabilityStatus.FIT,
-    teamRoles: ["Mannschaftskapitän"],
-    isMinor: true,
-    passNumber: "HVNB-2026-32108-10",
-    emergencyContact: "Anna Hartmann (+49 172 9990001)",
-  });
-
-  // Verknüpftes Jugendprofil für Eltern-Account (ohne eigenen Kinder-Login)
-  const leoWeber = await upsertTeamMember({
-    id: "member-mjd-leo",
+  // 6. Echter Spielerkader männliche D-Jugend (aus den nuLiga-Spielberichten #4, #6 & #15)
+  const fieteRuser = await upsertTeamMember({
+    id: "member-mjd-fiete-ruser",
     clubId: club.id,
     teamId: mjdTeam.id,
     userId: null,
     role: MemberRole.PLAYER,
-    firstName: "Leo",
-    lastName: "Weber",
-    jerseyNumber: 14,
-    primaryPosition: HandballPosition.LA,
-    secondaryPosition: HandballPosition.RM,
-    throwingHand: ThrowingHand.RIGHT,
-    availabilityStatus: AvailabilityStatus.FIT,
-    isMinor: true,
-    passNumber: "HVNB-2026-32108-14",
-    emergencyContact: "Katrin Weber (+49 177 1234567)",
-  });
-
-  // Weitere entkoppelte Kader-Profile
-  const timSchneider = await upsertTeamMember({
-    id: "member-mjd-tim",
-    clubId: club.id,
-    teamId: mjdTeam.id,
-    userId: null,
-    role: MemberRole.PLAYER,
-    firstName: "Tim",
-    lastName: "Schneider",
+    firstName: "Fiete",
+    lastName: "Ruser",
     jerseyNumber: 1,
     primaryPosition: HandballPosition.TW,
     throwingHand: ThrowingHand.RIGHT,
     availabilityStatus: AvailabilityStatus.FIT,
-    teamRoles: ["Trikot-Verantwortlicher"],
     isMinor: true,
-    passNumber: "HVNB-2026-32108-01",
-    emergencyContact: "Peter Schneider (+49 173 4445566)",
   });
 
   await upsertTeamMember({
-    id: "member-mjd-jonas",
+    id: "member-mjd-jonas-homann",
     clubId: club.id,
     teamId: mjdTeam.id,
     userId: null,
     role: MemberRole.PLAYER,
     firstName: "Jonas",
-    lastName: "Keller",
+    lastName: "Homann",
+    jerseyNumber: 2,
+    primaryPosition: HandballPosition.LA,
+    throwingHand: ThrowingHand.RIGHT,
+    availabilityStatus: AvailabilityStatus.FIT,
+    isMinor: true,
+  });
+
+  const tomAckermann = await upsertTeamMember({
+    id: "member-mjd-tom-ackermann",
+    clubId: club.id,
+    teamId: mjdTeam.id,
+    userId: null,
+    role: MemberRole.PLAYER,
+    firstName: "Tom",
+    lastName: "Ackermann",
+    jerseyNumber: 4,
+    primaryPosition: HandballPosition.RM,
+    secondaryPosition: HandballPosition.RL,
+    throwingHand: ThrowingHand.RIGHT,
+    availabilityStatus: AvailabilityStatus.FIT,
+    teamRoles: ["7m-Schütze"],
+    isMinor: true,
+  });
+
+  await upsertTeamMember({
+    id: "member-mjd-erik-bruhn",
+    clubId: club.id,
+    teamId: mjdTeam.id,
+    userId: null,
+    role: MemberRole.PLAYER,
+    firstName: "Erik",
+    lastName: "Bruhn",
+    jerseyNumber: 5,
+    primaryPosition: HandballPosition.RL,
+    throwingHand: ThrowingHand.RIGHT,
+    availabilityStatus: AvailabilityStatus.FIT,
+    isMinor: true,
+  });
+
+  await upsertTeamMember({
+    id: "member-mjd-henri-berkowitz",
+    clubId: club.id,
+    teamId: mjdTeam.id,
+    userId: null,
+    role: MemberRole.PLAYER,
+    firstName: "Henri",
+    lastName: "Berkowitz",
+    jerseyNumber: 6,
+    primaryPosition: HandballPosition.RR,
+    throwingHand: ThrowingHand.RIGHT,
+    availabilityStatus: AvailabilityStatus.FIT,
+    isMinor: true,
+  });
+
+  await upsertTeamMember({
+    id: "member-mjd-hannes-kroepfl",
+    clubId: club.id,
+    teamId: mjdTeam.id,
+    userId: null,
+    role: MemberRole.PLAYER,
+    firstName: "Hannes",
+    lastName: "Kröpfl",
     jerseyNumber: 7,
     primaryPosition: HandballPosition.LA,
     secondaryPosition: HandballPosition.RM,
     throwingHand: ThrowingHand.RIGHT,
-    availabilityStatus: AvailabilityStatus.INJURED,
-    isMinor: true,
-    passNumber: "HVNB-2026-32108-07",
-    injuryNote:
-      "Bänderdehnung im linken Sprunggelenk – voraussichtlich 2 Wochen Pause",
-    emergencyContact: "Maria Keller (+49 174 5556677)",
-  });
-
-  await upsertTeamMember({
-    id: "member-mjd-finn",
-    clubId: club.id,
-    teamId: mjdTeam.id,
-    userId: null,
-    role: MemberRole.PLAYER,
-    firstName: "Finn",
-    lastName: "Albrecht",
-    jerseyNumber: 15,
-    primaryPosition: HandballPosition.RR,
-    secondaryPosition: HandballPosition.RA,
-    throwingHand: ThrowingHand.LEFT,
     availabilityStatus: AvailabilityStatus.FIT,
     isMinor: true,
-    passNumber: "HVNB-2026-32108-15",
-    emergencyContact: "Thomas Albrecht (+49 175 6667788)",
   });
 
   await upsertTeamMember({
-    id: "member-mjd-max",
+    id: "member-mjd-menuas-demirel",
     clubId: club.id,
     teamId: mjdTeam.id,
     userId: null,
     role: MemberRole.PLAYER,
-    firstName: "Maximilian",
-    lastName: "Vogt",
-    jerseyNumber: 22,
+    firstName: "Menuas",
+    lastName: "Demirel",
+    jerseyNumber: 8,
     primaryPosition: HandballPosition.KM,
     throwingHand: ThrowingHand.RIGHT,
-    availabilityStatus: AvailabilityStatus.UNAVAILABLE,
-    injuryNote: "Klassenfahrt bis Sonntag",
+    availabilityStatus: AvailabilityStatus.FIT,
     isMinor: true,
-    passNumber: "HVNB-2026-32108-22",
-    emergencyContact: "Julia Vogt (+49 176 7778899)",
   });
 
   await upsertTeamMember({
-    id: "member-mjd-nico",
+    id: "member-mjd-jarle-hofmann",
     clubId: club.id,
     teamId: mjdTeam.id,
     userId: null,
     role: MemberRole.PLAYER,
-    firstName: "Nico",
-    lastName: "Richter",
-    jerseyNumber: 19,
+    firstName: "Jarle",
+    lastName: "Hofmann",
+    jerseyNumber: 9,
     primaryPosition: HandballPosition.RA,
-    throwingHand: ThrowingHand.LEFT,
+    throwingHand: ThrowingHand.RIGHT,
     availabilityStatus: AvailabilityStatus.FIT,
     isMinor: true,
-    passNumber: "HVNB-2026-32108-19",
-    emergencyContact: "Stefan Richter (+49 176 3456789)",
   });
 
   await upsertTeamMember({
-    id: "member-mjd-ben",
+    id: "member-mjd-tobias-barkow",
     clubId: club.id,
     teamId: mjdTeam.id,
     userId: null,
     role: MemberRole.PLAYER,
-    firstName: "Ben",
-    lastName: "Schulz",
-    jerseyNumber: 12,
-    primaryPosition: HandballPosition.TW,
-    throwingHand: ThrowingHand.BOTH,
+    firstName: "Tobias",
+    lastName: "Barkow",
+    jerseyNumber: 10,
+    primaryPosition: HandballPosition.RM,
+    throwingHand: ThrowingHand.RIGHT,
     availabilityStatus: AvailabilityStatus.FIT,
     isMinor: true,
-    passNumber: "HVNB-2026-32108-12",
-    emergencyContact: "Martin Schulz (+49 178 2345678)",
   });
 
-  // 6. Eltern-Kind-Verknüpfung (Katrin Weber -> Leo Weber)
+  const pietRuser = await upsertTeamMember({
+    id: "member-mjd-piet-ruser",
+    clubId: club.id,
+    teamId: mjdTeam.id,
+    userId: null,
+    role: MemberRole.PLAYER,
+    firstName: "Piet",
+    lastName: "Ruser",
+    jerseyNumber: 12,
+    primaryPosition: HandballPosition.RL,
+    secondaryPosition: HandballPosition.RM,
+    throwingHand: ThrowingHand.RIGHT,
+    availabilityStatus: AvailabilityStatus.FIT,
+    teamRoles: ["7m-Schütze"],
+    isMinor: true,
+  });
+
+  await upsertTeamMember({
+    id: "member-mjd-matti-borgmann",
+    clubId: club.id,
+    teamId: mjdTeam.id,
+    userId: playerUser.id,
+    role: MemberRole.PLAYER,
+    firstName: "Matti",
+    lastName: "Borgmann",
+    email: playerUser.email,
+    jerseyNumber: 14,
+    primaryPosition: HandballPosition.RM,
+    secondaryPosition: HandballPosition.RR,
+    throwingHand: ThrowingHand.RIGHT,
+    availabilityStatus: AvailabilityStatus.FIT,
+    teamRoles: ["Mannschaftskapitän"],
+    isMinor: true,
+  });
+
+  await upsertTeamMember({
+    id: "member-mjd-jonas-mayer",
+    clubId: club.id,
+    teamId: mjdTeam.id,
+    userId: null,
+    role: MemberRole.PLAYER,
+    firstName: "Jonas",
+    lastName: "Mayer",
+    jerseyNumber: 16,
+    primaryPosition: HandballPosition.KM,
+    throwingHand: ThrowingHand.RIGHT,
+    availabilityStatus: AvailabilityStatus.FIT,
+    isMinor: true,
+  });
+
+  await upsertTeamMember({
+    id: "member-mjd-liron-alpermann",
+    clubId: club.id,
+    teamId: mjdTeam.id,
+    userId: null,
+    role: MemberRole.PLAYER,
+    firstName: "Liron",
+    lastName: "Alpermann",
+    jerseyNumber: 17,
+    primaryPosition: HandballPosition.RA,
+    throwingHand: ThrowingHand.RIGHT,
+    availabilityStatus: AvailabilityStatus.FIT,
+    isMinor: true,
+  });
+
+  // 7. Eltern-Kind-Verknüpfungen (Familie Ruser -> Fiete #1 & Piet #12)
   await prisma.guardianLink.upsert({
     where: {
       guardianUserId_childMemberId: {
         guardianUserId: parentUser.id,
-        childMemberId: leoWeber.id,
+        childMemberId: fieteRuser.id,
       },
     },
-    update: { relationship: "Mutter" },
+    update: { relationship: "Elternteil" },
     create: {
-      id: "guardian-tjh-katrin-leo",
+      id: "guardian-tjh-ruser-fiete",
       guardianUserId: parentUser.id,
-      childMemberId: leoWeber.id,
-      relationship: "Mutter",
+      childMemberId: fieteRuser.id,
+      relationship: "Elternteil",
     },
   });
 
-  // 7. Demo-Einladungslinks
+  await prisma.guardianLink.upsert({
+    where: {
+      guardianUserId_childMemberId: {
+        guardianUserId: parentUser.id,
+        childMemberId: pietRuser.id,
+      },
+    },
+    update: { relationship: "Elternteil" },
+    create: {
+      id: "guardian-tjh-ruser-piet",
+      guardianUserId: parentUser.id,
+      childMemberId: pietRuser.id,
+      relationship: "Elternteil",
+    },
+  });
+
+  // 8. Demo-Einladungslinks (Team-Beitritt & persönlicher Claim-Link für Tester)
   const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
 
   await prisma.teamInvite.upsert({
@@ -520,23 +628,23 @@ async function main() {
   });
 
   await prisma.teamInvite.upsert({
-    where: { token: "demo-claim-tim-schneider" },
+    where: { token: "demo-claim-tom-ackermann" },
     update: { expiresAt, revokedAt: null },
     create: {
-      id: "invite-demo-claim-tim-mjd",
+      id: "invite-demo-claim-tom-mjd",
       clubId: club.id,
       teamId: mjdTeam.id,
-      token: "demo-claim-tim-schneider",
+      token: "demo-claim-tom-ackermann",
       type: InviteType.PROFILE_CLAIM,
       role: MemberRole.PLAYER,
-      targetMemberId: timSchneider.id,
+      targetMemberId: tomAckermann.id,
       createdByUserId: coachUser.id,
       maxUses: 1,
       expiresAt,
     },
   });
 
-  // 8. Reale Hallen der Regionsoberliga MJD Nord (nuLiga HVNB)
+  // 9. Reale Hallen der Regionsoberliga MJD Nord (nuLiga HVNB)
   const upsertVenue = async (v: {
     id: string;
     name: string;
@@ -645,7 +753,6 @@ async function main() {
       "Auswärtshalle JSG Fredenbeck/Stade/Harsefeld · Harzverbot in der Jugend.",
   });
 
-  // Hilfsfunktion für relative Trainingstermine
   const daysFromNow = (days: number, hour: number, minute = 0) => {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -653,7 +760,7 @@ async function main() {
     return d;
   };
 
-  // 9. Trainingstermin männliche D-Jugend
+  // 10. Trainingstermin männliche D-Jugend
   const mjdTrainingNext = await prisma.event.upsert({
     where: { id: "event-mjd-training-next" },
     update: {
@@ -680,8 +787,22 @@ async function main() {
     },
   });
 
-  // 10. Offizielle Spiele der Regionsoberliga MJD Nord 2026/27 (aus nuLiga HVNB importiert)
-  // Zeiten sind korrekt aus Europe/Berlin (CET = UTC+1, CEST = UTC+2) in UTC konvertiert.
+  // 11. Offizielle Spiele der Regionsoberliga MJD Nord 2026/27 (aus nuLiga HVNB importiert)
+  const lastMatchSquadIds = [
+    "member-mjd-fiete-ruser",
+    "member-mjd-jonas-homann",
+    "member-mjd-tom-ackermann",
+    "member-mjd-erik-bruhn",
+    "member-mjd-henri-berkowitz",
+    "member-mjd-hannes-kroepfl",
+    "member-mjd-menuas-demirel",
+    "member-mjd-jarle-hofmann",
+    "member-mjd-piet-ruser",
+    "member-mjd-matti-borgmann",
+    "member-mjd-jonas-mayer",
+    "member-mjd-liron-alpermann",
+  ];
+
   const nuligaMatches: Array<{
     id: string;
     externalId: string;
@@ -694,6 +815,8 @@ async function main() {
     endAtUtc: string;
     meetingOffsetMinutes: number;
     venueId: string;
+    homeScoreHalf?: number;
+    awayScoreHalf?: number;
     homeScoreFull?: number;
     awayScoreFull?: number;
   }> = [
@@ -709,6 +832,8 @@ async function main() {
       endAtUtc: "2026-10-31T13:00:00.000Z",
       meetingOffsetMinutes: 45,
       venueId: halleHollenstedt1.id,
+      homeScoreHalf: 9,
+      awayScoreHalf: 17,
       homeScoreFull: 22,
       awayScoreFull: 26,
     },
@@ -724,6 +849,8 @@ async function main() {
       endAtUtc: "2026-11-08T12:30:00.000Z",
       meetingOffsetMinutes: 75,
       venueId: halleBremervoerde.id,
+      homeScoreHalf: 21,
+      awayScoreHalf: 17,
       homeScoreFull: 39,
       awayScoreFull: 32,
     },
@@ -739,6 +866,8 @@ async function main() {
       endAtUtc: "2026-11-22T11:15:00.000Z",
       meetingOffsetMinutes: 60,
       venueId: halleKlecken.id,
+      homeScoreHalf: 8,
+      awayScoreHalf: 12,
       homeScoreFull: 17,
       awayScoreFull: 23,
     },
@@ -933,16 +1062,11 @@ async function main() {
         isHome: m.isHome,
         throwOffAt: startAt,
         jerseyColor: m.isHome ? "Rot / Weiß (Heim)" : "Weiß / Rot (Auswärts)",
+        homeScoreHalf: m.homeScoreHalf ?? null,
+        awayScoreHalf: m.awayScoreHalf ?? null,
         homeScoreFull: m.homeScoreFull ?? null,
         awayScoreFull: m.awayScoreFull ?? null,
-        nominatedMemberIds: [
-          "member-mjd-lukas",
-          "member-mjd-leo",
-          "member-mjd-tim",
-          "member-mjd-finn",
-          "member-mjd-nico",
-          "member-mjd-ben",
-        ],
+        nominatedMemberIds: lastMatchSquadIds,
       },
       create: {
         id: `match-${m.id}`,
@@ -952,25 +1076,20 @@ async function main() {
         throwOffAt: startAt,
         jerseyColor: m.isHome ? "Rot / Weiß (Heim)" : "Weiß / Rot (Auswärts)",
         refereeNote: "Ansetzung über nuLiga HVNB",
+        homeScoreHalf: m.homeScoreHalf ?? null,
+        awayScoreHalf: m.awayScoreHalf ?? null,
         homeScoreFull: m.homeScoreFull ?? null,
         awayScoreFull: m.awayScoreFull ?? null,
-        nominatedMemberIds: [
-          "member-mjd-lukas",
-          "member-mjd-leo",
-          "member-mjd-tim",
-          "member-mjd-finn",
-          "member-mjd-nico",
-          "member-mjd-ben",
-        ],
+        nominatedMemberIds: lastMatchSquadIds,
       },
     });
   }
 
   const nextAwayMatchId = matchEventsById["event-mjd-rol-20"]; // 05.12.2026 in Klecken
   const nextHomeMatchId = matchEventsById["event-mjd-rol-24"]; // 13.12.2026 in Hollenstedt
-  const lastPastMatchId = matchEventsById["event-mjd-rol-15"]; // 22.11.2026 Auswärtssieg 17:23
+  const lastPastMatchId = matchEventsById["event-mjd-rol-15"]; // 22.11.2026 Auswärtssieg 17:23 (8:12)
 
-  // 11. Realistische RSVP-Rückmeldungen (inkl. DSGVO-geschützter Absagegründe)
+  // 12. Realistische RSVP-Rückmeldungen
   const upsertRsvp = async (
     eventId: string,
     memberId: string,
@@ -997,52 +1116,92 @@ async function main() {
     });
   };
 
-  await upsertRsvp(mjdTrainingNext.id, "member-mjd-lukas", RsvpStatus.ACCEPTED);
-  await upsertRsvp(mjdTrainingNext.id, "member-mjd-tim", RsvpStatus.ACCEPTED);
-  await upsertRsvp(mjdTrainingNext.id, "member-mjd-finn", RsvpStatus.ACCEPTED);
-  await upsertRsvp(mjdTrainingNext.id, "member-mjd-ben", RsvpStatus.ACCEPTED);
-  await upsertRsvp(mjdTrainingNext.id, "member-mjd-nico", RsvpStatus.MAYBE);
-  await upsertRsvp(mjdTrainingNext.id, leoWeber.id, RsvpStatus.PENDING);
   await upsertRsvp(
     mjdTrainingNext.id,
-    "member-mjd-jonas",
-    RsvpStatus.DECLINED,
-    DeclineReasonCategory.INJURY,
-    "Bänderdehnung im linken Sprunggelenk – Physiotherapie"
+    "member-mjd-matti-borgmann",
+    RsvpStatus.ACCEPTED
   );
   await upsertRsvp(
     mjdTrainingNext.id,
-    "member-mjd-max",
+    "member-mjd-tom-ackermann",
+    RsvpStatus.ACCEPTED
+  );
+  await upsertRsvp(
+    mjdTrainingNext.id,
+    "member-mjd-erik-bruhn",
+    RsvpStatus.ACCEPTED
+  );
+  await upsertRsvp(
+    mjdTrainingNext.id,
+    "member-mjd-henri-berkowitz",
+    RsvpStatus.ACCEPTED
+  );
+  await upsertRsvp(
+    mjdTrainingNext.id,
+    "member-mjd-hannes-kroepfl",
+    RsvpStatus.ACCEPTED
+  );
+  await upsertRsvp(
+    mjdTrainingNext.id,
+    "member-mjd-jonas-mayer",
+    RsvpStatus.MAYBE
+  );
+  await upsertRsvp(mjdTrainingNext.id, fieteRuser.id, RsvpStatus.PENDING);
+  await upsertRsvp(mjdTrainingNext.id, pietRuser.id, RsvpStatus.PENDING);
+  await upsertRsvp(
+    mjdTrainingNext.id,
+    "member-mjd-tobias-barkow",
     RsvpStatus.DECLINED,
     DeclineReasonCategory.SCHOOL_UNI,
-    "Klassenfahrt bis Sonntag"
+    "Schulveranstaltung am Nachmittag"
   );
 
-  await upsertRsvp(nextAwayMatchId, "member-mjd-lukas", RsvpStatus.ACCEPTED);
-  await upsertRsvp(nextAwayMatchId, "member-mjd-tim", RsvpStatus.ACCEPTED);
-  await upsertRsvp(nextAwayMatchId, "member-mjd-finn", RsvpStatus.ACCEPTED);
-  await upsertRsvp(nextAwayMatchId, "member-mjd-ben", RsvpStatus.ACCEPTED);
-  await upsertRsvp(nextAwayMatchId, leoWeber.id, RsvpStatus.ACCEPTED);
   await upsertRsvp(
     nextAwayMatchId,
-    "member-mjd-jonas",
-    RsvpStatus.DECLINED,
-    DeclineReasonCategory.INJURY,
-    "Noch im Aufbautraining nach Bänderdehnung"
+    "member-mjd-matti-borgmann",
+    RsvpStatus.ACCEPTED
   );
+  await upsertRsvp(
+    nextAwayMatchId,
+    "member-mjd-tom-ackermann",
+    RsvpStatus.ACCEPTED
+  );
+  await upsertRsvp(
+    nextAwayMatchId,
+    "member-mjd-erik-bruhn",
+    RsvpStatus.ACCEPTED
+  );
+  await upsertRsvp(
+    nextAwayMatchId,
+    "member-mjd-henri-berkowitz",
+    RsvpStatus.ACCEPTED
+  );
+  await upsertRsvp(
+    nextAwayMatchId,
+    "member-mjd-hannes-kroepfl",
+    RsvpStatus.ACCEPTED
+  );
+  await upsertRsvp(nextAwayMatchId, fieteRuser.id, RsvpStatus.ACCEPTED);
+  await upsertRsvp(nextAwayMatchId, pietRuser.id, RsvpStatus.ACCEPTED);
 
-  await upsertRsvp(nextHomeMatchId, "member-mjd-lukas", RsvpStatus.ACCEPTED);
-  await upsertRsvp(nextHomeMatchId, "member-mjd-tim", RsvpStatus.ACCEPTED);
-  await upsertRsvp(nextHomeMatchId, "member-mjd-finn", RsvpStatus.ACCEPTED);
-  await upsertRsvp(nextHomeMatchId, leoWeber.id, RsvpStatus.PENDING);
+  await upsertRsvp(
+    nextHomeMatchId,
+    "member-mjd-matti-borgmann",
+    RsvpStatus.ACCEPTED
+  );
+  await upsertRsvp(
+    nextHomeMatchId,
+    "member-mjd-tom-ackermann",
+    RsvpStatus.ACCEPTED
+  );
+  await upsertRsvp(nextHomeMatchId, fieteRuser.id, RsvpStatus.PENDING);
+  await upsertRsvp(nextHomeMatchId, pietRuser.id, RsvpStatus.PENDING);
 
-  await upsertRsvp(lastPastMatchId, "member-mjd-lukas", RsvpStatus.ACCEPTED);
-  await upsertRsvp(lastPastMatchId, "member-mjd-tim", RsvpStatus.ACCEPTED);
-  await upsertRsvp(lastPastMatchId, "member-mjd-finn", RsvpStatus.ACCEPTED);
-  await upsertRsvp(lastPastMatchId, "member-mjd-nico", RsvpStatus.ACCEPTED);
-  await upsertRsvp(lastPastMatchId, leoWeber.id, RsvpStatus.ACCEPTED);
+  for (const memberId of lastMatchSquadIds) {
+    await upsertRsvp(lastPastMatchId, memberId, RsvpStatus.ACCEPTED);
+  }
 
-  // 12. Echte nuLiga iCal-Importquelle & Change-Log (M2b)
+  // 13. Echte nuLiga iCal-Importquelle & Change-Log (M2b)
   const mjdSource = await prisma.leagueImportSource.upsert({
     where: { id: "source-mjd-nuliga-ical" },
     update: {
@@ -1087,23 +1246,25 @@ async function main() {
     },
   });
 
-  // 13. Fahrgemeinschaft für das nächste Auswärtsspiel in Klecken (M2b)
+  // 14. Fahrgemeinschaft für das nächste Auswärtsspiel in Klecken (M2b)
   const mjdCarpool = await prisma.carpool.upsert({
-    where: { id: "carpool-mjd-klecken-katrin" },
+    where: { id: "carpool-mjd-klecken-ruser" },
     update: {
       departureLocation: "Parkplatz Max-Schmeling-Hallen, Hollenstedt",
       departureTime: "13:00 Uhr",
       totalSeats: 3,
-      notes: "Kombi mit Platz für 3 Kinder + Sporttaschen (Sitzerhöhungen vorhanden).",
+      notes:
+        "Kombi mit Platz für 3 Kinder + Sporttaschen (Sitzerhöhungen vorhanden).",
     },
     create: {
-      id: "carpool-mjd-klecken-katrin",
+      id: "carpool-mjd-klecken-ruser",
       eventId: nextAwayMatchId,
       driverMemberId: "member-mjd-parent",
       departureLocation: "Parkplatz Max-Schmeling-Hallen, Hollenstedt",
       departureTime: "13:00 Uhr",
       totalSeats: 3,
-      notes: "Kombi mit Platz für 3 Kinder + Sporttaschen (Sitzerhöhungen vorhanden).",
+      notes:
+        "Kombi mit Platz für 3 Kinder + Sporttaschen (Sitzerhöhungen vorhanden).",
     },
   });
 
@@ -1111,19 +1272,19 @@ async function main() {
     where: {
       carpoolId_passengerMemberId: {
         carpoolId: mjdCarpool.id,
-        passengerMemberId: "member-mjd-finn",
+        passengerMemberId: "member-mjd-henri-berkowitz",
       },
     },
     update: {},
     create: {
-      id: "booking-mjd-klecken-finn",
+      id: "booking-mjd-klecken-henri",
       carpoolId: mjdCarpool.id,
-      passengerMemberId: "member-mjd-finn",
+      passengerMemberId: "member-mjd-henri-berkowitz",
       bookedByUserId: coachUser.id,
     },
   });
 
-  // 14. Heimspieltag & Hallendienste in den Max-Schmeling-Hallen (M3)
+  // 15. Heimspieltag & Hallendienste in den Max-Schmeling-Hallen (M3)
   const matchday = await prisma.matchday.upsert({
     where: { id: "matchday-tjh-2026-12-13" },
     update: {
@@ -1183,7 +1344,8 @@ async function main() {
       scope: DutyScope.CLUB_MATCHDAY,
       category: DutyCategory.KIOSK,
       title: "Kiosk / Cafeteria – Schicht 1 (Max-Schmeling-Hallen)",
-      description: "Kaffee, Waffeln, Brezeln & Getränke für Zuschauer und Gastteam.",
+      description:
+        "Kaffee, Waffeln, Brezeln & Getränke für Zuschauer und Gastteam.",
       startAt: new Date("2026-12-13T08:30:00.000Z"),
       endAt: new Date("2026-12-13T11:00:00.000Z"),
       hoursCredit: 2.5,
@@ -1193,14 +1355,14 @@ async function main() {
   });
 
   await prisma.workDutyAssignment.upsert({
-    where: { id: "assignment-tjh-kiosk-katrin" },
+    where: { id: "assignment-tjh-kiosk-ruser" },
     update: {
       status: DutyAssignmentStatus.SWAP_REQUESTED,
       swapNote:
         "Kann erst ab 10:30 Uhr in der Halle sein – tausche gern gegen Schicht 2!",
     },
     create: {
-      id: "assignment-tjh-kiosk-katrin",
+      id: "assignment-tjh-kiosk-ruser",
       dutyId: kioskDuty.id,
       assignedMemberId: "member-mjd-parent",
       status: DutyAssignmentStatus.SWAP_REQUESTED,
@@ -1230,18 +1392,18 @@ async function main() {
   });
 
   await prisma.workDutyAssignment.upsert({
-    where: { id: "assignment-tjh-trikot-lukas" },
+    where: { id: "assignment-tjh-trikot-matti" },
     update: { status: DutyAssignmentStatus.COMPLETED },
     create: {
-      id: "assignment-tjh-trikot-lukas",
+      id: "assignment-tjh-trikot-matti",
       dutyId: laundryDuty.id,
-      assignedMemberId: "member-mjd-lukas",
+      assignedMemberId: "member-mjd-matti-borgmann",
       status: DutyAssignmentStatus.COMPLETED,
       completedAt: daysFromNow(-1, 18, 0),
     },
   });
 
-  // 15. Übungsbibliothek & Trainingsplan für D-Jugend (M3)
+  // 16. Übungsbibliothek & Trainingsplan für D-Jugend (M3)
   const drillWarmup = await prisma.drill.upsert({
     where: { id: "drill-tjh-tw-konter" },
     update: {},
@@ -1296,7 +1458,8 @@ async function main() {
   await prisma.trainingPlan.upsert({
     where: { id: "plan-tjh-mjd-rosengarten" },
     update: {
-      title: "Vorbereitung HL Buchholz 08 - Rosengarten II – 1:5-Abwehr & 1. Welle",
+      title:
+        "Vorbereitung HL Buchholz 08 - Rosengarten II – 1:5-Abwehr & 1. Welle",
       isSharedWithTeam: true,
     },
     create: {
@@ -1305,8 +1468,10 @@ async function main() {
       teamId: mjdTeam.id,
       eventId: mjdTrainingNext.id,
       createdByUserId: coachUser.id,
-      title: "Vorbereitung HL Buchholz 08 - Rosengarten II – 1:5-Abwehr & 1. Welle",
-      focus: "Aktive Ballgewinne in der 1:5-Abwehr & schnelles Umschalten nach vorn",
+      title:
+        "Vorbereitung HL Buchholz 08 - Rosengarten II – 1:5-Abwehr & 1. Welle",
+      focus:
+        "Aktive Ballgewinne in der 1:5-Abwehr & schnelles Umschalten nach vorn",
       targetDurationMinutes: 90,
       isSharedWithTeam: true,
       phases: [
@@ -1356,7 +1521,7 @@ async function main() {
     },
   });
 
-  // 16. Interaktives Handball-Playbook (M4)
+  // 17. Interaktives Handball-Playbook (M4)
   const kreuzungPlay = await prisma.tacticPlay.upsert({
     where: { id: "tactic-tjh-einlaeufer" },
     update: {
@@ -1566,7 +1731,7 @@ async function main() {
     },
   });
 
-  // 17. Gegner-Scouting Dossier: JSG Fredenbeck/Stade/Harsefeld (S) (M4)
+  // 18. Gegner-Scouting Dossier: JSG Fredenbeck/Stade/Harsefeld (S) (M4)
   const oppFredenbeck = await prisma.opponent.upsert({
     where: { id: "opponent-tjh-fredenbeck" },
     update: {
@@ -1650,24 +1815,28 @@ async function main() {
       createdByUserId: coachUser.id,
       title: "Interne Trainer-Notiz: Wechselrotation & Auszeit",
       content:
-        "Torwartwechsel nach der Halbzeit (Tim / Ben). Alle Spieler sollen mindestens eine Halbzeit Einsatzzeit erhalten.",
+        "Alle 12 Spieler im Kader sollen ausreichend Einsatzzeit bekommen; auf klare Aufgaben in der 1:5-Deckung achten.",
       isSharedWithTeam: false,
     },
   });
 
-  // 18. Schwarzes Brett, Umfragen & Mannschaftskasse (M5)
+  // 19. Schwarzes Brett, Umfragen & Mannschaftskasse (M5)
   await prisma.teamAnnouncement.upsert({
     where: { id: "ann-tjh-klecken" },
-    update: { isPinned: true, audience: "ALL" },
+    update: {
+      authorName: "Hans-Peter Lehmann",
+      isPinned: true,
+      audience: "ALL",
+    },
     create: {
       id: "ann-tjh-klecken",
       clubId: club.id,
       teamId: mjdTeam.id,
       authorUserId: coachUser.id,
-      authorName: "Markus Brenner",
+      authorName: "Hans-Peter Lehmann",
       title:
         "Auswärtsspiel in Klecken (05.12.): Treffpunkt 13:00 Uhr Max-Schmeling-Hallen",
-      body: "Starkes 23:17 am letzten Wochenende! Am Samstag fahren wir erneut nach Klecken gegen HL Buchholz 08 - Rosengarten II. Bitte tragt euch bei den Fahrgemeinschaften ein und denkt an Trinkflaschen & Hallenschuhe (kein Harz).",
+      body: "Starkes 23:17 (12:8) am letzten Wochenende in Klecken! Am Samstag fahren wir erneut nach Klecken gegen HL Buchholz 08 - Rosengarten II. Bitte tragt euch bei den Fahrgemeinschaften ein und denkt an Trinkflaschen & Hallenschuhe (kein Harz).",
       audience: "ALL",
       isPinned: true,
     },
@@ -1675,13 +1844,13 @@ async function main() {
 
   await prisma.teamAnnouncement.upsert({
     where: { id: "ann-tjh-staff-only" },
-    update: { audience: "STAFF_ONLY" },
+    update: { authorName: "Hans-Peter Lehmann", audience: "STAFF_ONLY" },
     create: {
       id: "ann-tjh-staff-only",
       clubId: club.id,
       teamId: mjdTeam.id,
       authorUserId: coachUser.id,
-      authorName: "Markus Brenner",
+      authorName: "Hans-Peter Lehmann",
       title: "Trainer-Intern: Trainingsbälle & Leibchen-Bestellung",
       body: "Für die Rückrunde bestellen wir 6 neue Handbälle Größe 1 über die Jugendleitung.",
       audience: "STAFF_ONLY",
@@ -1691,13 +1860,13 @@ async function main() {
 
   await prisma.teamPoll.upsert({
     where: { id: "poll-tjh-weihnachtsfeier" },
-    update: {},
+    update: { createdByName: "Hans-Peter Lehmann" },
     create: {
       id: "poll-tjh-weihnachtsfeier",
       clubId: club.id,
       teamId: mjdTeam.id,
       createdByUserId: coachUser.id,
-      createdByName: "Markus Brenner",
+      createdByName: "Hans-Peter Lehmann",
       question: "Was machen wir als Weihnachts-Teamevent der mD-Jugend?",
       allowMultiple: false,
       options: {
@@ -1729,11 +1898,11 @@ async function main() {
         userId: coachUser.id,
       },
     },
-    update: {},
+    update: { voterName: "Hans-Peter Lehmann" },
     create: {
       optionId: "poll-opt-tjh-hsvh",
       userId: coachUser.id,
-      voterName: "Markus Brenner",
+      voterName: "Hans-Peter Lehmann",
     },
   });
 
@@ -1827,7 +1996,8 @@ async function main() {
   console.log("  Verein: TuS Jahn Hollenstedt (Saison 2026/27)");
   console.log("  Logo: /clubs/tus-jahn-hollenstedt.png");
   console.log("  Demo-Mannschaft: männliche D-Jugend (Regionsoberliga MJD Nord)");
-  console.log("  nuLiga Spiele importiert: 14 Spiele (Saison 2026/27)");
+  console.log("  nuLiga Kader: 13 Spieler + 4 Trainer/Offizielle aus den Spielberichten");
+  console.log("  nuLiga Spiele importiert: 14 Spiele (inkl. Halbzeit- & Endstände)");
   console.log("  Demo-Passwort für alle Accounts:", DEMO_PASSWORD);
 }
 

@@ -26,6 +26,16 @@ const DUTY_INCLUDE = {
   team: { select: { name: true } },
   assignedTeam: { select: { name: true } },
   matchday: { select: { title: true } },
+  jerseySet: {
+    select: {
+      id: true,
+      name: true,
+      colors: true,
+      condition: true,
+      conditionNote: true,
+      careInstructions: true,
+    },
+  },
   assignments: {
     include: {
       assignedMember: {
@@ -90,6 +100,17 @@ function mapDuty(d: PrismaDutyRow): WorkDutyDTO {
     slotsNeeded: d.slotsNeeded,
     assignedTeamId: d.assignedTeamId,
     assignedTeamName: d.assignedTeam?.name ?? null,
+    jerseySetId: d.jerseySetId,
+    jerseySet: d.jerseySet
+      ? {
+          id: d.jerseySet.id,
+          name: d.jerseySet.name,
+          colors: d.jerseySet.colors,
+          condition: d.jerseySet.condition,
+          conditionNote: d.jerseySet.conditionNote,
+          careInstructions: d.jerseySet.careInstructions,
+        }
+      : null,
     assignments: d.assignments.map(mapAssignment),
     openSlots: Math.max(0, d.slotsNeeded - filledCount),
   };
@@ -203,6 +224,7 @@ export class PrismaDutyRepository implements DutyRepository {
         requiresLicense: input.requiresLicense,
         slotsNeeded: input.slotsNeeded,
         assignedTeamId: input.assignedTeamId ?? null,
+        jerseySetId: input.jerseySetId ?? null,
         ...(input.initialAssignedMemberId
           ? {
               assignments: {

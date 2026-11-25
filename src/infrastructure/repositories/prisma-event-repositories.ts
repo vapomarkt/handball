@@ -50,6 +50,17 @@ function mapMatchDetails(m: {
   isHome: boolean;
   throwOffAt: Date | null;
   jerseyColor: string | null;
+  jerseySetId: string | null;
+  jerseySet?: {
+    id: string;
+    name: string;
+    colors: string;
+    condition: MatchDetailsDTO["jerseySet"] extends { condition: infer C } | null
+      ? C
+      : never;
+    conditionNote: string | null;
+    careInstructions: string | null;
+  } | null;
   refereeNote: string | null;
   nominatedMemberIds: string[];
   homeScoreHalf: number | null;
@@ -64,6 +75,17 @@ function mapMatchDetails(m: {
     isHome: m.isHome,
     throwOffAt: m.throwOffAt ? m.throwOffAt.toISOString() : null,
     jerseyColor: m.jerseyColor,
+    jerseySetId: m.jerseySetId,
+    jerseySet: m.jerseySet
+      ? {
+          id: m.jerseySet.id,
+          name: m.jerseySet.name,
+          colors: m.jerseySet.colors,
+          condition: m.jerseySet.condition,
+          conditionNote: m.jerseySet.conditionNote,
+          careInstructions: m.jerseySet.careInstructions,
+        }
+      : null,
     refereeNote: m.refereeNote,
     nominatedMemberIds: m.nominatedMemberIds,
     homeScoreHalf: m.homeScoreHalf,
@@ -73,9 +95,22 @@ function mapMatchDetails(m: {
   };
 }
 
+const JERSEY_SET_SUMMARY_SELECT = {
+  id: true,
+  name: true,
+  colors: true,
+  condition: true,
+  conditionNote: true,
+  careInstructions: true,
+} as const;
+
 const EVENT_INCLUDE = {
   venue: true,
-  matchDetails: true,
+  matchDetails: {
+    include: {
+      jerseySet: { select: JERSEY_SET_SUMMARY_SELECT },
+    },
+  },
   attendances: {
     include: {
       member: {
@@ -243,6 +278,7 @@ export class PrismaEventRepository implements EventRepository {
                   isHome: input.matchDetails.isHome,
                   throwOffAt: input.matchDetails.throwOffAt ?? input.startAt,
                   jerseyColor: input.matchDetails.jerseyColor ?? null,
+                  jerseySetId: input.matchDetails.jerseySetId ?? null,
                   refereeNote: input.matchDetails.refereeNote ?? null,
                 },
               },
@@ -436,6 +472,9 @@ export class PrismaEventRepository implements EventRepository {
         ...(input.jerseyColor !== undefined
           ? { jerseyColor: input.jerseyColor }
           : {}),
+        ...(input.jerseySetId !== undefined
+          ? { jerseySetId: input.jerseySetId }
+          : {}),
         ...(input.refereeNote !== undefined
           ? { refereeNote: input.refereeNote }
           : {}),
@@ -461,12 +500,16 @@ export class PrismaEventRepository implements EventRepository {
         isHome: input.isHome ?? true,
         throwOffAt: input.throwOffAt ? new Date(input.throwOffAt) : null,
         jerseyColor: input.jerseyColor ?? null,
+        jerseySetId: input.jerseySetId ?? null,
         refereeNote: input.refereeNote ?? null,
         nominatedMemberIds: input.nominatedMemberIds ?? [],
         homeScoreHalf: input.homeScoreHalf ?? null,
         awayScoreHalf: input.awayScoreHalf ?? null,
         homeScoreFull: input.homeScoreFull ?? null,
         awayScoreFull: input.awayScoreFull ?? null,
+      },
+      include: {
+        jerseySet: { select: JERSEY_SET_SUMMARY_SELECT },
       },
     });
     return mapMatchDetails(row);

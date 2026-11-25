@@ -121,6 +121,8 @@ describe("DutyService (Team-Delegation, Tauschbörse & RBAC)", () => {
       slotsNeeded: 1,
       assignedTeamId: "team-h1",
       assignedTeamName: "Herren 1",
+      jerseySetId: null,
+      jerseySet: null,
       assignments: [],
       openSlots: 1,
     };

@@ -207,6 +207,15 @@ enum CashEntryStatus {
   PAID
 }
 
+enum JerseyCondition {
+  NEW
+  GOOD
+  WORN
+  NEEDS_REPAIR
+  INCOMPLETE
+  RETIRED
+}
+
 // ============================================================================
 // Better Auth Tabellen
 // ============================================================================
@@ -309,6 +318,7 @@ model Club {
   teamPolls           TeamPoll[]
   fineCatalogItems    FineCatalogItem[]
   teamCashEntries     TeamCashEntry[]
+  jerseySets          JerseySet[]
 
   @@map("club")
 }
@@ -368,6 +378,7 @@ model Team {
   polls               TeamPoll[]
   fineCatalogItems    FineCatalogItem[]
   cashEntries         TeamCashEntry[]
+  jerseySets          JerseySet[]
 
   @@unique([clubId, seasonId, name])
   @@index([clubId])
@@ -581,15 +592,18 @@ model MatchDetails {
   isHome             Boolean   @default(true)
   throwOffAt         DateTime?
   jerseyColor        String?
+  jerseySetId        String?
+  jerseySet          JerseySet? @relation(fields: [jerseySetId], references: [id], onDelete: SetNull)
   refereeNote        String?
-  nominatedMemberIds String[]  @default([])
+  nominatedMemberIds String[]   @default([])
   homeScoreHalf      Int?
   awayScoreHalf      Int?
   homeScoreFull      Int?
   awayScoreFull      Int?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 
+  @@index([jerseySetId])
   @@map("match_details")
 }
 
@@ -728,6 +742,9 @@ model WorkDuty {
   // Delegation an ein Team (z. B. "Herren 1 stellt Kampfgericht für Damen 1")
   assignedTeamId  String?
   assignedTeam    Team?        @relation("DutyDelegatedTeam", fields: [assignedTeamId], references: [id], onDelete: SetNull)
+  // Optionaler Bezug zu einem Trikotsatz (z. B. bei Trikotwäsche inkl. Pflegehinweisen)
+  jerseySetId     String?
+  jerseySet       JerseySet?   @relation(fields: [jerseySetId], references: [id], onDelete: SetNull)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -737,6 +754,7 @@ model WorkDuty {
   @@index([teamId])
   @@index([matchdayId])
   @@index([assignedTeamId])
+  @@index([jerseySetId])
   @@map("work_duty")
 }
 
@@ -1113,4 +1131,33 @@ model LeagueGroupTeam {
   @@index([leagueGroupId])
   @@index([clubName])
   @@map("league_group_team")
+}
+
+// ============================================================================
+// Trikotsätze (Verwaltung, Zustand & Pflegehinweise zum Waschen)
+// ============================================================================
+
+model JerseySet {
+  id               String          @id @default(cuid())
+  clubId           String
+  club             Club            @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  teamId           String?
+  team             Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  name             String
+  colors           String
+  sizes            String?
+  jerseyCount      Int?
+  condition        JerseyCondition @default(GOOD)
+  conditionNote    String?
+  careInstructions String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  matchDetails MatchDetails[]
+  workDuties   WorkDuty[]
+
+  @@unique([clubId, name])
+  @@index([clubId])
+  @@index([teamId])
+  @@map("jersey_set")
 }

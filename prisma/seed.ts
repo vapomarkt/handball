@@ -10,6 +10,7 @@ import {
   EventType,
   HandballPosition,
   InviteType,
+  JerseyCondition,
   LeagueAgeGroup,
   LeagueProviderType,
   MemberRole,
@@ -1407,16 +1408,55 @@ async function main() {
     },
   });
 
+  // 15b. Trikotsätze inkl. Zustand & Pflegehinweisen
+  await prisma.jerseySet.upsert({
+    where: { id: "jersey-tjh-mjd-home" },
+    update: {},
+    create: {
+      id: "jersey-tjh-mjd-home",
+      clubId: club.id,
+      teamId: mjdTeam.id,
+      name: "Heimtrikot mD-Jugend",
+      colors: "Grün / Weiß",
+      sizes: "152–S (14 Feld + 2 TW)",
+      jerseyCount: 16,
+      condition: JerseyCondition.GOOD,
+      conditionNote: "Vollständig und frisch gezählt.",
+      careInstructions:
+        "Max. 30 °C auf links waschen, kein Weichspüler, nicht trocknergeeignet (Beflockung!).",
+    },
+  });
+
+  const awayJerseySet = await prisma.jerseySet.upsert({
+    where: { id: "jersey-tjh-mjd-away" },
+    update: {},
+    create: {
+      id: "jersey-tjh-mjd-away",
+      clubId: club.id,
+      teamId: mjdTeam.id,
+      name: "Auswärtstrikot mD-Jugend",
+      colors: "Schwarz / Neongrün",
+      sizes: "152–S (14 Feld + 2 TW)",
+      jerseyCount: 16,
+      condition: JerseyCondition.WORN,
+      conditionNote: "Nr. 9 leichter Druckabrieb am Rücken, sonst gut.",
+      careInstructions:
+        "Max. 30 °C Feinwäsche auf links, kein Weichspüler, nicht bügeln, lufttrocknen.",
+    },
+  });
+
   const laundryDuty = await prisma.workDuty.upsert({
     where: { id: "duty-tjh-trikot-mjd" },
     update: {
       title: "Trikotwäsche mD-Jugend (Auswärtsspiel Klecken 17:23)",
+      jerseySetId: awayJerseySet.id,
     },
     create: {
       id: "duty-tjh-trikot-mjd",
       clubId: club.id,
       teamId: mjdTeam.id,
       eventId: lastPastMatchId,
+      jerseySetId: awayJerseySet.id,
       scope: DutyScope.TEAM,
       category: DutyCategory.JERSEY_LAUNDRY,
       title: "Trikotwäsche mD-Jugend (Auswärtsspiel Klecken 17:23)",

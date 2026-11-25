@@ -38,6 +38,7 @@ export interface CreateEventRecordInput {
     isHome: boolean;
     throwOffAt?: Date | null;
     jerseyColor?: string | null;
+    jerseySetId?: string | null;
     refereeNote?: string | null;
   };
 }

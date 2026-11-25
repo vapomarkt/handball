@@ -9,11 +9,13 @@ import {
   Lock,
   Search,
   ShieldAlert,
+  Shirt,
   Trash2,
   UserCheck,
   UserPlus,
   Users,
 } from "lucide-react";
+import { JerseySetsPanel } from "@/components/jerseys/jersey-sets-panel";
 import { useAppContext } from "@/components/providers/app-context";
 import { InviteDialog } from "@/components/team/invite-dialog";
 import { MemberFormDialog } from "@/components/team/member-form-dialog";
@@ -38,6 +40,7 @@ import {
   type InviteType,
 } from "@/domain/schemas/handball";
 import type { GuardianLinkDTO } from "@/domain/schemas/invite";
+import type { JerseySetDTO } from "@/domain/schemas/jersey-set";
 import type { TeamMemberResponseDTO } from "@/domain/schemas/member";
 
 const POSITION_FILTERS: Array<"ALL" | HandballPosition> = [
@@ -51,12 +54,17 @@ const POSITION_FILTERS: Array<"ALL" | HandballPosition> = [
   "KM",
 ];
 
+type TeamTab = "roster" | "jerseys";
+
 export default function TeamRosterPage() {
   const { me, activeTeam, refreshMe } = useAppContext();
 
+  const [activeTab, setActiveTab] = useState<TeamTab>("roster");
   const [members, setMembers] = useState<TeamMemberResponseDTO[]>([]);
   const [guardianLinks, setGuardianLinks] = useState<GuardianLinkDTO[]>([]);
+  const [jerseySets, setJerseySets] = useState<JerseySetDTO[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingJerseys, setLoadingJerseys] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingResin, setSavingResin] = useState(false);
 
@@ -162,6 +170,44 @@ export default function TeamRosterPage() {
       active = false;
     };
   }, [activeTeam, isStaff]);
+
+  const loadJerseySets = useCallback(async () => {
+    if (!activeTeam) return;
+    try {
+      const res = await fetch(
+        `/api/v1/clubs/${encodeURIComponent(activeTeam.clubId)}/jersey-sets?teamId=${encodeURIComponent(activeTeam.teamId)}`,
+        { cache: "no-store" }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setJerseySets(data.jerseySets ?? []);
+      }
+    } finally {
+      setLoadingJerseys(false);
+    }
+  }, [activeTeam]);
+
+  useEffect(() => {
+    if (!activeTeam) return;
+    let active = true;
+    fetch(
+      `/api/v1/clubs/${encodeURIComponent(activeTeam.clubId)}/jersey-sets?teamId=${encodeURIComponent(activeTeam.teamId)}`,
+      { cache: "no-store" }
+    )
+      .then(async (res) => {
+        if (!active) return;
+        if (res.ok) {
+          const data = await res.json();
+          setJerseySets(data.jerseySets ?? []);
+        }
+      })
+      .finally(() => {
+        if (active) setLoadingJerseys(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [activeTeam]);
 
   const loadRoster = fetchRosterData;
 
@@ -301,7 +347,7 @@ export default function TeamRosterPage() {
           </div>
         </div>
 
-        {isStaff && (
+        {isStaff && activeTab === "roster" && (
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={openTeamInvite}>
               <Link2 className="h-4 w-4" />
@@ -315,7 +361,47 @@ export default function TeamRosterPage() {
         )}
       </div>
 
-      {/* Filter & Suche */}
+      {/* Tabs: Kader & Trikotsätze */}
+      <div className="flex flex-wrap gap-1.5 border-b border-border pb-3">
+        <button
+          type="button"
+          onClick={() => setActiveTab("roster")}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold cursor-pointer ${
+            activeTab === "roster"
+              ? "bg-primary text-primary-foreground"
+              : "bg-card text-muted-foreground hover:bg-muted border border-border"
+          }`}
+        >
+          <Users className="h-4 w-4" />
+          Kader ({members.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("jerseys")}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold cursor-pointer ${
+            activeTab === "jerseys"
+              ? "bg-primary text-primary-foreground"
+              : "bg-card text-muted-foreground hover:bg-muted border border-border"
+          }`}
+        >
+          <Shirt className="h-4 w-4" />
+          Trikotsätze ({jerseySets.length})
+        </button>
+      </div>
+
+      {activeTab === "jerseys" ? (
+        <JerseySetsPanel
+          clubId={activeTeam.clubId}
+          activeTeamId={activeTeam.teamId}
+          activeTeamName={activeTeam.teamName}
+          jerseySets={jerseySets}
+          loading={loadingJerseys}
+          isStaff={isStaff}
+          onChanged={loadJerseySets}
+        />
+      ) : (
+        <>
+          {/* Filter & Suche */}
       <div className="space-y-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -620,6 +706,8 @@ export default function TeamRosterPage() {
             ))}
           </CardContent>
         </Card>
+      )}
+        </>
       )}
 
       {/* Dialoge */}

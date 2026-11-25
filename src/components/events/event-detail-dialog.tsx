@@ -22,12 +22,17 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectNative } from "@/components/ui/select-native";
 import {
   DECLINE_REASON_CATEGORY_LABELS,
   EVENT_TYPE_LABELS,
   RSVP_STATUS_LABELS,
   type EventDTO,
 } from "@/domain/schemas/event";
+import {
+  JERSEY_CONDITION_LABELS,
+  type JerseySetDTO,
+} from "@/domain/schemas/jersey-set";
 import type { TeamMemberResponseDTO } from "@/domain/schemas/member";
 import { CarpoolSection } from "./carpool-section";
 import { ResinBadge } from "./resin-badge";
@@ -38,6 +43,7 @@ interface EventDetailDialogProps {
   teamId: string;
   event: EventDTO | null;
   roster: TeamMemberResponseDTO[];
+  jerseySets?: JerseySetDTO[];
   isStaff: boolean;
   usesResin?: boolean;
   onUpdated: () => void;
@@ -60,6 +66,7 @@ export function EventDetailDialog({
   teamId,
   event,
   roster,
+  jerseySets = [],
   isStaff,
   usesResin = true,
   onUpdated,
@@ -69,6 +76,7 @@ export function EventDetailDialog({
   const [nominated, setNominated] = useState<string[]>(
     md?.nominatedMemberIds ?? []
   );
+  const [jerseySetId, setJerseySetId] = useState(md?.jerseySetId ?? "");
   const [jerseyColor, setJerseyColor] = useState(md?.jerseyColor ?? "");
   const [refereeNote, setRefereeNote] = useState(md?.refereeNote ?? "");
   const [homeScoreHalf, setHomeScoreHalf] = useState(
@@ -121,6 +129,7 @@ export function EventDetailDialog({
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            jerseySetId: jerseySetId || null,
             jerseyColor: jerseyColor || null,
             refereeNote: refereeNote || null,
             nominatedMemberIds: nominated,
@@ -228,12 +237,14 @@ export function EventDetailDialog({
 
               {!isStaff ? (
                 <div className="space-y-2 text-sm">
-                  {md.jerseyColor && (
-                    <p className="flex items-center gap-1.5 text-muted-foreground">
+                  {(md.jerseySet || md.jerseyColor) && (
+                    <p className="flex flex-wrap items-center gap-1.5 text-muted-foreground">
                       <Shirt className="h-4 w-4 text-primary" />
                       Trikot:{" "}
                       <strong className="text-foreground">
-                        {md.jerseyColor}
+                        {md.jerseySet
+                          ? `${md.jerseySet.name} (${md.jerseySet.colors})`
+                          : md.jerseyColor}
                       </strong>
                     </p>
                   )}
@@ -268,14 +279,53 @@ export function EventDetailDialog({
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="space-y-1">
                       <Label htmlFor="md-jersey" className="text-xs">
-                        Trikotfarbe
+                        Trikotsatz
                       </Label>
-                      <Input
-                        id="md-jersey"
-                        value={jerseyColor}
-                        onChange={(e) => setJerseyColor(e.target.value)}
-                        className="h-9 text-xs"
-                      />
+                      {jerseySets.length > 0 ? (
+                        <SelectNative
+                          id="md-jersey"
+                          value={jerseySetId}
+                          onChange={(e) => {
+                            const nextId = e.target.value;
+                            setJerseySetId(nextId);
+                            const chosen = jerseySets.find(
+                              (j) => j.id === nextId
+                            );
+                            if (chosen) {
+                              setJerseyColor(chosen.colors);
+                            }
+                          }}
+                          className="h-9 text-xs"
+                        >
+                          <option value="">
+                            Benutzerdefinierte Trikotfarbe…
+                          </option>
+                          {jerseySets.map((j) => (
+                            <option key={j.id} value={j.id}>
+                              {j.name} ({j.colors})
+                              {j.condition !== "GOOD" && j.condition !== "NEW"
+                                ? ` · ${JERSEY_CONDITION_LABELS[j.condition]}`
+                                : ""}
+                            </option>
+                          ))}
+                        </SelectNative>
+                      ) : (
+                        <Input
+                          id="md-jersey"
+                          value={jerseyColor}
+                          onChange={(e) => setJerseyColor(e.target.value)}
+                          className="h-9 text-xs"
+                        />
+                      )}
+                      {jerseySets.length > 0 && !jerseySetId && (
+                        <Input
+                          aria-label="Benutzerdefinierte Trikotfarbe"
+                          placeholder="z. B. Orange / Schwarz"
+                          value={jerseyColor}
+                          onChange={(e) => setJerseyColor(e.target.value)}
+                          className="h-9 text-xs mt-1.5"
+                        />
+                      )}
                     </div>
                     <div className="space-y-1">
                       <Label htmlFor="md-ref" className="text-xs">

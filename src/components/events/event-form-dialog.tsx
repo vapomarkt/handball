@@ -18,12 +18,17 @@ import {
   type EventType,
   type VenueDTO,
 } from "@/domain/schemas/event";
+import {
+  JERSEY_CONDITION_LABELS,
+  type JerseySetDTO,
+} from "@/domain/schemas/jersey-set";
 
 interface EventFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   teamId: string;
   venues: VenueDTO[];
+  jerseySets?: JerseySetDTO[];
   onSaved: () => void;
 }
 
@@ -50,8 +55,12 @@ export function EventFormDialog({
   onOpenChange,
   teamId,
   venues,
+  jerseySets = [],
   onSaved,
 }: EventFormDialogProps) {
+  const activeJerseySets = jerseySets.filter((j) => j.condition !== "RETIRED");
+  const defaultJerseySet = activeJerseySets[0] ?? null;
+
   const [recurring, setRecurring] = useState(false);
   const [type, setType] = useState<EventType>("TRAINING");
   const [title, setTitle] = useState("Mannschaftstraining");
@@ -74,7 +83,10 @@ export function EventFormDialog({
   // Match fields
   const [opponentName, setOpponentName] = useState("");
   const [isHome, setIsHome] = useState(true);
-  const [jerseyColor, setJerseyColor] = useState("Orange / Schwarz");
+  const [jerseySetId, setJerseySetId] = useState(defaultJerseySet?.id ?? "");
+  const [jerseyColor, setJerseyColor] = useState(
+    defaultJerseySet?.colors ?? "Orange / Schwarz"
+  );
   const [refereeNote, setRefereeNote] = useState("");
 
   const [error, setError] = useState<string | null>(null);
@@ -141,6 +153,7 @@ export function EventFormDialog({
                   opponentName,
                   isHome,
                   throwOffAt: startAt,
+                  jerseySetId: jerseySetId || null,
                   jerseyColor: jerseyColor || null,
                   refereeNote: refereeNote || null,
                 },
@@ -447,13 +460,49 @@ export function EventFormDialog({
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="ev-jersey">Trikotfarbe</Label>
-                  <Input
-                    id="ev-jersey"
-                    placeholder="z. B. Orange / Schwarz"
-                    value={jerseyColor}
-                    onChange={(e) => setJerseyColor(e.target.value)}
-                  />
+                  <Label htmlFor="ev-jersey-set">Trikotsatz</Label>
+                  {activeJerseySets.length > 0 ? (
+                    <SelectNative
+                      id="ev-jersey-set"
+                      value={jerseySetId}
+                      onChange={(e) => {
+                        const nextId = e.target.value;
+                        setJerseySetId(nextId);
+                        const chosen = activeJerseySets.find(
+                          (j) => j.id === nextId
+                        );
+                        if (chosen) {
+                          setJerseyColor(chosen.colors);
+                        }
+                      }}
+                    >
+                      {activeJerseySets.map((j) => (
+                        <option key={j.id} value={j.id}>
+                          {j.name} ({j.colors})
+                          {j.condition !== "GOOD" && j.condition !== "NEW"
+                            ? ` · ${JERSEY_CONDITION_LABELS[j.condition]}`
+                            : ""}
+                        </option>
+                      ))}
+                      <option value="">Benutzerdefinierte Trikotfarbe…</option>
+                    </SelectNative>
+                  ) : (
+                    <Input
+                      id="ev-jersey-set"
+                      placeholder="z. B. Orange / Schwarz"
+                      value={jerseyColor}
+                      onChange={(e) => setJerseyColor(e.target.value)}
+                    />
+                  )}
+                  {activeJerseySets.length > 0 && !jerseySetId && (
+                    <Input
+                      aria-label="Benutzerdefinierte Trikotfarbe"
+                      placeholder="z. B. Orange / Schwarz"
+                      value={jerseyColor}
+                      onChange={(e) => setJerseyColor(e.target.value)}
+                      className="mt-1.5"
+                    />
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="ev-ref">Schiedsrichter-Hinweis</Label>

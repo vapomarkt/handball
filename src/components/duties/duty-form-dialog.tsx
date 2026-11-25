@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +19,10 @@ import {
   type DutyScope,
   type MatchdayDTO,
 } from "@/domain/schemas/duty";
+import {
+  JERSEY_CONDITION_LABELS,
+  type JerseySetDTO,
+} from "@/domain/schemas/jersey-set";
 
 interface DutyFormDialogProps {
   open: boolean;
@@ -27,6 +31,7 @@ interface DutyFormDialogProps {
   activeTeamId: string;
   clubTeams: Array<{ id: string; name: string }>;
   matchdays: MatchdayDTO[];
+  jerseySets?: JerseySetDTO[];
   onSaved: () => void;
 }
 
@@ -39,6 +44,7 @@ export function DutyFormDialog({
   activeTeamId,
   clubTeams,
   matchdays,
+  jerseySets = [],
   onSaved,
 }: DutyFormDialogProps) {
   const [scope, setScope] = useState<DutyScope>("CLUB_MATCHDAY");
@@ -47,11 +53,15 @@ export function DutyFormDialog({
   const [description, setDescription] = useState("");
   const [matchdayId, setMatchdayId] = useState(matchdays[0]?.id ?? "");
   const [assignedTeamId, setAssignedTeamId] = useState("");
+  const [jerseySetId, setJerseySetId] = useState("");
   const [hoursCredit, setHoursCredit] = useState("2");
   const [slotsNeeded, setSlotsNeeded] = useState("1");
   const [requiresLicense, setRequiresLicense] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const selectedJerseySet =
+    jerseySets.find((j) => j.id === jerseySetId) ?? null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -75,6 +85,8 @@ export function DutyFormDialog({
             requiresLicense,
             assignedTeamId:
               scope === "CLUB_MATCHDAY" ? assignedTeamId || null : null,
+            jerseySetId:
+              category === "JERSEY_LAUNDRY" ? jerseySetId || null : null,
           }),
         }
       );
@@ -152,11 +164,56 @@ export function DutyFormDialog({
             <Input
               id="d-title"
               required
-              placeholder="z. B. Kampfgericht (Sekretär) – Damen 1"
+              placeholder={
+                category === "JERSEY_LAUNDRY"
+                  ? "z. B. Trikotwäsche – Heimtrikot"
+                  : "z. B. Kampfgericht (Sekretär) – Damen 1"
+              }
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
           </div>
+
+          {category === "JERSEY_LAUNDRY" && (
+            <div className="space-y-2 rounded-xl border border-sky-200/80 bg-sky-50/50 p-3 dark:border-sky-900/60 dark:bg-sky-950/25">
+              <div className="space-y-1.5">
+                <Label htmlFor="d-jersey-set">
+                  Trikotsatz (optional – zeigt Pflegehinweise beim Waschdienst)
+                </Label>
+                <SelectNative
+                  id="d-jersey-set"
+                  value={jerseySetId}
+                  onChange={(e) => {
+                    const nextId = e.target.value;
+                    setJerseySetId(nextId);
+                    const chosen = jerseySets.find((j) => j.id === nextId);
+                    if (chosen && !title.trim()) {
+                      setTitle(`Trikotwäsche – ${chosen.name}`);
+                    }
+                  }}
+                >
+                  <option value="">Kein bestimmter Trikotsatz</option>
+                  {jerseySets.map((j) => (
+                    <option key={j.id} value={j.id}>
+                      {j.name} ({j.colors})
+                      {j.condition !== "GOOD" && j.condition !== "NEW"
+                        ? ` · ${JERSEY_CONDITION_LABELS[j.condition]}`
+                        : ""}
+                    </option>
+                  ))}
+                </SelectNative>
+              </div>
+              {selectedJerseySet?.careInstructions && (
+                <div className="text-xs text-sky-900 dark:text-sky-200 flex items-start gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Hinterlegte Pflegehinweise:</strong>{" "}
+                    {selectedJerseySet.careInstructions}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
           {scope === "CLUB_MATCHDAY" && (
             <div className="grid gap-3 sm:grid-cols-2">

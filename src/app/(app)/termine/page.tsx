@@ -41,6 +41,7 @@ import {
   type VenueDTO,
 } from "@/domain/schemas/event";
 import type { RsvpStatus } from "@/domain/schemas/handball";
+import type { JerseySetDTO } from "@/domain/schemas/jersey-set";
 import type { TeamMemberResponseDTO } from "@/domain/schemas/member";
 
 type ActiveTab = "events" | "venues" | "stats" | "sync";
@@ -73,6 +74,7 @@ function TerminePageContent() {
 
   const [events, setEvents] = useState<EventDTO[]>([]);
   const [venues, setVenues] = useState<VenueDTO[]>([]);
+  const [jerseySets, setJerseySets] = useState<JerseySetDTO[]>([]);
   const [roster, setRoster] = useState<TeamMemberResponseDTO[]>([]);
   const [stats, setStats] = useState<MemberAttendanceStatDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,7 +118,7 @@ function TerminePageContent() {
   const loadAll = useCallback(async () => {
     if (!activeTeam) return;
     try {
-      const [evRes, venRes, rosRes, statRes] = await Promise.all([
+      const [evRes, venRes, rosRes, statRes, jsRes] = await Promise.all([
         fetch(
           `/api/v1/teams/${encodeURIComponent(activeTeam.teamId)}/events`,
           { cache: "no-store" }
@@ -131,6 +133,10 @@ function TerminePageContent() {
         ),
         fetch(
           `/api/v1/teams/${encodeURIComponent(activeTeam.teamId)}/attendance-stats`,
+          { cache: "no-store" }
+        ),
+        fetch(
+          `/api/v1/clubs/${encodeURIComponent(activeTeam.clubId)}/jersey-sets?teamId=${encodeURIComponent(activeTeam.teamId)}`,
           { cache: "no-store" }
         ),
       ]);
@@ -150,6 +156,10 @@ function TerminePageContent() {
       if (statRes.ok) {
         const d = await statRes.json();
         setStats(d.stats ?? []);
+      }
+      if (jsRes.ok) {
+        const d = await jsRes.json();
+        setJerseySets(d.jerseySets ?? []);
       }
       setError(null);
     } catch {
@@ -176,13 +186,18 @@ function TerminePageContent() {
         `/api/v1/teams/${encodeURIComponent(activeTeam.teamId)}/attendance-stats`,
         { cache: "no-store" }
       ),
+      fetch(
+        `/api/v1/clubs/${encodeURIComponent(activeTeam.clubId)}/jersey-sets?teamId=${encodeURIComponent(activeTeam.teamId)}`,
+        { cache: "no-store" }
+      ),
     ])
-      .then(async ([evRes, venRes, rosRes, statRes]) => {
+      .then(async ([evRes, venRes, rosRes, statRes, jsRes]) => {
         if (!active) return;
         if (evRes.ok) setEvents((await evRes.json()).events ?? []);
         if (venRes.ok) setVenues((await venRes.json()).venues ?? []);
         if (rosRes.ok) setRoster((await rosRes.json()).members ?? []);
         if (statRes.ok) setStats((await statRes.json()).stats ?? []);
+        if (jsRes.ok) setJerseySets((await jsRes.json()).jerseySets ?? []);
         setError(null);
       })
       .catch(() => {
@@ -703,6 +718,7 @@ function TerminePageContent() {
             onOpenChange={setEventFormOpen}
             teamId={activeTeam.teamId}
             venues={venues}
+            jerseySets={jerseySets}
             onSaved={loadAll}
           />
           <VenueFormDialog
@@ -718,7 +734,7 @@ function TerminePageContent() {
       )}
 
       <EventDetailDialog
-        key={`ev-detail-${selectedEvent?.id ?? "none"}-${selectedEvent?.matchDetails?.homeScoreFull ?? ""}-${selectedEvent?.matchDetails?.nominatedMemberIds.length ?? 0}`}
+        key={`ev-detail-${selectedEvent?.id ?? "none"}-${selectedEvent?.matchDetails?.homeScoreFull ?? ""}-${selectedEvent?.matchDetails?.jerseySetId ?? ""}-${selectedEvent?.matchDetails?.nominatedMemberIds.length ?? 0}`}
         open={selectedEvent !== null}
         onOpenChange={(open) => {
           if (!open) {
@@ -731,6 +747,7 @@ function TerminePageContent() {
         teamId={activeTeam.teamId}
         event={selectedEvent}
         roster={roster}
+        jerseySets={jerseySets}
         isStaff={isStaff}
         usesResin={activeTeam.usesResin}
         onUpdated={loadAll}

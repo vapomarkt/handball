@@ -11,6 +11,8 @@ import {
   Dumbbell,
   Plus,
   ShieldCheck,
+  Shirt,
+  Sparkles,
   Trash2,
   Users,
 } from "lucide-react";
@@ -34,6 +36,10 @@ import {
   type TeamWorkHoursSummaryDTO,
   type WorkDutyDTO,
 } from "@/domain/schemas/duty";
+import {
+  JERSEY_CONDITION_LABELS,
+  type JerseySetDTO,
+} from "@/domain/schemas/jersey-set";
 
 type ActiveTab = "duties" | "hours" | "plans" | "drills";
 
@@ -43,6 +49,7 @@ export default function DiensteUndTrainingPage() {
   const [tab, setTab] = useState<ActiveTab>("duties");
   const [matchdays, setMatchdays] = useState<MatchdayDTO[]>([]);
   const [duties, setDuties] = useState<WorkDutyDTO[]>([]);
+  const [jerseySets, setJerseySets] = useState<JerseySetDTO[]>([]);
   const [workHours, setWorkHours] = useState<TeamWorkHoursSummaryDTO | null>(
     null
   );
@@ -67,7 +74,7 @@ export default function DiensteUndTrainingPage() {
   const loadAll = useCallback(async () => {
     if (!activeTeam) return;
     try {
-      const [mdRes, dRes, whRes] = await Promise.all([
+      const [mdRes, dRes, whRes, jsRes] = await Promise.all([
         fetch(
           `/api/v1/clubs/${encodeURIComponent(activeTeam.clubId)}/matchdays`,
           { cache: "no-store" }
@@ -80,10 +87,15 @@ export default function DiensteUndTrainingPage() {
           `/api/v1/teams/${encodeURIComponent(activeTeam.teamId)}/work-hours`,
           { cache: "no-store" }
         ),
+        fetch(
+          `/api/v1/clubs/${encodeURIComponent(activeTeam.clubId)}/jersey-sets?teamId=${encodeURIComponent(activeTeam.teamId)}`,
+          { cache: "no-store" }
+        ),
       ]);
       if (mdRes.ok) setMatchdays((await mdRes.json()).matchdays ?? []);
       if (dRes.ok) setDuties((await dRes.json()).duties ?? []);
       if (whRes.ok) setWorkHours((await whRes.json()).summary ?? null);
+      if (jsRes.ok) setJerseySets((await jsRes.json()).jerseySets ?? []);
       setError(null);
     } catch {
       setError("Dienste konnten nicht geladen werden.");
@@ -108,12 +120,17 @@ export default function DiensteUndTrainingPage() {
         `/api/v1/teams/${encodeURIComponent(activeTeam.teamId)}/work-hours`,
         { cache: "no-store" }
       ),
+      fetch(
+        `/api/v1/clubs/${encodeURIComponent(activeTeam.clubId)}/jersey-sets?teamId=${encodeURIComponent(activeTeam.teamId)}`,
+        { cache: "no-store" }
+      ),
     ])
-      .then(async ([mdRes, dRes, whRes]) => {
+      .then(async ([mdRes, dRes, whRes, jsRes]) => {
         if (!active) return;
         if (mdRes.ok) setMatchdays((await mdRes.json()).matchdays ?? []);
         if (dRes.ok) setDuties((await dRes.json()).duties ?? []);
         if (whRes.ok) setWorkHours((await whRes.json()).summary ?? null);
+        if (jsRes.ok) setJerseySets((await jsRes.json()).jerseySets ?? []);
         setError(null);
       })
       .catch(() => {
@@ -299,7 +316,21 @@ export default function DiensteUndTrainingPage() {
             </Card>
           ) : (
             <div className="grid gap-3">
-              {duties.map((duty) => (
+              {duties.map((duty) => {
+                const linkedChildIds = new Set(
+                  me.guardianLinks.map((g) => g.childMemberId)
+                );
+                const isAssignedToMe = duty.assignments.some(
+                  (a) =>
+                    a.status !== "COMPLETED" &&
+                    a.status !== "OPEN" &&
+                    (a.assignedMemberUserId === me.user.id ||
+                      a.assignedMemberId === myMemberInTeam?.memberId ||
+                      (a.assignedMemberId !== null &&
+                        linkedChildIds.has(a.assignedMemberId)))
+                );
+
+                return (
                 <Card key={duty.id} data-testid={`duty-card-${duty.id}`}>
                   <CardContent className="p-4 sm:p-5 space-y-3">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -330,6 +361,12 @@ export default function DiensteUndTrainingPage() {
                             <Badge variant="position" className="gap-1">
                               <Users className="h-3 w-3" />
                               Delegiert an {duty.assignedTeamName}
+                            </Badge>
+                          )}
+                          {duty.jerseySet && (
+                            <Badge variant="secondary" className="gap-1">
+                              <Shirt className="h-3 w-3 text-primary" />
+                              {duty.jerseySet.name} ({duty.jerseySet.colors})
                             </Badge>
                           )}
                         </div>
@@ -369,6 +406,43 @@ export default function DiensteUndTrainingPage() {
                         )}
                       </div>
                     </div>
+
+                    {/* Pflegehinweise zum Waschen (besonders hervorgehoben für eingeteilte Person) */}
+                    {duty.jerseySet &&
+                      (duty.jerseySet.careInstructions ||
+                        duty.jerseySet.conditionNote) && (
+                        <div
+                          data-testid={`laundry-care-${duty.id}`}
+                          className={
+                            isAssignedToMe
+                              ? "rounded-xl border-2 border-sky-400 bg-sky-50 p-3.5 text-xs space-y-1.5 dark:border-sky-600 dark:bg-sky-950/50"
+                              : "rounded-lg border border-sky-200/80 bg-sky-50/50 p-3 text-xs space-y-1 dark:border-sky-900/60 dark:bg-sky-950/25"
+                          }
+                        >
+                          <p className="font-bold text-sky-900 dark:text-sky-200 flex items-center gap-1.5">
+                            <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                            {isAssignedToMe
+                              ? `Deine Trikotwäsche (${duty.jerseySet.name}) – Pflegehinweise beachten`
+                              : `Pflegehinweise zum Waschen · ${duty.jerseySet.name}`}
+                          </p>
+                          {duty.jerseySet.careInstructions && (
+                            <p className="text-sky-950/90 dark:text-sky-100/90 whitespace-pre-line">
+                              {duty.jerseySet.careInstructions}
+                            </p>
+                          )}
+                          {duty.jerseySet.conditionNote && (
+                            <p className="text-muted-foreground">
+                              Zustand (
+                              {
+                                JERSEY_CONDITION_LABELS[
+                                  duty.jerseySet.condition
+                                ]
+                              }
+                              ): {duty.jerseySet.conditionNote}
+                            </p>
+                          )}
+                        </div>
+                      )}
 
                     {/* Zugewiesene Slots & Tauschbörse */}
                     {duty.assignments.length > 0 && (
@@ -472,7 +546,8 @@ export default function DiensteUndTrainingPage() {
                     )}
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -550,6 +625,7 @@ export default function DiensteUndTrainingPage() {
           activeTeamId={activeTeam.teamId}
           clubTeams={clubTeams}
           matchdays={matchdays}
+          jerseySets={jerseySets}
           onSaved={loadAll}
         />
       )}

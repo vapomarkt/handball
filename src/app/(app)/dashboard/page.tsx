@@ -10,6 +10,8 @@ import {
   Clock,
   MapPin,
   Shield,
+  Shirt,
+  Sparkles,
   Trophy,
   UserCheck,
   Users,
@@ -29,6 +31,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import type { WorkDutyDTO } from "@/domain/schemas/duty";
 import { EVENT_TYPE_LABELS, type EventDTO } from "@/domain/schemas/event";
 import {
   AVAILABILITY_STATUS_LABELS,
@@ -52,12 +55,13 @@ export default function DashboardPage() {
   const { me, activeTeam, selectableTeams, setActiveTeamId } = useAppContext();
   const [members, setMembers] = useState<TeamMemberResponseDTO[]>([]);
   const [events, setEvents] = useState<EventDTO[]>([]);
+  const [duties, setDuties] = useState<WorkDutyDTO[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
   const reloadDashboard = useCallback(async () => {
     if (!activeTeam) return;
     try {
-      const [mRes, eRes] = await Promise.all([
+      const [mRes, eRes, dRes] = await Promise.all([
         fetch(
           `/api/v1/teams/${encodeURIComponent(activeTeam.teamId)}/members`,
           { cache: "no-store" }
@@ -66,9 +70,14 @@ export default function DashboardPage() {
           `/api/v1/teams/${encodeURIComponent(activeTeam.teamId)}/events`,
           { cache: "no-store" }
         ),
+        fetch(
+          `/api/v1/clubs/${encodeURIComponent(activeTeam.clubId)}/duties?teamId=${encodeURIComponent(activeTeam.teamId)}`,
+          { cache: "no-store" }
+        ),
       ]);
       if (mRes.ok) setMembers((await mRes.json()).members ?? []);
       if (eRes.ok) setEvents((await eRes.json()).events ?? []);
+      if (dRes.ok) setDuties((await dRes.json()).duties ?? []);
     } finally {
       setLoadingData(false);
     }
@@ -84,11 +93,16 @@ export default function DashboardPage() {
       fetch(`/api/v1/teams/${encodeURIComponent(activeTeam.teamId)}/events`, {
         cache: "no-store",
       }),
+      fetch(
+        `/api/v1/clubs/${encodeURIComponent(activeTeam.clubId)}/duties?teamId=${encodeURIComponent(activeTeam.teamId)}`,
+        { cache: "no-store" }
+      ),
     ])
-      .then(async ([mRes, eRes]) => {
+      .then(async ([mRes, eRes, dRes]) => {
         if (!active) return;
         if (mRes.ok) setMembers((await mRes.json()).members ?? []);
         if (eRes.ok) setEvents((await eRes.json()).events ?? []);
+        if (dRes.ok) setDuties((await dRes.json()).duties ?? []);
       })
       .finally(() => {
         if (active) setLoadingData(false);
@@ -152,6 +166,22 @@ export default function DashboardPage() {
     (m) => m.team.id === activeTeam.teamId
   );
 
+  const myLinkedChildIds = new Set(
+    me.guardianLinks.map((g) => g.childMemberId)
+  );
+  const myLaundryDuties = duties.filter(
+    (d) =>
+      d.category === "JERSEY_LAUNDRY" &&
+      d.assignments.some(
+        (a) =>
+          (a.status === "ASSIGNED" || a.status === "SWAP_REQUESTED") &&
+          (a.assignedMemberUserId === me.user.id ||
+            a.assignedMemberId === myMembership?.memberId ||
+            (a.assignedMemberId !== null &&
+              myLinkedChildIds.has(a.assignedMemberId)))
+      )
+  );
+
   const nextEventResponded = nextEvent
     ? nextEvent.summary.accepted +
       nextEvent.summary.declined +
@@ -206,6 +236,54 @@ export default function DashboardPage() {
           </Button>
         </div>
       </div>
+
+      {/* Zugewiesene Trikotwäsche & Pflegehinweise */}
+      {myLaundryDuties.length > 0 && (
+        <Card className="border-sky-300 bg-sky-50/70 dark:border-sky-800 dark:bg-sky-950/35">
+          <CardContent className="p-4 sm:p-5 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Shirt className="h-4 w-4 text-sky-700 dark:text-sky-300" />
+                <h2 className="text-sm font-bold text-sky-950 dark:text-sky-100">
+                  Deine Trikotwäsche – Pflegehinweise
+                </h2>
+              </div>
+              <Link
+                href="/dienste"
+                className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-0.5"
+              >
+                Zu den Diensten
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+            <div className="space-y-2.5">
+              {myLaundryDuties.map((duty) => (
+                <div
+                  key={duty.id}
+                  className="rounded-lg border border-sky-200/80 bg-background/80 p-3 text-xs space-y-1 dark:border-sky-900/60"
+                >
+                  <p className="font-semibold text-foreground">
+                    {duty.title}
+                    {duty.jerseySet
+                      ? ` · ${duty.jerseySet.name} (${duty.jerseySet.colors})`
+                      : ""}
+                  </p>
+                  {duty.jerseySet?.careInstructions ? (
+                    <p className="text-sky-950/90 dark:text-sky-100/90 flex items-start gap-1.5 whitespace-pre-line">
+                      <Sparkles className="h-3.5 w-3.5 shrink-0 mt-0.5 text-sky-600 dark:text-sky-300" />
+                      <span>{duty.jerseySet.careInstructions}</span>
+                    </p>
+                  ) : (
+                    <p className="text-muted-foreground">
+                      Keine besonderen Pflegehinweise hinterlegt.
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* KPI-Leiste */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

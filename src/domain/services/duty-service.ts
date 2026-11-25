@@ -1,3 +1,4 @@
+import { JerseySetRepository } from "../adapters/jersey-set-repository";
 import { DutyRepository } from "../adapters/m3-repositories";
 import { MemberRepository, TeamRepository } from "../adapters/repositories";
 import { DomainError } from "../errors";
@@ -28,7 +29,8 @@ export class DutyService {
   constructor(
     private readonly teams: TeamRepository,
     private readonly members: MemberRepository,
-    private readonly duties: DutyRepository
+    private readonly duties: DutyRepository,
+    private readonly jerseySets?: JerseySetRepository
   ) {}
 
   async listMatchdays(
@@ -100,6 +102,13 @@ export class DutyService {
       }
     } else if (!canManageVenues(viewer, clubId)) {
       throw DomainError.forbidden("Keine Berechtigung zum Anlegen von Diensten.");
+    }
+
+    if (data.jerseySetId && this.jerseySets) {
+      const jerseySet = await this.jerseySets.findById(data.jerseySetId);
+      if (!jerseySet || jerseySet.clubId !== clubId) {
+        throw DomainError.notFound("Ausgewählter Trikotsatz nicht gefunden.");
+      }
     }
 
     return this.duties.createDuty(clubId, data);

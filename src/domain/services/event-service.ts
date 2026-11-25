@@ -2,6 +2,7 @@ import {
   EventRepository,
   VenueRepository,
 } from "../adapters/event-repositories";
+import { JerseySetRepository } from "../adapters/jersey-set-repository";
 import { MemberRepository, TeamRepository } from "../adapters/repositories";
 import { DomainError } from "../errors";
 import { projectEventAttendanceDTO } from "../policies/gdpr";
@@ -85,7 +86,8 @@ export class EventService {
     private readonly teams: TeamRepository,
     private readonly members: MemberRepository,
     private readonly venues: VenueRepository,
-    private readonly events: EventRepository
+    private readonly events: EventRepository,
+    private readonly jerseySets?: JerseySetRepository
   ) {}
 
   async listEvents(
@@ -159,6 +161,18 @@ export class EventService {
       }
     }
 
+    let resolvedJerseyColor = data.matchDetails?.jerseyColor ?? null;
+    const resolvedJerseySetId = data.matchDetails?.jerseySetId ?? null;
+    if (resolvedJerseySetId && this.jerseySets) {
+      const jerseySet = await this.jerseySets.findById(resolvedJerseySetId);
+      if (!jerseySet || jerseySet.clubId !== team.clubId) {
+        throw DomainError.notFound("Ausgewählter Trikotsatz nicht gefunden.");
+      }
+      if (!resolvedJerseyColor) {
+        resolvedJerseyColor = jerseySet.colors;
+      }
+    }
+
     const created = await this.events.createSingle({
       clubId: team.clubId,
       teamId: team.id,
@@ -180,7 +194,8 @@ export class EventService {
             throwOffAt: data.matchDetails.throwOffAt
               ? new Date(data.matchDetails.throwOffAt)
               : new Date(data.startAt),
-            jerseyColor: data.matchDetails.jerseyColor ?? null,
+            jerseyColor: resolvedJerseyColor,
+            jerseySetId: resolvedJerseySetId,
             refereeNote: data.matchDetails.refereeNote ?? null,
           }
         : undefined,
@@ -425,7 +440,20 @@ export class EventService {
       }
     }
 
-    return this.events.upsertMatchDetails(event.id, parsed.data);
+    const updatePayload = { ...parsed.data };
+    if (updatePayload.jerseySetId && this.jerseySets) {
+      const jerseySet = await this.jerseySets.findById(
+        updatePayload.jerseySetId
+      );
+      if (!jerseySet || jerseySet.clubId !== event.clubId) {
+        throw DomainError.notFound("Ausgewählter Trikotsatz nicht gefunden.");
+      }
+      if (!updatePayload.jerseyColor) {
+        updatePayload.jerseyColor = jerseySet.colors;
+      }
+    }
+
+    return this.events.upsertMatchDetails(event.id, updatePayload);
   }
 
   async getAttendanceStats(

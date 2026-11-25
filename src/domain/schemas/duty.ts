@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { JerseySetSummaryDTO } from "./jersey-set";
 
 export const DutyScopeSchema = z.enum(["CLUB_MATCHDAY", "TEAM"]);
 export type DutyScope = z.infer<typeof DutyScopeSchema>;
@@ -87,6 +88,7 @@ export const CreateWorkDutySchema = z.object({
   requiresLicense: z.boolean().default(false),
   slotsNeeded: z.number().int().min(1).max(20).default(1),
   assignedTeamId: z.string().min(1).nullable().optional(),
+  jerseySetId: z.string().min(1).nullable().optional(),
   initialAssignedMemberId: z.string().min(1).nullable().optional(),
 });
 export type CreateWorkDutyInput = z.infer<typeof CreateWorkDutySchema>;
@@ -147,6 +149,8 @@ export interface WorkDutyDTO {
   slotsNeeded: number;
   assignedTeamId: string | null;
   assignedTeamName: string | null;
+  jerseySetId: string | null;
+  jerseySet: JerseySetSummaryDTO | null;
   assignments: WorkDutyAssignmentDTO[];
   openSlots: number;
 }

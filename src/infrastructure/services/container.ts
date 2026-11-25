@@ -6,6 +6,7 @@ import { DutyService } from "@/domain/services/duty-service";
 import { EventService } from "@/domain/services/event-service";
 import { GuardianService } from "@/domain/services/guardian-service";
 import { InviteService } from "@/domain/services/invite-service";
+import { JerseySetService } from "@/domain/services/jersey-set-service";
 import { LeagueCatalogService } from "@/domain/services/league-catalog-service";
 import { LeagueDirectoryService } from "@/domain/services/league-directory-service";
 import { LeagueSyncService } from "@/domain/services/league-sync-service";
@@ -20,6 +21,7 @@ import {
   PrismaEventRepository,
   PrismaVenueRepository,
 } from "../repositories/prisma-event-repositories";
+import { PrismaJerseySetRepository } from "../repositories/prisma-jersey-set-repository";
 import { PrismaLeagueCatalogRepository } from "../repositories/prisma-league-catalog-repository";
 import { PrismaLeagueDirectoryRepository } from "../repositories/prisma-league-directory-repository";
 import {
@@ -55,6 +57,7 @@ const inviteRepo = new PrismaInviteRepository();
 const guardianRepo = new PrismaGuardianRepository();
 const userLookupRepo = new PrismaUserLookupRepository();
 const venueRepo = new PrismaVenueRepository();
+const jerseySetRepo = new PrismaJerseySetRepository();
 const eventRepo = new PrismaEventRepository();
 const leagueCatalogRepo = new PrismaLeagueCatalogRepository();
 const seasonCatalogRepo = new PrismaSeasonCatalogRepository();
@@ -121,10 +124,17 @@ export const services = {
     userLookupRepo
   ),
   venue: new VenueService(venueRepo),
-  event: new EventService(teamRepo, memberRepo, venueRepo, eventRepo),
+  jerseySet: new JerseySetService(jerseySetRepo, teamRepo),
+  event: new EventService(
+    teamRepo,
+    memberRepo,
+    venueRepo,
+    eventRepo,
+    jerseySetRepo
+  ),
   leagueSync: leagueSyncService,
   carpool: new CarpoolService(eventRepo, memberRepo, carpoolRepo),
-  duty: new DutyService(teamRepo, memberRepo, dutyRepo),
+  duty: new DutyService(teamRepo, memberRepo, dutyRepo, jerseySetRepo),
   training: new TrainingService(teamRepo, trainingRepo),
   tactics: new TacticService(teamRepo, tacticRepo),
   scouting: new ScoutingService(teamRepo, scoutingRepo),

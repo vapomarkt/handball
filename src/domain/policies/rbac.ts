@@ -166,3 +166,14 @@ export function canSubmitRsvpForMember(
   }
   return false;
 }
+
+export function canManageJerseySets(
+  viewer: ViewerContext,
+  clubId: string,
+  teamId?: string | null
+): boolean {
+  if (teamId) {
+    return isTeamStaff(viewer, teamId, clubId);
+  }
+  return canManageVenues(viewer, clubId);
+}

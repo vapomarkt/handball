@@ -297,6 +297,8 @@ describe("EventService & VenueService RBAC, RSVP-Regeln & Statistik", () => {
         isHome: true,
         throwOffAt: null,
         jerseyColor: null,
+        jerseySetId: null,
+        jerseySet: null,
         refereeNote: null,
         nominatedMemberIds: [],
         homeScoreHalf: null,

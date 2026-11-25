@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { RsvpStatus, RsvpStatusSchema } from "./handball";
+import type { JerseySetSummaryDTO } from "./jersey-set";
 
 export const ResinPolicySchema = z.enum([
   "RESIN_ALLOWED",
@@ -120,6 +121,7 @@ export const MatchDetailsInputSchema = z.object({
   isHome: z.boolean().default(true),
   throwOffAt: z.string().datetime().nullable().optional(),
   jerseyColor: optionalTrimmed(60),
+  jerseySetId: z.string().min(1).nullable().optional(),
   refereeNote: optionalTrimmed(200),
 });
 export type MatchDetailsInput = z.infer<typeof MatchDetailsInputSchema>;
@@ -129,6 +131,7 @@ export const UpdateMatchDetailsSchema = z.object({
   isHome: z.boolean().optional(),
   throwOffAt: z.string().datetime().nullable().optional(),
   jerseyColor: optionalTrimmed(60),
+  jerseySetId: z.string().min(1).nullable().optional(),
   refereeNote: optionalTrimmed(200),
   nominatedMemberIds: z.array(z.string().min(1)).max(30).optional(),
   homeScoreHalf: z.number().int().min(0).max(99).nullable().optional(),
@@ -221,6 +224,8 @@ export interface MatchDetailsDTO {
   isHome: boolean;
   throwOffAt: string | null;
   jerseyColor: string | null;
+  jerseySetId: string | null;
+  jerseySet: JerseySetSummaryDTO | null;
   refereeNote: string | null;
   nominatedMemberIds: string[];
   homeScoreHalf: number | null;

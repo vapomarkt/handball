@@ -2,12 +2,12 @@ import "dotenv/config";
 import { startPgBossWorker } from "./pg-boss-worker";
 
 async function main() {
-  console.log("[Anwurf Worker] Starte pg-boss Liga-Auto-Sync Worker...");
+  console.log("[ThrowOff Worker] Starte pg-boss Liga-Auto-Sync Worker...");
   const boss = await startPgBossWorker();
-  console.log("[Anwurf Worker] Bereit. Stündlicher Liga-Sync aktiv.");
+  console.log("[ThrowOff Worker] Bereit. Stündlicher Liga-Sync aktiv.");
 
   const shutdown = async () => {
-    console.log("[Anwurf Worker] Beende Worker sauber...");
+    console.log("[ThrowOff Worker] Beende Worker sauber...");
     await boss.stop();
     process.exit(0);
   };
@@ -17,6 +17,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("[Anwurf Worker] Start fehlgeschlagen:", err);
+  console.error("[ThrowOff Worker] Start fehlgeschlagen:", err);
   process.exit(1);
 });

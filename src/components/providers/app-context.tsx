@@ -86,7 +86,7 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null);
 
-const STORAGE_KEY = "anwurf_active_team_id";
+const STORAGE_KEY = "throwoff_active_team_id";
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();

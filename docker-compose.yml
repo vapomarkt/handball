@@ -1,21 +1,21 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: anwurf-postgres
+    container_name: throwoff-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: anwurf
-      POSTGRES_PASSWORD: anwurf_dev_password
-      POSTGRES_DB: anwurf
+      POSTGRES_USER: throwoff
+      POSTGRES_PASSWORD: throwoff_dev_password
+      POSTGRES_DB: throwoff
     ports:
       - "5432:5432"
     volumes:
-      - anwurf_pgdata:/var/lib/postgresql/data
+      - throwoff_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U anwurf -d anwurf"]
+      test: ["CMD-SHELL", "pg_isready -U throwoff -d throwoff"]
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
-  anwurf_pgdata:
+  throwoff_pgdata:

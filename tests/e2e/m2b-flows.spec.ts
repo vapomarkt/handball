@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const DEMO_PASSWORD = process.env.DEMO_SEED_PASSWORD || "Anwurf2026!";
+const DEMO_PASSWORD = process.env.DEMO_SEED_PASSWORD || "ThrowOff2026!";
 
 async function loginAs(
   page: import("@playwright/test").Page,

@@ -35,7 +35,7 @@ export const auth = betterAuth({
   }),
   secret:
     process.env.BETTER_AUTH_SECRET ||
-    "anwurf-dev-fallback-secret-change-in-production",
+    "throwoff-dev-fallback-secret-change-in-production",
   baseURL: resolveBaseUrl(),
   trustedOrigins: resolveTrustedOrigins(),
   emailAndPassword: {

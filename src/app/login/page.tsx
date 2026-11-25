@@ -65,7 +65,7 @@ function LoginForm() {
 
   function fillDemo(demoEmail: string) {
     setEmail(demoEmail);
-    setPassword("Anwurf2026!");
+    setPassword("ThrowOff2026!");
     setError(null);
   }
 
@@ -151,7 +151,7 @@ function LoginForm() {
         <Card className="bg-muted/40">
           <CardContent className="p-4 space-y-2.5">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Demo-Zugänge · TSV Musterstadt (Passwort: Anwurf2026!)
+              Demo-Zugänge · TSV Musterstadt (Passwort: ThrowOff2026!)
             </p>
             <div className="grid grid-cols-2 gap-2">
               {DEMO_ACCOUNTS.map((acc) => (

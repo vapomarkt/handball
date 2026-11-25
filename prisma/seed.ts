@@ -39,7 +39,7 @@ if (!connectionString) {
 const pool = new Pool({ connectionString });
 const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 
-const DEMO_PASSWORD = process.env.DEMO_SEED_PASSWORD || "Anwurf2026!";
+const DEMO_PASSWORD = process.env.DEMO_SEED_PASSWORD || "ThrowOff2026!";
 
 async function upsertDemoUser(params: {
   id: string;

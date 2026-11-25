@@ -1,20 +1,25 @@
-# Anwurf – Handball-Plattform (M1–M5)
+# ThrowOff – Handball-Plattform (M1–M5)
 
 Mobile-First Webapp & PWA für Handballvereine, Trainer, Spieler und Eltern (Next.js 16 App Router, TypeScript, Tailwind CSS, Prisma 7, PostgreSQL, Better Auth, Zod, Vitest & Playwright).
 
+- **Produktion:** [https://throwoff.app](https://throwoff.app)
+- **Kontakt:** `hello@throwoff.app`
+
 ## 1-Klick-Deployment (Vercel + Neon PostgreSQL)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvapomarkt%2Fhandball&env=BETTER_AUTH_SECRET,SEED_DEMO_ON_DEPLOY&envDescription=BETTER_AUTH_SECRET%20(min.%2032%20Zeichen)%20und%20optional%20SEED_DEMO_ON_DEPLOY%3Dtrue%20f%C3%BCr%20Demo-Daten&project-name=anwurf-handball&stores=%5B%7B%22type%22%3A%22postgres%22%7D%5D)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvapomarkt%2Fhandball&env=BETTER_AUTH_SECRET,BETTER_AUTH_URL,NEXT_PUBLIC_APP_URL,SEED_DEMO_ON_DEPLOY&envDescription=BETTER_AUTH_SECRET%20(min.%2032%20Zeichen),%20BETTER_AUTH_URL%20%26%20NEXT_PUBLIC_APP_URL%20(z.%20B.%20https%3A%2F%2Fthrowoff.app)%20und%20optional%20SEED_DEMO_ON_DEPLOY%3Dtrue&project-name=throwoff&stores=%5B%7B%22type%22%3A%22postgres%22%7D%5D)
 
 ### Kurzanleitung (ca. 2 Minuten)
 1. Auf den **Deploy with Vercel**-Button klicken (oder das Repo `vapomarkt/handball` in Vercel importieren).
 2. Unter **Storage / Integration** eine **Neon PostgreSQL**-Datenbank hinzufügen (setzt `DATABASE_URL` automatisch).
-3. Zwei Environment-Variablen eintragen:
+3. Environment-Variablen eintragen:
    - `BETTER_AUTH_SECRET`: beliebiger geheimer String (mind. 32 Zeichen)
+   - `BETTER_AUTH_URL`: `https://throwoff.app`
+   - `NEXT_PUBLIC_APP_URL`: `https://throwoff.app`
    - `SEED_DEMO_ON_DEPLOY`: `true` *(optional – legt beim ersten Deploy automatisch die Demo-Daten für TSV Musterstadt an; danach kannst du sie wieder entfernen oder auf `false` setzen, der Seed ist idempotent)*
 4. **Deploy** klicken – `npm run vercel-build` führt automatisch `prisma generate`, `prisma migrate deploy`, optional `db:seed` und `next build` aus.
 
-### Demo-Zugänge (Passwort: `Anwurf2026!`)
+### Demo-Zugänge (Passwort: `ThrowOff2026!`)
 - **Trainer (`COACH`)**: `trainer@tsv-musterstadt.de`
 - **Vereins-Admin (`CLUB_ADMIN`)**: `admin@tsv-musterstadt.de`
 - **Spieler (`PLAYER`)**: `spieler@tsv-musterstadt.de`

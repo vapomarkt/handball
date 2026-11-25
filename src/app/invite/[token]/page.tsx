@@ -75,7 +75,7 @@ function InviteClaimContent() {
       }
 
       if (data.teamId && typeof window !== "undefined") {
-        localStorage.setItem("anwurf_active_team_id", data.teamId);
+        localStorage.setItem("throwoff_active_team_id", data.teamId);
       }
       setSuccess(true);
       setTimeout(() => {

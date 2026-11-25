@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const DEMO_PASSWORD = process.env.DEMO_SEED_PASSWORD || "Anwurf2026!";
+const DEMO_PASSWORD = process.env.DEMO_SEED_PASSWORD || "ThrowOff2026!";
 
 async function loginAs(
   page: import("@playwright/test").Page,
@@ -95,7 +95,7 @@ test.describe("Meilenstein 5 – Schwarzes Brett, Umfragen, Mannschaftskasse & P
       short_name: string;
       display: string;
     };
-    expect(manifest.short_name).toBe("Anwurf");
+    expect(manifest.short_name).toBe("ThrowOff");
     expect(manifest.display).toBe("standalone");
   });
 });

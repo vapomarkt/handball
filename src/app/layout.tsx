@@ -14,12 +14,23 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || BRANDING.url;
+
 export const metadata: Metadata = {
+  metadataBase: new URL(appUrl),
   title: {
     default: `${BRANDING.appName} – ${BRANDING.tagline}`,
     template: `%s | ${BRANDING.appName}`,
   },
   description: BRANDING.description,
+  openGraph: {
+    type: "website",
+    locale: "de_DE",
+    url: appUrl,
+    siteName: BRANDING.appName,
+    title: `${BRANDING.appName} – ${BRANDING.tagline}`,
+    description: BRANDING.description,
+  },
 };
 
 export const viewport: Viewport = {

@@ -23,6 +23,16 @@ export const metadata: Metadata = {
     template: `%s | ${BRANDING.appName}`,
   },
   description: BRANDING.description,
+  icons: {
+    icon: [
+      { url: "/icons/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/icons/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/favicon-48x48.png", sizes: "48x48", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
   openGraph: {
     type: "website",
     locale: "de_DE",
@@ -30,6 +40,20 @@ export const metadata: Metadata = {
     siteName: BRANDING.appName,
     title: `${BRANDING.appName} – ${BRANDING.tagline}`,
     description: BRANDING.description,
+    images: [
+      {
+        url: "/og-image-1200x630.png",
+        width: 1200,
+        height: 630,
+        alt: `${BRANDING.appName} – ${BRANDING.tagline}`,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${BRANDING.appName} – ${BRANDING.tagline}`,
+    description: BRANDING.description,
+    images: ["/og-image-1200x630.png"],
   },
 };
 
@@ -38,7 +62,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b1220" },
+    { media: "(prefers-color-scheme: dark)", color: "#111820" },
   ],
 };
 

@@ -139,6 +139,9 @@ function buildTestHarness(fetchTextImpl: (url: string) => Promise<string>) {
     async upsertDirectorySnapshot() {
       return { groupsUpserted: 0, teamsUpserted: 0 };
     },
+    async updateGroupTeamIcalUrl(leagueGroupTeamId, icalUrl) {
+      icalByGroupTeamId.set(leagueGroupTeamId, icalUrl);
+    },
   };
 
   const teamRepo: TeamRepository = {

@@ -53,6 +53,8 @@ export interface LeagueDirectoryRepository {
   upsertDirectorySnapshot(
     groups: HvnbDirectoryGroupSeed[]
   ): Promise<{ groupsUpserted: number; teamsUpserted: number }>;
+  /** Speichert eine live ermittelte Feed-URL am Verzeichnis-Eintrag. */
+  updateGroupTeamIcalUrl(leagueGroupTeamId: string, icalUrl: string): Promise<void>;
 }
 
 export interface LeagueDirectoryProvider {

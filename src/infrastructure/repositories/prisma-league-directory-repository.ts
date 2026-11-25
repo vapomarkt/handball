@@ -113,6 +113,16 @@ export class PrismaLeagueDirectoryRepository
     };
   }
 
+  async updateGroupTeamIcalUrl(
+    leagueGroupTeamId: string,
+    icalUrl: string
+  ): Promise<void> {
+    await prisma.leagueGroupTeam.update({
+      where: { id: leagueGroupTeamId },
+      data: { icalUrl },
+    });
+  }
+
   async upsertDirectorySnapshot(
     groups: HvnbDirectoryGroupSeed[]
   ): Promise<{ groupsUpserted: number; teamsUpserted: number }> {

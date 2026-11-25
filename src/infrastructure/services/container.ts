@@ -90,7 +90,8 @@ const leagueDirectoryService = new LeagueDirectoryService(
   teamRepo,
   leagueSyncRepo,
   leagueSyncService,
-  scoutingRepo
+  scoutingRepo,
+  fetchUrlText
 );
 
 export const services = {

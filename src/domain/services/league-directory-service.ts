@@ -1,5 +1,8 @@
 import { LeagueDirectoryRepository } from "../adapters/league-directory-repository";
-import { LeagueSyncRepository } from "../adapters/league-provider";
+import {
+  FetchTextFn,
+  LeagueSyncRepository,
+} from "../adapters/league-provider";
 import { ScoutingRepository } from "../adapters/m4-repositories";
 import { TeamRepository } from "../adapters/repositories";
 import { DomainError } from "../errors";
@@ -13,6 +16,7 @@ import {
   TeamLeagueLinkResultDTO,
 } from "../schemas/league-directory";
 import { LeagueSyncService } from "./league-sync-service";
+import { resolveNuligaTeamFeed } from "./nuliga-feed-resolver";
 
 const NOISE_WORDS = new Set([
   "tus",
@@ -111,7 +115,8 @@ export class LeagueDirectoryService {
     private readonly teams: TeamRepository,
     private readonly leagueSyncRepo: LeagueSyncRepository,
     private readonly leagueSyncService: LeagueSyncService,
-    private readonly scouting?: ScoutingRepository
+    private readonly scouting?: ScoutingRepository,
+    private readonly fetchText?: FetchTextFn
   ) {}
 
   async search(rawQuery: unknown): Promise<LeagueDirectorySearchResponseDTO> {
@@ -258,6 +263,24 @@ export class LeagueDirectoryService {
 
     const displayLeagueName = `${groupTeam.group.name} (${groupTeam.group.federationCode})`;
 
+    // Verzeichnis enthält nicht für jede Mannschaft eine Feed-URL: live bei nuLiga auflösen.
+    let feedUrl = groupTeam.icalUrl;
+    if (!feedUrl && this.fetchText) {
+      try {
+        feedUrl = await resolveNuligaTeamFeed(this.fetchText, {
+          clubName: groupTeam.clubName,
+          teamName: groupTeam.name,
+          groupName: groupTeam.group.name,
+          groupUrl: groupTeam.group.externalUrl,
+        });
+        if (feedUrl) {
+          await this.directory.updateGroupTeamIcalUrl(groupTeam.id, feedUrl);
+        }
+      } catch {
+        // Auflösung ist best effort – die Verknüpfung soll trotzdem bestehen.
+      }
+    }
+
     await this.teams.update(teamId, {
       leagueId: groupTeam.group.leagueId ?? undefined,
       leagueName: displayLeagueName,
@@ -278,9 +301,9 @@ export class LeagueDirectoryService {
       provider: "HVNB_NULIGA",
       leagueGroupTeamId: groupTeam.id,
       name: `${groupTeam.group.name} (${groupTeam.group.federationCode})`,
-      sourceUrl: groupTeam.icalUrl ?? null,
+      sourceUrl: feedUrl ?? null,
       teamNameMatch: groupTeam.name,
-      isEnabled: Boolean(groupTeam.icalUrl),
+      isEnabled: Boolean(feedUrl),
       syncIntervalMinutes: 60,
     });
     const sourceId = createdSource.id;
@@ -289,7 +312,7 @@ export class LeagueDirectoryService {
     let syncWarning: string | null = null;
 
     if (input.autoImportSchedule) {
-      if (!groupTeam.icalUrl) {
+      if (!feedUrl) {
         syncWarning =
           "Die Mannschaft ist verknüpft, aber für diese Staffel ist noch kein automatischer iCal-Feed hinterlegt. Du kannst unter Termine → Liga-Sync jederzeit eine Feed-URL oder CSV ergänzen.";
       } else {
@@ -345,7 +368,7 @@ export class LeagueDirectoryService {
       groupName: groupTeam.group.name,
       regionName: groupTeam.group.regionName,
       sourceId,
-      hasIcalFeed: Boolean(groupTeam.icalUrl),
+      hasIcalFeed: Boolean(feedUrl),
       syncSummary,
       syncWarning,
       seededOpponentsCount,

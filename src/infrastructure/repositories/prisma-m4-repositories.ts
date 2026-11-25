@@ -12,6 +12,7 @@ import {
   ScoutingNoteDTO,
   ShotZonesSchema,
   UpdateOpponentInput,
+  UpdateOpponentPlayerInput,
   UpdateScoutingNoteInput,
 } from "@/domain/schemas/scouting";
 import {
@@ -133,6 +134,7 @@ function mapOpponentPlayer(p: {
   id: string;
   opponentId: string;
   name: string;
+  externalPlayerId: string | null;
   jerseyNumber: number | null;
   position: OpponentPlayerDTO["position"];
   throwingHand: OpponentPlayerDTO["throwingHand"];
@@ -141,12 +143,18 @@ function mapOpponentPlayer(p: {
   isSevenMeterShooter: boolean;
   threatLevel: OpponentPlayerDTO["threatLevel"];
   notes: string | null;
+  goalsTotal: number | null;
+  gamesPlayed: number | null;
+  sevenMeterGoals: number | null;
+  sevenMeterAttempts: number | null;
+  statsUpdatedAt: Date | null;
 }): OpponentPlayerDTO {
   const parsedZones = ShotZonesSchema.safeParse(p.shotZones);
   return {
     id: p.id,
     opponentId: p.opponentId,
     name: p.name,
+    externalPlayerId: p.externalPlayerId,
     jerseyNumber: p.jerseyNumber,
     position: p.position,
     throwingHand: p.throwingHand,
@@ -155,6 +163,11 @@ function mapOpponentPlayer(p: {
     isSevenMeterShooter: p.isSevenMeterShooter,
     threatLevel: p.threatLevel,
     notes: p.notes,
+    goalsTotal: p.goalsTotal,
+    gamesPlayed: p.gamesPlayed,
+    sevenMeterGoals: p.sevenMeterGoals,
+    sevenMeterAttempts: p.sevenMeterAttempts,
+    statsUpdatedAt: p.statsUpdatedAt ? p.statsUpdatedAt.toISOString() : null,
   };
 }
 
@@ -222,6 +235,7 @@ export class PrismaScoutingRepository implements ScoutingRepository {
       teamId: o.teamId,
       name: o.name,
       leagueName: o.leagueName,
+      externalUrl: o.externalUrl,
       defenseSystems: o.defenseSystems,
       attackSystems: o.attackSystems,
       transitionNotes: o.transitionNotes,
@@ -260,6 +274,7 @@ export class PrismaScoutingRepository implements ScoutingRepository {
       teamId: o.teamId,
       name: o.name,
       leagueName: o.leagueName,
+      externalUrl: o.externalUrl,
       defenseSystems: o.defenseSystems,
       attackSystems: o.attackSystems,
       transitionNotes: o.transitionNotes,
@@ -283,6 +298,7 @@ export class PrismaScoutingRepository implements ScoutingRepository {
         teamId,
         name: input.name,
         leagueName: input.leagueName ?? null,
+        externalUrl: input.externalUrl ?? null,
         defenseSystems: input.defenseSystems,
         attackSystems: input.attackSystems,
         transitionNotes: input.transitionNotes ?? null,
@@ -297,6 +313,7 @@ export class PrismaScoutingRepository implements ScoutingRepository {
       teamId: o.teamId,
       name: o.name,
       leagueName: o.leagueName,
+      externalUrl: o.externalUrl,
       defenseSystems: o.defenseSystems,
       attackSystems: o.attackSystems,
       transitionNotes: o.transitionNotes,
@@ -333,6 +350,7 @@ export class PrismaScoutingRepository implements ScoutingRepository {
       data: {
         opponentId,
         name: input.name,
+        externalPlayerId: input.externalPlayerId ?? null,
         jerseyNumber: input.jerseyNumber ?? null,
         position: input.position ?? null,
         throwingHand: input.throwingHand ?? null,
@@ -341,6 +359,62 @@ export class PrismaScoutingRepository implements ScoutingRepository {
         isSevenMeterShooter: input.isSevenMeterShooter,
         threatLevel: input.threatLevel,
         notes: input.notes ?? null,
+        goalsTotal: input.goalsTotal ?? null,
+        gamesPlayed: input.gamesPlayed ?? null,
+        sevenMeterGoals: input.sevenMeterGoals ?? null,
+        sevenMeterAttempts: input.sevenMeterAttempts ?? null,
+        statsUpdatedAt: input.statsUpdatedAt ? new Date(input.statsUpdatedAt) : null,
+      },
+    });
+    return mapOpponentPlayer(p);
+  }
+
+  async updateOpponentPlayer(
+    playerId: string,
+    input: UpdateOpponentPlayerInput
+  ): Promise<OpponentPlayerDTO> {
+    const p = await prisma.opponentPlayer.update({
+      where: { id: playerId },
+      data: {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.externalPlayerId !== undefined
+          ? { externalPlayerId: input.externalPlayerId }
+          : {}),
+        ...(input.jerseyNumber !== undefined
+          ? { jerseyNumber: input.jerseyNumber }
+          : {}),
+        ...(input.position !== undefined ? { position: input.position } : {}),
+        ...(input.throwingHand !== undefined
+          ? { throwingHand: input.throwingHand }
+          : {}),
+        ...(input.shotZones !== undefined ? { shotZones: input.shotZones } : {}),
+        ...(input.feintPreference !== undefined
+          ? { feintPreference: input.feintPreference }
+          : {}),
+        ...(input.isSevenMeterShooter !== undefined
+          ? { isSevenMeterShooter: input.isSevenMeterShooter }
+          : {}),
+        ...(input.threatLevel !== undefined
+          ? { threatLevel: input.threatLevel }
+          : {}),
+        ...(input.notes !== undefined ? { notes: input.notes } : {}),
+        ...(input.goalsTotal !== undefined ? { goalsTotal: input.goalsTotal } : {}),
+        ...(input.gamesPlayed !== undefined
+          ? { gamesPlayed: input.gamesPlayed }
+          : {}),
+        ...(input.sevenMeterGoals !== undefined
+          ? { sevenMeterGoals: input.sevenMeterGoals }
+          : {}),
+        ...(input.sevenMeterAttempts !== undefined
+          ? { sevenMeterAttempts: input.sevenMeterAttempts }
+          : {}),
+        ...(input.statsUpdatedAt !== undefined
+          ? {
+              statsUpdatedAt: input.statsUpdatedAt
+                ? new Date(input.statsUpdatedAt)
+                : null,
+            }
+          : {}),
       },
     });
     return mapOpponentPlayer(p);

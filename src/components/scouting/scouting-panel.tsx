@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Crosshair,
+  Download,
   ExternalLink,
   Flame,
   Loader2,
@@ -51,6 +52,7 @@ import {
   type ThreatLevel,
 } from "@/domain/schemas/scouting";
 import type { TacticPlayDTO } from "@/domain/schemas/tactic";
+import { NuligaPlayerImportDialog } from "./nuliga-player-import-dialog";
 import { ShotZoneGoal } from "./shot-zone-goal";
 
 interface ScoutingPanelProps {
@@ -79,12 +81,16 @@ export function ScoutingPanel({
   const [oppDialogOpen, setOppDialogOpen] = useState(false);
   const [oppName, setOppName] = useState("");
   const [oppLeague, setOppLeague] = useState("");
+  const [oppExternalUrl, setOppExternalUrl] = useState("");
   const [oppDef, setOppDef] = useState<string[]>(["6:0 kompakt"]);
   const [oppAtt, setOppAtt] = useState<string[]>(["Kreuzung Rückraum"]);
   const [oppStrengths, setOppStrengths] = useState("");
   const [oppWeaknesses, setOppWeaknesses] = useState("");
   const [oppTransition, setOppTransition] = useState("");
   const [savingOpp, setSavingOpp] = useState(false);
+
+  // nuLiga Key Player Import Dialog
+  const [nuligaImportOpen, setNuligaImportOpen] = useState(false);
 
   // New Key Player Dialog
   const [playerDialogOpen, setPlayerDialogOpen] = useState(false);
@@ -178,6 +184,7 @@ export function ScoutingPanel({
           body: JSON.stringify({
             name: oppName,
             leagueName: oppLeague || null,
+            externalUrl: oppExternalUrl || null,
             defenseSystems: oppDef,
             attackSystems: oppAtt,
             strengths: oppStrengths || null,
@@ -190,6 +197,7 @@ export function ScoutingPanel({
         const { opponent } = await res.json();
         setOppName("");
         setOppLeague("");
+        setOppExternalUrl("");
         setOppStrengths("");
         setOppWeaknesses("");
         setOppTransition("");
@@ -392,20 +400,30 @@ export function ScoutingPanel({
 
           {/* Schlüsselspieler-Karten mit 3x3 Wurfzonen-Heatmap */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-base font-bold flex items-center gap-1.5">
                 <Crosshair className="h-4 w-4 text-primary" />
                 Schlüsselspieler & Wurfzonen ({activeOpponent.keyPlayers.length})
               </h2>
               {isStaff && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setPlayerDialogOpen(true)}
-                >
-                  <UserPlus className="h-3.5 w-3.5" />
-                  Schlüsselspieler hinzufügen
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setNuligaImportOpen(true)}
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Aus nuLiga importieren
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPlayerDialogOpen(true)}
+                  >
+                    <UserPlus className="h-3.5 w-3.5" />
+                    Schlüsselspieler hinzufügen
+                  </Button>
+                </div>
               )}
             </div>
 
@@ -433,11 +451,14 @@ export function ScoutingPanel({
                             <Badge variant="injured" className="gap-1">
                               <Flame className="h-3 w-3" />
                               7m-Schütze
+                              {player.sevenMeterGoals !== null
+                                ? ` (${player.sevenMeterGoals}${player.sevenMeterAttempts ? `/${player.sevenMeterAttempts}` : ""})`
+                                : ""}
                             </Badge>
                           )}
                         </div>
 
-                        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                           {player.throwingHand && (
                             <span>
                               Wurfhand:{" "}
@@ -457,6 +478,14 @@ export function ScoutingPanel({
                           >
                             {THREAT_LEVEL_LABELS[player.threatLevel]}
                           </Badge>
+                          {player.goalsTotal !== null && (
+                            <Badge variant="outline" className="font-normal">
+                              nuLiga: {player.goalsTotal} Tore
+                              {player.gamesPlayed
+                                ? ` · ${player.gamesPlayed} Sp. (Ø ${(player.goalsTotal / player.gamesPlayed).toFixed(1).replace(".", ",")})`
+                                : ""}
+                            </Badge>
+                          )}
                         </div>
 
                         {player.feintPreference && (
@@ -634,6 +663,19 @@ export function ScoutingPanel({
                   onChange={(e) => setOppLeague(e.target.value)}
                 />
               </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="op-nuliga-url">
+                nuLiga Team- oder Staffelseite (optional)
+              </Label>
+              <Input
+                id="op-nuliga-url"
+                type="url"
+                placeholder="https://hvnb-handball.liga.nu/..."
+                value={oppExternalUrl}
+                onChange={(e) => setOppExternalUrl(e.target.value)}
+              />
             </div>
 
             <div className="space-y-1">
@@ -935,6 +977,18 @@ export function ScoutingPanel({
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog: Schlüsselspieler aus nuLiga importieren */}
+      {activeOpponent && (
+        <NuligaPlayerImportDialog
+          key={`${activeOpponent.id}-${nuligaImportOpen}`}
+          open={nuligaImportOpen}
+          onOpenChange={setNuligaImportOpen}
+          teamId={teamId}
+          opponent={activeOpponent}
+          onImported={loadData}
+        />
+      )}
     </div>
   );
 }

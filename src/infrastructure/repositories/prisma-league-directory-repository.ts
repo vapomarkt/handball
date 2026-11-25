@@ -74,7 +74,7 @@ export class PrismaLeagueDirectoryRepository
             league: { select: { displayName: true } },
             teams: {
               where: { isActive: true },
-              select: { id: true, name: true, clubName: true },
+              select: { id: true, name: true, clubName: true, externalUrl: true },
               orderBy: { name: "asc" },
             },
           },

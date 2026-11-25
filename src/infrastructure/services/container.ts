@@ -137,7 +137,12 @@ export const services = {
   duty: new DutyService(teamRepo, memberRepo, dutyRepo, jerseySetRepo),
   training: new TrainingService(teamRepo, trainingRepo),
   tactics: new TacticService(teamRepo, tacticRepo),
-  scouting: new ScoutingService(teamRepo, scoutingRepo),
+  scouting: new ScoutingService(
+    teamRepo,
+    scoutingRepo,
+    leagueDirectoryRepo,
+    fetchUrlText
+  ),
   community: new CommunityService(teamRepo, communityRepo),
   cashbox: new CashboxService(teamRepo, cashboxRepo),
 };

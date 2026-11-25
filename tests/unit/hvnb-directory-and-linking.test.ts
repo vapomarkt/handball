@@ -285,6 +285,7 @@ function buildTestHarness(fetchTextImpl: (url: string) => Promise<string>) {
         teamId,
         name: input.name,
         leagueName: input.leagueName ?? null,
+        externalUrl: input.externalUrl ?? null,
         defenseSystems: input.defenseSystems ?? [],
         attackSystems: input.attackSystems ?? [],
         transitionNotes: input.transitionNotes ?? null,

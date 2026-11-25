@@ -855,6 +855,7 @@ model Opponent {
   team            Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
   name            String
   leagueName      String?
+  externalUrl     String?
   defenseSystems  String[] @default([])
   attackSystems   String[] @default([])
   transitionNotes String?
@@ -878,6 +879,7 @@ model OpponentPlayer {
   opponentId          String
   opponent            Opponent          @relation(fields: [opponentId], references: [id], onDelete: Cascade)
   name                String
+  externalPlayerId    String?
   jerseyNumber        Int?
   position            HandballPosition?
   throwingHand        ThrowingHand?
@@ -886,6 +888,11 @@ model OpponentPlayer {
   isSevenMeterShooter Boolean           @default(false)
   threatLevel         ThreatLevel       @default(MEDIUM)
   notes               String?
+  goalsTotal          Int?
+  gamesPlayed         Int?
+  sevenMeterGoals     Int?
+  sevenMeterAttempts  Int?
+  statsUpdatedAt      DateTime?
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
 

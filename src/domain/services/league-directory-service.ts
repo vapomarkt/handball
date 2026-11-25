@@ -345,6 +345,7 @@ export class LeagueDirectoryService {
           await this.scouting.createOpponent(clubId, teamId, {
             name: sibling.name,
             leagueName: groupTeam.group.name,
+            externalUrl: sibling.externalUrl ?? null,
             defenseSystems: [],
             attackSystems: [],
             transitionNotes: null,

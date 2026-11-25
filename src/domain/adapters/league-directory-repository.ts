@@ -33,6 +33,7 @@ export interface LeagueDirectoryGroupTeamRecord {
     id: string;
     name: string;
     clubName: string;
+    externalUrl?: string | null;
   }>;
 }
 

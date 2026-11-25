@@ -6,6 +6,7 @@ import {
   OpponentPlayerDTO,
   ScoutingNoteDTO,
   UpdateOpponentInput,
+  UpdateOpponentPlayerInput,
   UpdateScoutingNoteInput,
 } from "../schemas/scouting";
 import {
@@ -50,6 +51,10 @@ export interface ScoutingRepository {
   addOpponentPlayer(
     opponentId: string,
     input: CreateOpponentPlayerInput
+  ): Promise<OpponentPlayerDTO>;
+  updateOpponentPlayer(
+    playerId: string,
+    input: UpdateOpponentPlayerInput
   ): Promise<OpponentPlayerDTO>;
   deleteOpponentPlayer(playerId: string): Promise<void>;
   findOpponentPlayerById(playerId: string): Promise<{

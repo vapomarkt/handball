@@ -28,10 +28,9 @@ test.describe("Meilenstein 2a – Termine, Hallen, Harz-Regelung & 1-Klick-RSVP"
     await expect(page.getByText("Harz erlaubt").first()).toBeVisible();
     await expect(page.getByText("Harz verboten").first()).toBeVisible();
 
-    // Details des Trainings öffnen -> Trainer sieht DSGVO-geschützten Absagegrund von Jonas Keller
+    // Details des Trainings per Klick auf die gesamte Kachel öffnen -> Trainer sieht DSGVO-geschützten Absagegrund von Jonas Keller
     await page
       .locator('[data-testid="event-card-event-h1-training-next"]')
-      .getByRole("button", { name: /Details/ })
       .click();
     await expect(
       page.getByText(/Bänderdehnung im linken Sprunggelenk/)

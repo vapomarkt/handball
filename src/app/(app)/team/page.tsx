@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ChevronRight,
   Link2,
   Lock,
-  Pencil,
   Search,
   ShieldAlert,
   Trash2,
@@ -17,8 +17,16 @@ import { InviteDialog } from "@/components/team/invite-dialog";
 import { MemberFormDialog } from "@/components/team/member-form-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  CARD_ACTION_LAYER_CLASS,
+  CARD_OVERLAY_TRIGGER_CLASS,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   AVAILABILITY_STATUS_LABELS,
   HANDBALL_POSITION_LABELS,
@@ -315,10 +323,14 @@ export default function TeamRosterPage() {
             const canEditThis = isStaff || isOwnProfile || isLinkedChild;
 
             return (
-              <Card key={member.id} data-testid={`member-card-${member.id}`}>
+              <Card
+                key={member.id}
+                interactive={canEditThis}
+                data-testid={`member-card-${member.id}`}
+              >
                 <CardContent className="p-4 sm:p-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="flex items-start gap-3.5">
+                    <div className="flex items-start gap-3.5 min-w-0">
                       {/* Trikotnummer */}
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-secondary text-secondary-foreground font-mono text-base font-bold">
                         {member.jerseyNumber !== null
@@ -326,10 +338,28 @@ export default function TeamRosterPage() {
                           : "–"}
                       </div>
 
-                      <div className="space-y-1.5">
+                      <div className="space-y-1.5 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <h2 className="text-base font-bold text-foreground">
-                            {member.firstName} {member.lastName}
+                            {canEditThis ? (
+                              <button
+                                type="button"
+                                onClick={() => openEditDialog(member)}
+                                className={cn(
+                                  CARD_OVERLAY_TRIGGER_CLASS,
+                                  "transition-colors group-hover:text-primary"
+                                )}
+                              >
+                                {member.firstName} {member.lastName}
+                                <span className="sr-only">
+                                  {" "}– Profil bearbeiten
+                                </span>
+                              </button>
+                            ) : (
+                              <>
+                                {member.firstName} {member.lastName}
+                              </>
+                            )}
                           </h2>
                           <Badge variant="outline">
                             {MEMBER_ROLE_LABELS[member.role]}
@@ -395,7 +425,10 @@ export default function TeamRosterPage() {
                             member.injuryNote ||
                             member.phone) && (
                             <div
-                              className="mt-2 rounded-lg border border-border bg-muted/40 p-2.5 text-xs space-y-1"
+                              className={cn(
+                                CARD_ACTION_LAYER_CLASS,
+                                "mt-2 select-text rounded-lg border border-border bg-muted/40 p-2.5 text-xs space-y-1"
+                              )}
                               data-testid="sensitive-member-fields"
                             >
                               <div className="flex items-center gap-1 font-semibold text-muted-foreground">
@@ -447,6 +480,7 @@ export default function TeamRosterPage() {
                         <Button
                           size="sm"
                           variant="outline"
+                          className={CARD_ACTION_LAYER_CLASS}
                           onClick={() =>
                             openClaimInvite(member.id, "PROFILE_CLAIM")
                           }
@@ -459,6 +493,7 @@ export default function TeamRosterPage() {
                         <Button
                           size="sm"
                           variant="outline"
+                          className={CARD_ACTION_LAYER_CLASS}
                           onClick={() =>
                             openClaimInvite(member.id, "GUARDIAN_LINK")
                           }
@@ -467,25 +502,22 @@ export default function TeamRosterPage() {
                           Eltern-Link
                         </Button>
                       )}
-                      {canEditThis && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openEditDialog(member)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                          Bearbeiten
-                        </Button>
-                      )}
                       {canDelete && (
                         <Button
                           size="icon"
                           variant="ghost"
+                          className={CARD_ACTION_LAYER_CLASS}
                           onClick={() => handleDelete(member)}
                           aria-label={`${member.firstName} ${member.lastName} entfernen`}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
+                      )}
+                      {canEditThis && (
+                        <ChevronRight
+                          className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+                          aria-hidden="true"
+                        />
                       )}
                     </div>
                   </div>

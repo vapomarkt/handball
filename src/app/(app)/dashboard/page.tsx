@@ -4,15 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Activity,
-  ArrowRight,
   Building2,
   Calendar,
+  ChevronRight,
   Clock,
   MapPin,
   Shield,
   Trophy,
   UserCheck,
-  UserPlus,
   Users,
 } from "lucide-react";
 import { ResinBadge } from "@/components/events/resin-badge";
@@ -21,12 +20,15 @@ import { useAppContext } from "@/components/providers/app-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  CARD_ACTION_LAYER_CLASS,
+  CARD_OVERLAY_TRIGGER_CLASS,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { EVENT_TYPE_LABELS, type EventDTO } from "@/domain/schemas/event";
 import {
   AVAILABILITY_STATUS_LABELS,
@@ -47,7 +49,7 @@ function formatShortDate(iso: string) {
 }
 
 export default function DashboardPage() {
-  const { me, activeTeam, selectableTeams } = useAppContext();
+  const { me, activeTeam, selectableTeams, setActiveTeamId } = useAppContext();
   const [members, setMembers] = useState<TeamMemberResponseDTO[]>([]);
   const [events, setEvents] = useState<EventDTO[]>([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -207,11 +209,23 @@ export default function DashboardPage() {
 
       {/* KPI-Leiste */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Card>
+        <Card interactive>
           <CardContent className="p-4">
-            <p className="text-xs font-medium text-muted-foreground">
-              Kadergröße
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <Link
+                href="/team"
+                className={cn(
+                  CARD_OVERLAY_TRIGGER_CLASS,
+                  "text-xs font-medium text-muted-foreground transition-colors group-hover:text-primary"
+                )}
+              >
+                Kadergröße
+              </Link>
+              <ChevronRight
+                className="h-3.5 w-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+                aria-hidden="true"
+              />
+            </div>
             <p className="mt-1 text-2xl font-extrabold">
               {loadingData ? "–" : players.length}
             </p>
@@ -219,9 +233,23 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card interactive>
           <CardContent className="p-4">
-            <p className="text-xs font-medium text-muted-foreground">Fit</p>
+            <div className="flex items-center justify-between gap-2">
+              <Link
+                href="/team"
+                className={cn(
+                  CARD_OVERLAY_TRIGGER_CLASS,
+                  "text-xs font-medium text-muted-foreground transition-colors group-hover:text-primary"
+                )}
+              >
+                Fit
+              </Link>
+              <ChevronRight
+                className="h-3.5 w-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+                aria-hidden="true"
+              />
+            </div>
             <p className="mt-1 text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">
               {loadingData ? "–" : fitCount}
             </p>
@@ -231,11 +259,27 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card interactive>
           <CardContent className="p-4">
-            <p className="text-xs font-medium text-muted-foreground">
-              Nächster Termin
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <Link
+                href={
+                  nextEvent
+                    ? `/termine?eventId=${encodeURIComponent(nextEvent.id)}`
+                    : "/termine"
+                }
+                className={cn(
+                  CARD_OVERLAY_TRIGGER_CLASS,
+                  "text-xs font-medium text-muted-foreground transition-colors group-hover:text-primary"
+                )}
+              >
+                Nächster Termin
+              </Link>
+              <ChevronRight
+                className="h-3.5 w-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+                aria-hidden="true"
+              />
+            </div>
             <p className="mt-1 text-2xl font-extrabold text-primary">
               {loadingData || !nextEvent
                 ? "–"
@@ -249,11 +293,23 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card interactive>
           <CardContent className="p-4">
-            <p className="text-xs font-medium text-muted-foreground">
-              Offene Profile
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <Link
+                href="/team"
+                className={cn(
+                  CARD_OVERLAY_TRIGGER_CLASS,
+                  "text-xs font-medium text-muted-foreground transition-colors group-hover:text-primary"
+                )}
+              >
+                Offene Profile
+              </Link>
+              <ChevronRight
+                className="h-3.5 w-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+                aria-hidden="true"
+              />
+            </div>
             <p className="mt-1 text-2xl font-extrabold text-amber-600 dark:text-amber-400">
               {loadingData ? "–" : unclaimedCount}
             </p>
@@ -265,18 +321,34 @@ export default function DashboardPage() {
       {/* Nächster Termin mit 1-Klick-RSVP & Nächstes Spiel mit Harz-Hinweis */}
       <div className="grid gap-4 md:grid-cols-2">
         {nextEvent && (
-          <Card>
+          <Card interactive>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Calendar className="h-4 w-4 text-primary" />
-                  Nächster Termin
+                  <Link
+                    href={`/termine?eventId=${encodeURIComponent(nextEvent.id)}`}
+                    className={cn(
+                      CARD_OVERLAY_TRIGGER_CLASS,
+                      "transition-colors group-hover:text-primary"
+                    )}
+                  >
+                    Nächster Termin
+                  </Link>
                 </CardTitle>
-                <Badge
-                  variant={nextEvent.type === "MATCH" ? "default" : "secondary"}
-                >
-                  {EVENT_TYPE_LABELS[nextEvent.type]}
-                </Badge>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Badge
+                    variant={
+                      nextEvent.type === "MATCH" ? "default" : "secondary"
+                    }
+                  >
+                    {EVENT_TYPE_LABELS[nextEvent.type]}
+                  </Badge>
+                  <ChevronRight
+                    className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+                    aria-hidden="true"
+                  />
+                </div>
               </div>
               <CardDescription>{nextEvent.title}</CardDescription>
             </CardHeader>
@@ -312,7 +384,7 @@ export default function DashboardPage() {
               )}
 
               {rsvpTargets.length > 0 && (
-                <div className="pt-1 space-y-2">
+                <div className={cn(CARD_ACTION_LAYER_CLASS, "pt-1 space-y-2")}>
                   {rsvpTargets.map((t) => {
                     const existing = nextEvent.attendances.find(
                       (a) => a.memberId === t.memberId
@@ -333,28 +405,35 @@ export default function DashboardPage() {
                   })}
                 </div>
               )}
-
-              <Button size="sm" variant="outline" asChild>
-                <Link href="/termine">
-                  Alle Termine öffnen
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-              </Button>
             </CardContent>
           </Card>
         )}
 
         {nextMatch && nextMatch.matchDetails && (
-          <Card>
+          <Card interactive>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Trophy className="h-4 w-4 text-primary" />
-                  Nächstes Punktspiel
+                  <Link
+                    href={`/termine?eventId=${encodeURIComponent(nextMatch.id)}`}
+                    className={cn(
+                      CARD_OVERLAY_TRIGGER_CLASS,
+                      "transition-colors group-hover:text-primary"
+                    )}
+                  >
+                    Nächstes Punktspiel
+                  </Link>
                 </CardTitle>
-                <Badge variant="outline">
-                  {nextMatch.matchDetails.isHome ? "Heimspiel" : "Auswärts"}
-                </Badge>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Badge variant="outline">
+                    {nextMatch.matchDetails.isHome ? "Heimspiel" : "Auswärts"}
+                  </Badge>
+                  <ChevronRight
+                    className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+                    aria-hidden="true"
+                  />
+                </div>
               </div>
               <CardDescription>
                 Gegner: {nextMatch.matchDetails.opponentName}
@@ -382,12 +461,6 @@ export default function DashboardPage() {
                   </strong>
                 </p>
               )}
-              <Button size="sm" variant="outline" asChild>
-                <Link href="/termine">
-                  Spieltag & Kader ansehen
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-              </Button>
             </CardContent>
           </Card>
         )}
@@ -396,12 +469,26 @@ export default function DashboardPage() {
       {/* Rollen-spezifische Karten */}
       <div className="grid gap-4 md:grid-cols-2">
         {isStaff && (
-          <Card>
+          <Card interactive>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Shield className="h-4 w-4 text-primary" />
-                Trainer- & Vereins-Steuerung
-              </CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Shield className="h-4 w-4 text-primary" />
+                  <Link
+                    href="/team"
+                    className={cn(
+                      CARD_OVERLAY_TRIGGER_CLASS,
+                      "transition-colors group-hover:text-primary"
+                    )}
+                  >
+                    Trainer- & Vereins-Steuerung
+                  </Link>
+                </CardTitle>
+                <ChevronRight
+                  className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary shrink-0"
+                  aria-hidden="true"
+                />
+              </div>
               <CardDescription>
                 Schnellzugriff auf Kaderpflege, Einladungen und Profil-Claims.
               </CardDescription>
@@ -418,12 +505,6 @@ export default function DashboardPage() {
                   Eltern ihr Profil mit einem Klick übernehmen können.
                 </p>
               </div>
-              <Button size="sm" asChild>
-                <Link href="/team">
-                  <UserPlus className="h-4 w-4" />
-                  Kader & Einladungen verwalten
-                </Link>
-              </Button>
             </CardContent>
           </Card>
         )}
@@ -442,37 +523,50 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-2.5">
               {me.guardianLinks.map((link) => (
-                <div
+                <Link
                   key={link.id}
-                  className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3"
+                  href="/team"
+                  className="group flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3 transition-colors hover:border-primary/50 hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                 >
                   <div>
-                    <p className="font-semibold text-sm">
+                    <p className="font-semibold text-sm transition-colors group-hover:text-primary">
                       {link.childFirstName} {link.childLastName}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {link.teamName} · {link.relationship}
                     </p>
                   </div>
-                  <Button size="sm" variant="outline" asChild>
-                    <Link href="/team">
-                      Profil öffnen
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </Link>
-                  </Button>
-                </div>
+                  <ChevronRight
+                    className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary shrink-0"
+                    aria-hidden="true"
+                  />
+                </Link>
               ))}
             </CardContent>
           </Card>
         )}
 
         {myMembership && activeTeam.role === "PLAYER" && (
-          <Card>
+          <Card interactive>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Activity className="h-4 w-4 text-primary" />
-                Dein Spielerprofil
-              </CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Activity className="h-4 w-4 text-primary" />
+                  <Link
+                    href="/team"
+                    className={cn(
+                      CARD_OVERLAY_TRIGGER_CLASS,
+                      "transition-colors group-hover:text-primary"
+                    )}
+                  >
+                    Dein Spielerprofil
+                  </Link>
+                </CardTitle>
+                <ChevronRight
+                  className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary shrink-0"
+                  aria-hidden="true"
+                />
+              </div>
               <CardDescription>
                 Deine sportlichen Eckdaten in {activeTeam.teamName}.
               </CardDescription>
@@ -508,12 +602,6 @@ export default function DashboardPage() {
                   {AVAILABILITY_STATUS_LABELS[myMembership.availabilityStatus]}
                 </Badge>
               </div>
-              <Button size="sm" variant="outline" asChild>
-                <Link href="/team">
-                  Eigenes Profil bearbeiten
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-              </Button>
             </CardContent>
           </Card>
         )}
@@ -525,27 +613,48 @@ export default function DashboardPage() {
               Deine Mannschaften ({selectableTeams.length})
             </CardTitle>
             <CardDescription>
-              Wechsle jederzeit zwischen deinen Teams und Rollen.
+              Wechsle jederzeit per Klick zwischen deinen Teams und Rollen.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            {selectableTeams.map((team) => (
-              <div
-                key={team.teamId}
-                className="flex items-center justify-between rounded-lg border border-border p-3 text-sm"
-              >
-                <div>
-                  <p className="font-semibold">{team.teamName}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {team.clubName}
-                    {team.leagueName ? ` · ${team.leagueName}` : ""}
-                  </p>
-                </div>
-                <Badge variant="secondary">
-                  {MEMBER_ROLE_LABELS[team.role]}
-                </Badge>
-              </div>
-            ))}
+            {selectableTeams.map((team) => {
+              const isCurrent = team.teamId === activeTeam.teamId;
+              return (
+                <button
+                  key={team.teamId}
+                  type="button"
+                  onClick={() => setActiveTeamId(team.teamId)}
+                  aria-pressed={isCurrent}
+                  className={cn(
+                    "group flex w-full items-center justify-between rounded-lg border p-3 text-left text-sm transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                    isCurrent
+                      ? "border-primary/50 bg-primary/5"
+                      : "border-border hover:border-primary/40 hover:bg-muted/40"
+                  )}
+                >
+                  <div>
+                    <p className="font-semibold transition-colors group-hover:text-primary">
+                      {team.teamName}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {team.clubName}
+                      {team.leagueName ? ` · ${team.leagueName}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Badge variant={isCurrent ? "default" : "secondary"}>
+                      {MEMBER_ROLE_LABELS[team.role]}
+                    </Badge>
+                    {!isCurrent && (
+                      <ChevronRight
+                        className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+                        aria-hidden="true"
+                      />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
           </CardContent>
         </Card>
       </div>

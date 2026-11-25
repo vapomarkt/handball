@@ -18,6 +18,8 @@ import { HandballCourtBoard } from "@/components/tactics/handball-court-board";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  CARD_ACTION_LAYER_CLASS,
+  CARD_OVERLAY_TRIGGER_CLASS,
   Card,
   CardContent,
   CardDescription,
@@ -27,6 +29,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectNative } from "@/components/ui/select-native";
+import { cn } from "@/lib/utils";
 import {
   COURT_MODE_LABELS,
   TACTIC_CATEGORY_LABELS,
@@ -287,29 +290,38 @@ export default function TaktikUndScoutingPage() {
                   const active =
                     !isCreatingNew && selectedPlayId === play.id;
                   return (
-                    <div
+                    <Card
                       key={play.id}
+                      interactive
                       data-testid={`tactic-card-${play.id}`}
-                      onClick={() => selectPlayIntoEditor(play)}
-                      className={`rounded-xl border p-3.5 cursor-pointer transition-colors space-y-1.5 ${
-                        active
-                          ? "border-primary bg-primary/8 shadow-xs"
-                          : "border-border bg-card hover:bg-muted/40"
-                      }`}
+                      className={cn(
+                        "p-3.5 space-y-1.5",
+                        active && "border-primary bg-primary/8"
+                      )}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <h2 className="font-bold text-sm leading-snug">
-                          {play.title}
+                          <button
+                            type="button"
+                            aria-pressed={active}
+                            onClick={() => selectPlayIntoEditor(play)}
+                            className={cn(
+                              CARD_OVERLAY_TRIGGER_CLASS,
+                              "transition-colors group-hover:text-primary"
+                            )}
+                          >
+                            {play.title}
+                          </button>
                         </h2>
                         {isStaff && (
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeletePlay(play.id);
-                            }}
+                            onClick={() => handleDeletePlay(play.id)}
                             aria-label={`Spielzug ${play.title} löschen`}
-                            className="text-muted-foreground hover:text-destructive cursor-pointer"
+                            className={cn(
+                              CARD_ACTION_LAYER_CLASS,
+                              "text-muted-foreground hover:text-destructive cursor-pointer"
+                            )}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -338,7 +350,7 @@ export default function TaktikUndScoutingPage() {
                           {play.description}
                         </p>
                       )}
-                    </div>
+                    </Card>
                   );
                 })}
               </div>

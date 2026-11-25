@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   BarChart3,
   Calendar,
+  ChevronRight,
   Clock,
   ExternalLink,
   MapPin,
-  Pencil,
   Plus,
   RefreshCw,
   Trash2,
@@ -23,7 +24,15 @@ import { VenueFormDialog } from "@/components/events/venue-form-dialog";
 import { useAppContext } from "@/components/providers/app-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  CARD_ACTION_LAYER_CLASS,
+  CARD_OVERLAY_TRIGGER_CLASS,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import {
   EVENT_TYPE_LABELS,
   type EventDTO,
@@ -52,8 +61,11 @@ function formatTime(iso: string) {
   });
 }
 
-export default function TerminePage() {
+function TerminePageContent() {
   const { me, activeTeam } = useAppContext();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const eventIdFromUrl = searchParams.get("eventId");
 
   const [tab, setTab] = useState<ActiveTab>("events");
   const [typeFilter, setTypeFilter] = useState<"ALL" | EventType>("ALL");
@@ -71,6 +83,8 @@ export default function TerminePage() {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [venueFormOpen, setVenueFormOpen] = useState(false);
   const [editingVenue, setEditingVenue] = useState<VenueDTO | null>(null);
+
+  const effectiveSelectedEventId = selectedEventId ?? eventIdFromUrl;
 
   const isStaff =
     activeTeam?.role === "CLUB_ADMIN" ||
@@ -195,8 +209,8 @@ export default function TerminePage() {
   }, [events, typeFilter, showPast, nowMs]);
 
   const selectedEvent = useMemo(
-    () => events.find((e) => e.id === selectedEventId) ?? null,
-    [events, selectedEventId]
+    () => events.find((e) => e.id === effectiveSelectedEventId) ?? null,
+    [events, effectiveSelectedEventId]
   );
 
   async function handleDeleteEvent(ev: EventDTO) {
@@ -372,12 +386,12 @@ export default function TerminePage() {
               {filteredEvents.map((ev) => (
                 <Card
                   key={ev.id}
+                  interactive
                   data-testid={`event-card-${ev.id}`}
-                  className="hover:border-primary/40 transition-colors"
                 >
                   <CardContent className="p-4 sm:p-5 space-y-3.5">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="space-y-1.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1.5 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge
                             variant={
@@ -414,7 +428,20 @@ export default function TerminePage() {
                         </div>
 
                         <h2 className="text-base font-bold text-foreground">
-                          {ev.title}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedEventId(ev.id)}
+                            className={cn(
+                              CARD_OVERLAY_TRIGGER_CLASS,
+                              "transition-colors group-hover:text-primary"
+                            )}
+                          >
+                            {ev.title}
+                            <span className="sr-only">
+                              {" "}– Details
+                              {ev.type === "MATCH" ? " & Spieltag" : ""} öffnen
+                            </span>
+                          </button>
                         </h2>
 
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -455,31 +482,33 @@ export default function TerminePage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1.5 sm:shrink-0">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setSelectedEventId(ev.id)}
-                        >
-                          Details
-                          {ev.type === "MATCH" ? " & Spieltag" : ""}
-                        </Button>
+                      <div className="flex items-center gap-1 shrink-0">
                         {isStaff && (
                           <Button
                             size="icon"
                             variant="ghost"
+                            className={CARD_ACTION_LAYER_CLASS}
                             onClick={() => handleDeleteEvent(ev)}
                             aria-label={`Termin ${ev.title} löschen`}
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         )}
+                        <ChevronRight
+                          className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+                          aria-hidden="true"
+                        />
                       </div>
                     </div>
 
                     {/* 1-Klick-RSVP für Spieler und verknüpfte Eltern-Kinder */}
                     {rsvpTargets.length > 0 && !ev.isCancelled && (
-                      <div className="border-t border-border pt-3 space-y-2.5">
+                      <div
+                        className={cn(
+                          CARD_ACTION_LAYER_CLASS,
+                          "border-t border-border pt-3 space-y-2.5"
+                        )}
+                      >
                         {rsvpTargets.map((target) => {
                           const existing = ev.attendances.find(
                             (a) => a.memberId === target.memberId
@@ -513,18 +542,45 @@ export default function TerminePage() {
       {tab === "venues" && (
         <div className="grid gap-3 sm:grid-cols-2">
           {venues.map((v) => (
-            <Card key={v.id}>
+            <Card key={v.id} interactive={isStaff}>
               <CardContent className="p-4 sm:p-5 space-y-2.5">
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h2 className="font-bold text-base">{v.name}</h2>
+                  <div className="min-w-0">
+                    <h2 className="font-bold text-base">
+                      {isStaff ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingVenue(v);
+                            setVenueFormOpen(true);
+                          }}
+                          className={cn(
+                            CARD_OVERLAY_TRIGGER_CLASS,
+                            "transition-colors group-hover:text-primary"
+                          )}
+                        >
+                          {v.name}
+                          <span className="sr-only"> – Halle bearbeiten</span>
+                        </button>
+                      ) : (
+                        v.name
+                      )}
+                    </h2>
                     {v.address && (
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {v.address}
                       </p>
                     )}
                   </div>
-                  <ResinBadge policy={v.resinPolicy} />
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <ResinBadge policy={v.resinPolicy} />
+                    {isStaff && (
+                      <ChevronRight
+                        className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+                        aria-hidden="true"
+                      />
+                    )}
+                  </div>
                 </div>
 
                 {v.notes && (
@@ -533,45 +589,38 @@ export default function TerminePage() {
                   </p>
                 )}
 
-                <div className="flex items-center justify-between pt-1">
-                  {v.mapsUrl ? (
-                    <a
-                      href={v.mapsUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-                    >
-                      In Maps öffnen
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  ) : (
-                    <span />
-                  )}
-
-                  {isStaff && (
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setEditingVenue(v);
-                          setVenueFormOpen(true);
-                        }}
+                {(v.mapsUrl || isStaff) && (
+                  <div className="flex items-center justify-between pt-1">
+                    {v.mapsUrl ? (
+                      <a
+                        href={v.mapsUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={cn(
+                          CARD_ACTION_LAYER_CLASS,
+                          "inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                        )}
                       >
-                        <Pencil className="h-3.5 w-3.5" />
-                        Bearbeiten
-                      </Button>
+                        In Maps öffnen
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    ) : (
+                      <span />
+                    )}
+
+                    {isStaff && (
                       <Button
                         size="icon"
                         variant="ghost"
+                        className={CARD_ACTION_LAYER_CLASS}
                         onClick={() => handleDeleteVenue(v)}
                         aria-label={`Halle ${v.name} entfernen`}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -665,7 +714,12 @@ export default function TerminePage() {
         key={`ev-detail-${selectedEvent?.id ?? "none"}-${selectedEvent?.matchDetails?.homeScoreFull ?? ""}-${selectedEvent?.matchDetails?.nominatedMemberIds.length ?? 0}`}
         open={selectedEvent !== null}
         onOpenChange={(open) => {
-          if (!open) setSelectedEventId(null);
+          if (!open) {
+            setSelectedEventId(null);
+            if (eventIdFromUrl) {
+              router.replace("/termine", { scroll: false });
+            }
+          }
         }}
         teamId={activeTeam.teamId}
         event={selectedEvent}
@@ -674,5 +728,13 @@ export default function TerminePage() {
         onUpdated={loadAll}
       />
     </div>
+  );
+}
+
+export default function TerminePage() {
+  return (
+    <Suspense fallback={null}>
+      <TerminePageContent />
+    </Suspense>
   );
 }

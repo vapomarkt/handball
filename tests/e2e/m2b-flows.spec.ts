@@ -104,11 +104,10 @@ test.describe("Meilenstein 2b – Liga-Import, Sync-Schutz & Fahrgemeinschaften"
     ).toBeVisible();
     await expect(page.getByText(/Liga-Änderungsprotokoll/)).toBeVisible();
 
-    // Zurück zu Terminen -> Auswärtsspiel öffnen -> Fahrgemeinschaft prüfen
+    // Zurück zu Terminen -> Auswärtsspiel per Klick auf die gesamte Kachel öffnen -> Fahrgemeinschaft prüfen
     await page.getByRole("button", { name: /^Termine/ }).click();
     await page
       .locator('[data-testid="event-card-event-h1-match-away"]')
-      .getByRole("button", { name: /Details/ })
       .click();
 
     await expect(

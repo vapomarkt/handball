@@ -65,13 +65,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Team-Switcher */}
         {selectableTeams.length > 0 && activeTeam && (
-          <div className="p-4 border-b border-border space-y-1.5">
-            <label
-              htmlFor="desktop-team-switcher"
-              className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
-            >
-              Aktive Mannschaft
-            </label>
+          <div className="p-4 border-b border-border space-y-2">
+            <div className="flex items-center gap-2.5">
+              {activeTeam.clubLogoUrl && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={activeTeam.clubLogoUrl}
+                  alt={`Vereinslogo ${activeTeam.clubName}`}
+                  className="h-9 w-9 shrink-0 rounded-full object-contain bg-white p-0.5 border border-border shadow-xs"
+                />
+              )}
+              <div className="min-w-0">
+                <label
+                  htmlFor="desktop-team-switcher"
+                  className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                >
+                  Aktive Mannschaft
+                </label>
+                <p className="truncate text-xs font-semibold text-foreground">
+                  {activeTeam.clubName}
+                </p>
+              </div>
+            </div>
             <SelectNative
               id="desktop-team-switcher"
               value={activeTeam.teamId}
@@ -85,7 +100,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ))}
             </SelectNative>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-0.5">
-              <Shield className="h-3.5 w-3.5 text-primary" />
+              <Shield className="h-3.5 w-3.5 shrink-0 text-primary" />
               <span>{MEMBER_ROLE_LABELS[activeTeam.role]}</span>
               {activeTeam.leagueName && (
                 <>
@@ -150,8 +165,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Mobile Top Header */}
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-border bg-card/95 px-4 backdrop-blur-sm md:hidden">
-        <Link href="/dashboard" className="shrink-0">
-          <BrandLogo size="sm" showWordmark={false} />
+        <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
+          {activeTeam?.clubLogoUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={activeTeam.clubLogoUrl}
+              alt={`Vereinslogo ${activeTeam.clubName}`}
+              className="h-8 w-8 rounded-full object-contain bg-white p-0.5 border border-border"
+            />
+          ) : (
+            <BrandLogo size="sm" showWordmark={false} />
+          )}
         </Link>
 
         {selectableTeams.length > 0 && activeTeam && (

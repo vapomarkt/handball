@@ -25,6 +25,7 @@ function mapClub(c: {
   shortName: string | null;
   slug: string;
   city: string | null;
+  logoUrl: string | null;
   createdAt: Date;
 }): ClubDTO {
   return {
@@ -33,6 +34,7 @@ function mapClub(c: {
     shortName: c.shortName,
     slug: c.slug,
     city: c.city,
+    logoUrl: c.logoUrl,
     createdAt: c.createdAt.toISOString(),
   };
 }

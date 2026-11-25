@@ -164,19 +164,29 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-            {activeTeam.clubName} · Saison {activeTeam.seasonName}
-          </p>
-          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-            {activeTeam.teamName}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Angemeldet als{" "}
-            <span className="font-medium text-foreground">{me.user.name}</span>{" "}
-            ({MEMBER_ROLE_LABELS[activeTeam.role]})
-            {activeTeam.leagueName ? ` · ${activeTeam.leagueName}` : ""}
-          </p>
+        <div className="flex items-center gap-3.5">
+          {activeTeam.clubLogoUrl && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={activeTeam.clubLogoUrl}
+              alt={`Vereinslogo ${activeTeam.clubName}`}
+              className="h-14 w-14 shrink-0 rounded-full object-contain bg-white p-1 border border-border shadow-sm"
+            />
+          )}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+              {activeTeam.clubName} · Saison {activeTeam.seasonName}
+            </p>
+            <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
+              {activeTeam.teamName}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Angemeldet als{" "}
+              <span className="font-medium text-foreground">{me.user.name}</span>{" "}
+              ({MEMBER_ROLE_LABELS[activeTeam.role]})
+              {activeTeam.leagueName ? ` · ${activeTeam.leagueName}` : ""}
+            </p>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">

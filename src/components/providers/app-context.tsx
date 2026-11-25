@@ -29,6 +29,7 @@ export interface MeMembership {
     name: string;
     shortName: string | null;
     slug: string;
+    logoUrl: string | null;
   };
   team: {
     id: string;
@@ -47,6 +48,7 @@ export interface SelectableTeam {
   seasonName: string;
   clubId: string;
   clubName: string;
+  clubLogoUrl: string | null;
   role: MemberRole;
   isClubAdmin: boolean;
 }
@@ -70,6 +72,7 @@ export interface MePayload {
       name: string;
       shortName: string | null;
       slug: string;
+      logoUrl: string | null;
     };
   }>;
   guardianLinks: GuardianLinkDTO[];
@@ -171,6 +174,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         seasonName: m.team.seasonName,
         clubId: m.club.id,
         clubName: m.club.name,
+        clubLogoUrl: m.club.logoUrl ?? null,
         role: m.role,
         isClubAdmin: adminClubIds.has(m.club.id),
       });
@@ -185,6 +189,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           seasonName: t.seasonName,
           clubId: t.club.id,
           clubName: t.club.name,
+          clubLogoUrl: t.club.logoUrl ?? null,
           role: "CLUB_ADMIN",
           isClubAdmin: true,
         });

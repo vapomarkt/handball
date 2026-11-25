@@ -64,6 +64,7 @@ export interface ClubDTO {
   shortName: string | null;
   slug: string;
   city: string | null;
+  logoUrl: string | null;
   createdAt: string;
 }
 

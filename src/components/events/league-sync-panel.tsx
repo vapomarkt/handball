@@ -37,8 +37,8 @@ interface LeagueSyncPanelProps {
 }
 
 const SAMPLE_CSV = `Datum;Uhrzeit;Heim;Gast;Halle
-14.12.2026;19:00;TSV Musterstadt;HSG Oberland;Sporthalle Musterstadt-Süd
-21.12.2026;17:30;TV Waldstadt;TSV Musterstadt;Waldsporthalle`;
+13.12.2026;10:00;TuS Jahn Hollenstedt;JSG Fredenbeck/Stade/Harsefeld (S);Hollenstedt, Max-Schmeling-Hallen (Halle 1) (603110)
+19.12.2026;13:00;mJSG Buxtehude/ Beckdorf (Bux);TuS Jahn Hollenstedt;Buxtehude, Halle Nord - NEU (Halle 4+5) (608165)`;
 
 export function LeagueSyncPanel({
   teamId,

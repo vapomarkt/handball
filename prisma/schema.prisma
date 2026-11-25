@@ -274,6 +274,7 @@ model Club {
   shortName String?
   slug      String   @unique
   city      String?
+  logoUrl   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

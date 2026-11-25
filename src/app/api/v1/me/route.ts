@@ -11,7 +11,7 @@ export async function GET(request: Request) {
       prisma.teamMember.findMany({
         where: { userId: viewer.userId },
         include: {
-          club: { select: { id: true, name: true, shortName: true, slug: true } },
+          club: { select: { id: true, name: true, shortName: true, slug: true, logoUrl: true } },
           team: {
             select: {
               id: true,
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
         ? await prisma.team.findMany({
             where: { clubId: { in: adminClubIds } },
             include: {
-              club: { select: { id: true, name: true, shortName: true, slug: true } },
+              club: { select: { id: true, name: true, shortName: true, slug: true, logoUrl: true } },
               season: { select: { id: true, name: true, isActive: true } },
             },
             orderBy: { name: "asc" },

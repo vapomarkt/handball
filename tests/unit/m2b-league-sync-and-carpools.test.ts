@@ -63,6 +63,41 @@ describe("IcalLeagueProviderAdapter (.ics Parser)", () => {
       isCancelled: true,
     });
   });
+
+  it("parst reale nuLiga-HVNB-iCal-Events inkl. Europe/Berlin-Zeitzone, Heim/Gast-Beschreibung und Bindestrich-Vereinsnamen", () => {
+    const nuligaIcs = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "BEGIN:VEVENT",
+      "UID:aebd78a0-cbc1-453f-ae48-9433eac80fed",
+      "DTSTART;TZID=Europe/Berlin:20261205T140000",
+      "DTEND;TZID=Europe/Berlin:20261205T150000",
+      "SUMMARY:Regionsoberliga MJD Nord HL Buchholz 08 - Rosengarten II vs TuS Jahn Hollenstedt (20)",
+      "DESCRIPTION:Regionsoberliga männliche Jugend D Nord\\nBegegnungs-Nr: 20\\nHeim: HL Buchholz 08 - Rosengarten II\\nGast: TuS Jahn Hollenstedt\\nHalle: Klecken\\, SH (603134)\\n",
+      "LOCATION:Klecken\\, SH (603134): Heinbuchenweg 19\\, 21224 Ortsteil Klecken/Rosengarten",
+      "STATUS:CONFIRMED",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+
+    const adapter = new IcalLeagueProviderAdapter();
+    const matches = adapter.parse(nuligaIcs, {
+      teamNameMatch: "TuS Jahn Hollenstedt",
+    });
+
+    expect(matches).toHaveLength(1);
+    expect(matches[0]).toMatchObject({
+      externalId: "aebd78a0-cbc1-453f-ae48-9433eac80fed",
+      title: "HL Buchholz 08 - Rosengarten II vs. TuS Jahn Hollenstedt",
+      isHome: false,
+      opponentName: "HL Buchholz 08 - Rosengarten II",
+      venueName: "Klecken, SH (603134)",
+      isCancelled: false,
+    });
+    // 14:00 CET (Europe/Berlin im Dezember) === 13:00 UTC
+    expect(matches[0].startAt.toISOString()).toBe("2026-12-05T13:00:00.000Z");
+    expect(matches[0].endAt?.toISOString()).toBe("2026-12-05T14:00:00.000Z");
+  });
 });
 
 describe("CsvLeagueProviderAdapter (CSV-Import mit Spalten-Mapping)", () => {

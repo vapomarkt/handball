@@ -19,10 +19,10 @@ import { Label } from "@/components/ui/label";
 import { signIn } from "@/infrastructure/auth/auth-client";
 
 const DEMO_ACCOUNTS = [
-  { label: "Trainer (Herren 1 & mC)", email: "trainer@tsv-musterstadt.de" },
-  { label: "Vereins-Admin", email: "admin@tsv-musterstadt.de" },
-  { label: "Spieler (Herren 1)", email: "spieler@tsv-musterstadt.de" },
-  { label: "Elternteil (mC-Jugend)", email: "eltern@tsv-musterstadt.de" },
+  { label: "Trainer (mD-Jugend)", email: "trainer@tus-jahn-hollenstedt.de" },
+  { label: "Vereins-Admin", email: "admin@tus-jahn-hollenstedt.de" },
+  { label: "Spieler (mD-Jugend)", email: "spieler@tus-jahn-hollenstedt.de" },
+  { label: "Elternteil (mD-Jugend)", email: "eltern@tus-jahn-hollenstedt.de" },
 ];
 
 function LoginForm() {
@@ -147,12 +147,25 @@ function LoginForm() {
           </CardContent>
         </Card>
 
-        {/* Demo-Zugänge für TSV Musterstadt */}
+        {/* Demo-Zugänge für TuS Jahn Hollenstedt */}
         <Card className="bg-muted/40">
           <CardContent className="p-4 space-y-2.5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Demo-Zugänge · TSV Musterstadt (Passwort: ThrowOff2026!)
-            </p>
+            <div className="flex items-center gap-2.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/clubs/tus-jahn-hollenstedt.png"
+                alt="Vereinslogo TuS Jahn Hollenstedt"
+                className="h-8 w-8 shrink-0 rounded-full object-contain bg-white p-0.5 border border-border"
+              />
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Demo-Zugänge · TuS Jahn Hollenstedt
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  männliche D-Jugend · Regionsoberliga MJD Nord (Passwort: ThrowOff2026!)
+                </p>
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-2">
               {DEMO_ACCOUNTS.map((acc) => (
                 <button

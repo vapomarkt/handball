@@ -16,14 +16,14 @@ Mobile-First Webapp & PWA für Handballvereine, Trainer, Spieler und Eltern (Nex
    - `BETTER_AUTH_SECRET`: beliebiger geheimer String (mind. 32 Zeichen)
    - `BETTER_AUTH_URL`: `https://throwoff.app`
    - `NEXT_PUBLIC_APP_URL`: `https://throwoff.app`
-   - `SEED_DEMO_ON_DEPLOY`: `true` *(optional – legt beim ersten Deploy automatisch die Demo-Daten für TSV Musterstadt an; danach kannst du sie wieder entfernen oder auf `false` setzen, der Seed ist idempotent)*
+   - `SEED_DEMO_ON_DEPLOY`: `true` *(optional – legt beim ersten Deploy automatisch die Demo-Daten für die männliche D-Jugend des TuS Jahn Hollenstedt inkl. Vereinslogo & nuLiga-Spielplan an; danach kannst du sie wieder entfernen oder auf `false` setzen, der Seed ist idempotent)*
 4. **Deploy** klicken – `npm run vercel-build` führt automatisch `prisma generate`, `prisma migrate deploy`, optional `db:seed` und `next build` aus.
 
-### Demo-Zugänge (Passwort: `ThrowOff2026!`)
-- **Trainer (`COACH`)**: `trainer@tsv-musterstadt.de`
-- **Vereins-Admin (`CLUB_ADMIN`)**: `admin@tsv-musterstadt.de`
-- **Spieler (`PLAYER`)**: `spieler@tsv-musterstadt.de`
-- **Elternteil (`PARENT`)**: `eltern@tsv-musterstadt.de`
+### Demo-Zugänge – TuS Jahn Hollenstedt · männliche D-Jugend (Passwort: `ThrowOff2026!`)
+- **Trainer (`COACH`)**: `trainer@tus-jahn-hollenstedt.de`
+- **Vereins-Admin (`CLUB_ADMIN`)**: `admin@tus-jahn-hollenstedt.de`
+- **Spieler (`PLAYER`)**: `spieler@tus-jahn-hollenstedt.de`
+- **Elternteil (`PARENT`)**: `eltern@tus-jahn-hollenstedt.de`
 
 ---
 

@@ -27,6 +27,36 @@ Mobile-First Webapp & PWA für Handballvereine, Trainer, Spieler und Eltern (Nex
 
 ---
 
+## Self-Hosting / Produktion (Hetzner + Docker + `nginx-proxy`)
+
+1. Auf dem Server klonen und `.env` anlegen:
+   ```bash
+   git clone https://github.com/vapomarkt/handball.git throwoff
+   cd throwoff
+   cp .env.prod.example .env
+   # .env ausfüllen (POSTGRES_PASSWORD, BETTER_AUTH_SECRET, PROXY_NETWORK)
+   # Hinweis: Den exakten Netzwerknamen deines nginx-proxy findest du mit: docker network ls
+   ```
+2. Bauen und starten (inkl. PostgreSQL 16, automatischer Prisma-Migration & `pg-boss`-Worker):
+   ```bash
+   docker compose -f docker-compose.prod.yml up -d --build
+   ```
+3. Optional Demo-Daten (TSV Musterstadt) einmalig einspielen:
+   ```bash
+   docker compose -f docker-compose.prod.yml run --rm migrate npm run db:seed
+   ```
+4. Healthcheck prüfen:
+   ```bash
+   docker compose -f docker-compose.prod.yml ps
+   curl -i https://throwoff.app/api/health
+   ```
+5. Updates deployen:
+   ```bash
+   git pull && docker compose -f docker-compose.prod.yml up -d --build
+   ```
+
+---
+
 ## Lokale Entwicklung
 
 ```bash

@@ -26,6 +26,12 @@ function resolveTrustedOrigins(): string[] {
   if (process.env.VERCEL_URL) {
     origins.add(`https://${process.env.VERCEL_URL}`);
   }
+  if (process.env.BETTER_AUTH_TRUSTED_ORIGINS) {
+    for (const origin of process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(",")) {
+      const trimmed = origin.trim();
+      if (trimmed) origins.add(trimmed);
+    }
+  }
   return Array.from(origins);
 }
 

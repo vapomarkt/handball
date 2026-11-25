@@ -24,10 +24,12 @@ RUN DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholde
 # 3. Tooling- & Worker-Target (Prisma Migrations, Seeding, pg-boss Liga-Sync-Worker)
 FROM base AS worker
 ENV NODE_ENV=production
-COPY --from=deps /app/node_modules ./node_modules
-COPY package.json package-lock.json prisma.config.ts tsconfig.json ./
-COPY prisma ./prisma
-COPY src ./src
+# Source files come from the checkout with owner-only modes; the node user must
+# be able to read them (Prisma CLI loads prisma.config.ts at runtime).
+COPY --from=deps --chown=node:node /app/node_modules ./node_modules
+COPY --chown=node:node package.json package-lock.json prisma.config.ts tsconfig.json ./
+COPY --chown=node:node prisma ./prisma
+COPY --chown=node:node src ./src
 USER node
 CMD ["npm", "run", "worker"]
 

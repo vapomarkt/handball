@@ -7,8 +7,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # 1. Abhängigkeiten installieren + Prisma Client generieren
 FROM base AS deps
 COPY package.json package-lock.json prisma.config.ts ./
+COPY packages/shared/package.json ./packages/shared/package.json
 COPY prisma ./prisma
-RUN npm ci
+RUN npm ci --workspace=packages/shared --include-workspace-root
 
 # 2. Next.js Production Build (Standalone)
 FROM base AS builder
@@ -28,6 +29,7 @@ ENV NODE_ENV=production
 # be able to read them (Prisma CLI loads prisma.config.ts at runtime).
 COPY --from=deps --chown=node:node /app/node_modules ./node_modules
 COPY --chown=node:node package.json package-lock.json prisma.config.ts tsconfig.json ./
+COPY --chown=node:node packages ./packages
 COPY --chown=node:node prisma ./prisma
 COPY --chown=node:node src ./src
 USER node

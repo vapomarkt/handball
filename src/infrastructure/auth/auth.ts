@@ -1,6 +1,8 @@
+import { expo } from "@better-auth/expo";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
+import { bearer } from "better-auth/plugins";
 import { prisma } from "../db/prisma";
 
 function resolveBaseUrl(): string {
@@ -15,7 +17,17 @@ function resolveBaseUrl(): string {
 }
 
 function resolveTrustedOrigins(): string[] {
-  const origins = new Set<string>(["http://localhost:3000"]);
+  const origins = new Set<string>([
+    "http://localhost:3000",
+    "throwoff://",
+  ]);
+  if (process.env.NODE_ENV !== "production") {
+    origins.add("exp://");
+    origins.add("exp://*/*");
+    origins.add("exp://10.0.*.*:*/*");
+    origins.add("exp://192.168.*.*:*/*");
+    origins.add("exp://172.*.*.*:*/*");
+  }
   if (process.env.BETTER_AUTH_URL) origins.add(process.env.BETTER_AUTH_URL);
   if (process.env.NEXT_PUBLIC_APP_URL) {
     origins.add(process.env.NEXT_PUBLIC_APP_URL);
@@ -66,7 +78,7 @@ export const auth = betterAuth({
       },
     },
   },
-  plugins: [nextCookies()],
+  plugins: [nextCookies(), bearer(), expo()],
 });
 
 export type AuthSession = typeof auth.$Infer.Session;

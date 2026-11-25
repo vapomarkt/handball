@@ -234,6 +234,7 @@ model User {
   teamMembers    TeamMember[]
   guardianLinks  GuardianLink[] @relation("GuardianUser")
   createdInvites TeamInvite[]   @relation("InviteCreator")
+  pushDevices    PushDevice[]
 
   @@map("user")
 }
@@ -1167,4 +1168,31 @@ model JerseySet {
   @@index([clubId])
   @@index([teamId])
   @@map("jersey_set")
+}
+
+// ============================================================================
+// Mobile Push Notifications (iOS & Android via Expo Push Service)
+// ============================================================================
+
+enum PushPlatform {
+  IOS
+  ANDROID
+}
+
+model PushDevice {
+  id            String       @id @default(cuid())
+  userId        String
+  expoPushToken String       @unique
+  platform      PushPlatform
+  deviceName    String?
+  appVersion    String?
+  enabled       Boolean      @default(true)
+  lastSeenAt    DateTime     @default(now())
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, enabled])
+  @@map("push_device")
 }

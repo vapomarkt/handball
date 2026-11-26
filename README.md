@@ -74,3 +74,35 @@ npm run test
 npm run build
 npm run test:e2e
 ```
+
+---
+
+## Mobile Apps (iOS & Android, Expo)
+
+Monorepo mit npm-Workspaces – die Web-App bleibt unverändert im Root:
+
+| Pfad | Inhalt |
+| --- | --- |
+| `/` (`src/`, `prisma/`) | Next.js Web-App, REST-API `/api/v1/*`, pg-boss-Worker |
+| `packages/shared` | `@throwoff/shared`: typisierter API-Client, Push-Schemas, Re-Export der Domain-Schemas aus `src/domain` |
+| `apps/mobile` | Expo / React Native App (Expo Router, Better Auth, Offline-Cache, Push) |
+
+```bash
+cp apps/mobile/.env.example apps/mobile/.env   # EXPO_PUBLIC_API_URL setzen
+npm install
+npm run mobile:start        # QR-Code mit Expo Go scannen
+npm run mobile:typecheck
+```
+
+> Lokales Backend vom Handy aus: `EXPO_PUBLIC_API_URL=http://<LAN-IP>:3000` (nicht `localhost`).
+
+### Regeln für die parallele Entwicklung
+- **Domain zuerst:** neue Schemas/DTOs in `src/domain/schemas/*` – Web *und* Mobile nutzen sie automatisch über `@throwoff/shared`.
+- **API nur additiv ändern:** ausgelieferte App-Versionen bleiben im Umlauf. Felder ergänzen statt umbenennen/entfernen; Breaking Changes → neuer Endpoint bzw. `/api/v2`.
+- **Push senden:** Job in die pg-boss-Queue `push-notifications` legen (`{ userIds, title, body, data: { kind, url: "throwoff://…" } }`). RSVP-Erinnerungen laufen täglich um 18:00 Uhr automatisch.
+
+### Builds & Store-Releases (EAS)
+Einmalig: Expo-Account, `cd apps/mobile && npx eas init` (setzt `extra.eas.projectId`, nötig für Push), GitHub-Secret `EXPO_TOKEN`, Apple Developer Program, Google Play Console + FCM-Credentials (`eas credentials`).
+
+- GitHub Actions → **Mobile CI** → *Run workflow* (`preview`/`production`) startet `eas build`.
+- Git-Tag `mobile-v*` → Production-Build + `eas submit` (TestFlight / Play Internal Testing).

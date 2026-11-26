@@ -3,18 +3,26 @@ import type {
   RegisterPushTokenInput,
   UnregisterPushTokenInput,
 } from "../schemas/push";
+import type { CarpoolDTO } from "../../../../src/domain/schemas/carpool";
 import type {
-  AnnouncementDTO,
-  CarpoolOfferDTO,
-  ClubDutyDTO,
-  InviteInfoDTO,
-  MePayloadDTO,
-  PollDTO,
-  TacticPlayDTO,
-  TeamEventDTO,
-  TeamMemberDTO,
-  UpsertRsvpInput,
-} from "../types/dto";
+  TeamAnnouncementDTO,
+  TeamPollDTO,
+} from "../../../../src/domain/schemas/community";
+import type { WorkDutyDTO } from "../../../../src/domain/schemas/duty";
+import type {
+  EventDTO,
+  SubmitRsvpInput,
+} from "../../../../src/domain/schemas/event";
+import type {
+  ClaimInviteInput,
+  InvitePreviewDTO,
+} from "../../../../src/domain/schemas/invite";
+import type {
+  TeamMemberPublicDTO,
+  TeamMemberSensitiveDTO,
+} from "../../../../src/domain/schemas/member";
+import type { TacticPlayDTO } from "../../../../src/domain/schemas/tactic";
+import type { MePayloadDTO } from "../types/dto";
 
 export interface ThrowOffApiClientConfig {
   /** Base URL without trailing slash (e.g. "https://throwoff.app" on mobile, "" in browser). */
@@ -98,12 +106,12 @@ export class ThrowOffApiClient {
   listTeamEvents(
     teamId: string,
     params?: { from?: string; to?: string }
-  ): Promise<{ events: TeamEventDTO[] }> {
+  ): Promise<{ events: EventDTO[] }> {
     const query = new URLSearchParams();
     if (params?.from) query.set("from", params.from);
     if (params?.to) query.set("to", params.to);
     const qs = query.toString();
-    return this.request<{ events: TeamEventDTO[] }>(
+    return this.request<{ events: EventDTO[] }>(
       `/api/v1/teams/${encodeURIComponent(teamId)}/events${qs ? `?${qs}` : ""}`
     );
   }
@@ -111,8 +119,8 @@ export class ThrowOffApiClient {
   getEventDetail(
     teamId: string,
     eventId: string
-  ): Promise<{ event: TeamEventDTO }> {
-    return this.request<{ event: TeamEventDTO }>(
+  ): Promise<{ event: EventDTO }> {
+    return this.request<{ event: EventDTO }>(
       `/api/v1/teams/${encodeURIComponent(teamId)}/events/${encodeURIComponent(eventId)}`
     );
   }
@@ -120,9 +128,9 @@ export class ThrowOffApiClient {
   upsertRsvp(
     teamId: string,
     eventId: string,
-    input: UpsertRsvpInput
-  ): Promise<{ rsvp: unknown }> {
-    return this.request<{ rsvp: unknown }>(
+    input: SubmitRsvpInput
+  ): Promise<{ attendance: unknown }> {
+    return this.request<{ attendance: unknown }>(
       `/api/v1/teams/${encodeURIComponent(teamId)}/events/${encodeURIComponent(eventId)}/rsvp`,
       {
         method: "PUT",
@@ -134,28 +142,32 @@ export class ThrowOffApiClient {
   listCarpools(
     teamId: string,
     eventId: string
-  ): Promise<{ carpools: CarpoolOfferDTO[] }> {
-    return this.request<{ carpools: CarpoolOfferDTO[] }>(
+  ): Promise<{ carpools: CarpoolDTO[] }> {
+    return this.request<{ carpools: CarpoolDTO[] }>(
       `/api/v1/teams/${encodeURIComponent(teamId)}/events/${encodeURIComponent(eventId)}/carpools`
     );
   }
 
-  listTeamMembers(teamId: string): Promise<{ members: TeamMemberDTO[] }> {
-    return this.request<{ members: TeamMemberDTO[] }>(
+  listTeamMembers(teamId: string): Promise<{
+    members: Array<TeamMemberPublicDTO | TeamMemberSensitiveDTO>;
+  }> {
+    return this.request<{
+      members: Array<TeamMemberPublicDTO | TeamMemberSensitiveDTO>;
+    }>(
       `/api/v1/teams/${encodeURIComponent(teamId)}/members`
     );
   }
 
   listAnnouncements(
     teamId: string
-  ): Promise<{ announcements: AnnouncementDTO[] }> {
-    return this.request<{ announcements: AnnouncementDTO[] }>(
+  ): Promise<{ announcements: TeamAnnouncementDTO[] }> {
+    return this.request<{ announcements: TeamAnnouncementDTO[] }>(
       `/api/v1/teams/${encodeURIComponent(teamId)}/announcements`
     );
   }
 
-  listPolls(teamId: string): Promise<{ polls: PollDTO[] }> {
-    return this.request<{ polls: PollDTO[] }>(
+  listPolls(teamId: string): Promise<{ polls: TeamPollDTO[] }> {
+    return this.request<{ polls: TeamPollDTO[] }>(
       `/api/v1/teams/${encodeURIComponent(teamId)}/polls`
     );
   }
@@ -163,13 +175,13 @@ export class ThrowOffApiClient {
   votePoll(
     teamId: string,
     pollId: string,
-    optionIds: string[]
-  ): Promise<{ poll: PollDTO }> {
-    return this.request<{ poll: PollDTO }>(
+    optionId: string
+  ): Promise<{ poll: TeamPollDTO }> {
+    return this.request<{ poll: TeamPollDTO }>(
       `/api/v1/teams/${encodeURIComponent(teamId)}/polls/${encodeURIComponent(pollId)}/vote`,
       {
         method: "POST",
-        body: JSON.stringify({ optionIds }),
+        body: JSON.stringify({ optionId }),
       }
     );
   }
@@ -180,34 +192,41 @@ export class ThrowOffApiClient {
     );
   }
 
-  listClubDuties(clubId: string): Promise<{ duties: ClubDutyDTO[] }> {
-    return this.request<{ duties: ClubDutyDTO[] }>(
+  listClubDuties(clubId: string): Promise<{ duties: WorkDutyDTO[] }> {
+    return this.request<{ duties: WorkDutyDTO[] }>(
       `/api/v1/clubs/${encodeURIComponent(clubId)}/duties`
     );
   }
 
-  claimDuty(clubId: string, dutyId: string): Promise<{ assignment: unknown }> {
+  claimDuty(
+    clubId: string,
+    dutyId: string,
+    memberId: string
+  ): Promise<{ assignment: unknown }> {
     return this.request<{ assignment: unknown }>(
       `/api/v1/clubs/${encodeURIComponent(clubId)}/duties/${encodeURIComponent(dutyId)}/claim`,
       {
         method: "POST",
-        body: JSON.stringify({}),
+        body: JSON.stringify({ memberId }),
       }
     );
   }
 
-  getInvite(token: string): Promise<{ invite: InviteInfoDTO }> {
-    return this.request<{ invite: InviteInfoDTO }>(
+  getInvite(token: string): Promise<{ invite: InvitePreviewDTO }> {
+    return this.request<{ invite: InvitePreviewDTO }>(
       `/api/v1/invites/${encodeURIComponent(token)}`
     );
   }
 
-  claimInvite(token: string): Promise<{ ok: boolean; teamId?: string }> {
-    return this.request<{ ok: boolean; teamId?: string }>(
+  claimInvite(
+    token: string,
+    input: Partial<ClaimInviteInput> = {}
+  ): Promise<unknown> {
+    return this.request<unknown>(
       `/api/v1/invites/${encodeURIComponent(token)}/claim`,
       {
         method: "POST",
-        body: JSON.stringify({}),
+        body: JSON.stringify(input),
       }
     );
   }

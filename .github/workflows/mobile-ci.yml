@@ -1,0 +1,91 @@
+name: Mobile CI
+
+on:
+  pull_request:
+    paths:
+      - "apps/mobile/**"
+      - "packages/shared/**"
+      - "src/domain/**"
+      - "package.json"
+      - "package-lock.json"
+  push:
+    branches: [main]
+    paths:
+      - "apps/mobile/**"
+      - "packages/shared/**"
+      - "src/domain/**"
+      - "package.json"
+      - "package-lock.json"
+    tags:
+      - "mobile-v*"
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "EAS build profile"
+        required: true
+        default: preview
+        type: choice
+        options: [preview, production]
+      platform:
+        description: "Platform"
+        required: true
+        default: all
+        type: choice
+        options: [all, ios, android]
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck (shared + mobile)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run shared:typecheck
+      - run: npm run mobile:typecheck
+      # Schützt den API-Vertrag: Domain- und Push-Tests der Web-/Core-App
+      - run: npx vitest run tests/unit/mobile-push-and-shared.test.ts tests/unit/architecture-purity.test.ts
+
+  eas-build:
+    name: EAS Build (${{ inputs.profile || 'production' }})
+    needs: check
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/mobile-v')
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Require EXPO_TOKEN
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::Secret EXPO_TOKEN fehlt (Repo Settings → Secrets → Actions)."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci
+      - name: Build
+        working-directory: apps/mobile
+        run: >
+          eas build
+          --platform ${{ inputs.platform || 'all' }}
+          --profile ${{ inputs.profile || 'production' }}
+          --non-interactive
+          --no-wait
+      - name: Submit to stores
+        if: startsWith(github.ref, 'refs/tags/mobile-v')
+        working-directory: apps/mobile
+        run: eas submit --platform all --profile production --latest --non-interactive --no-wait

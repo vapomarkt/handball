@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "ThrowOff",
+    "slug": "throwoff",
+    "scheme": "throwoff",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "../../public/apple-touch-icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "app.throwoff.mobile",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "app.throwoff.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "../../public/apple-touch-icon.png",
+        "backgroundColor": "#0f172a"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#f97316"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
+    }
+  }
+}

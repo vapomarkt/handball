@@ -1,42 +1,12 @@
-export type MemberRole =
-  | "CLUB_ADMIN"
-  | "COACH"
-  | "ASSISTANT_COACH"
-  | "PLAYER"
-  | "PARENT"
-  | "HELPER";
+import type {
+  AvailabilityStatus,
+  HandballPosition,
+  MemberRole,
+} from "../../../../src/domain/schemas/handball";
+import type { GuardianLinkDTO } from "../../../../src/domain/schemas/invite";
+import type { LeagueAgeGroup } from "../../../../src/domain/schemas/league-catalog";
 
-export type HandballPosition = "TW" | "LA" | "RL" | "RM" | "RR" | "RA" | "KM";
-
-export type AvailabilityStatus = "FIT" | "INJURED" | "UNAVAILABLE";
-
-export type LeagueAgeGroup =
-  | "ADULT"
-  | "YOUTH_A"
-  | "YOUTH_B"
-  | "YOUTH_C"
-  | "YOUTH_D"
-  | "YOUTH_E"
-  | "YOUTH_F_MINI"
-  | "SENIOR";
-
-export type EventType = "TRAINING" | "MATCH" | "TOURNAMENT" | "CLUB_EVENT";
-
-export type RsvpStatus = "ACCEPTED" | "DECLINED" | "MAYBE" | "PENDING";
-
-export type DeclineReasonCategory =
-  | "WORK"
-  | "INJURY"
-  | "VACATION"
-  | "SCHOOL_UNI"
-  | "OTHER";
-
-export type ResinPolicy =
-  | "RESIN_ALLOWED"
-  | "RESIN_FORBIDDEN"
-  | "WATER_SOLUBLE_ONLY"
-  | "UNKNOWN";
-
+/** Response shape of GET /api/v1/me (mirrors src/app/api/v1/me/route.ts). */
 export interface ClubSummaryDTO {
   id: string;
   name: string;
@@ -68,19 +38,6 @@ export interface MeMembershipDTO {
   team: TeamSummaryDTO;
 }
 
-export interface GuardianLinkSummaryDTO {
-  id: string;
-  guardianUserId: string;
-  childMemberId: string;
-  relation: string | null;
-  childMember?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    teamId: string;
-  };
-}
-
 export interface MePayloadDTO {
   user: {
     id: string;
@@ -89,7 +46,7 @@ export interface MePayloadDTO {
   };
   memberships: MeMembershipDTO[];
   adminClubTeams: Array<TeamSummaryDTO & { club: ClubSummaryDTO }>;
-  guardianLinks: GuardianLinkSummaryDTO[];
+  guardianLinks: GuardianLinkDTO[];
 }
 
 export interface SelectableTeamDTO {
@@ -104,156 +61,6 @@ export interface SelectableTeamDTO {
   clubLogoUrl: string | null;
   role: MemberRole;
   isClubAdmin: boolean;
-}
-
-export interface VenueSummaryDTO {
-  id: string;
-  name: string;
-  street?: string | null;
-  postalCode?: string | null;
-  city?: string | null;
-  resinPolicy?: ResinPolicy;
-}
-
-export interface EventRsvpSummaryDTO {
-  id: string;
-  memberId: string;
-  status: RsvpStatus;
-  declineReasonCategory?: DeclineReasonCategory | null;
-  declineReasonNote?: string | null;
-  respondedAt?: string | null;
-  member?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    jerseyNumber?: number | null;
-    primaryPosition?: HandballPosition | null;
-    role?: MemberRole;
-  };
-}
-
-export interface TeamEventDTO {
-  id: string;
-  teamId: string;
-  type: EventType;
-  title: string;
-  description?: string | null;
-  startAt: string;
-  endAt?: string | null;
-  meetingAt?: string | null;
-  rsvpDeadlineAt?: string | null;
-  isCancelled: boolean;
-  venue?: VenueSummaryDTO | null;
-  attendances?: EventRsvpSummaryDTO[];
-  rsvpSummary?: {
-    accepted: number;
-    declined: number;
-    maybe: number;
-    pending: number;
-  };
-  matchDetails?: {
-    opponentName?: string | null;
-    isHome?: boolean;
-    homeScore?: number | null;
-    awayScore?: number | null;
-  } | null;
-}
-
-export interface UpsertRsvpInput {
-  memberId?: string;
-  status: Exclude<RsvpStatus, "PENDING">;
-  declineReasonCategory?: DeclineReasonCategory | null;
-  declineReasonNote?: string | null;
-}
-
-export interface TeamMemberDTO {
-  id: string;
-  clubId: string;
-  teamId: string;
-  userId: string | null;
-  role: MemberRole;
-  firstName: string;
-  lastName: string;
-  jerseyNumber: number | null;
-  primaryPosition: HandballPosition | null;
-  secondaryPosition?: HandballPosition | null;
-  availabilityStatus: AvailabilityStatus;
-  isMinor?: boolean;
-}
-
-export interface AnnouncementDTO {
-  id: string;
-  teamId: string;
-  title: string;
-  body: string;
-  isPinned: boolean;
-  createdAt: string;
-  authorName?: string | null;
-}
-
-export interface PollOptionDTO {
-  id: string;
-  label: string;
-  voteCount: number;
-  votedByMe?: boolean;
-}
-
-export interface PollDTO {
-  id: string;
-  teamId: string;
-  question: string;
-  description?: string | null;
-  allowMultiple: boolean;
-  closesAt?: string | null;
-  createdAt: string;
-  options: PollOptionDTO[];
-}
-
-export interface TacticPlayDTO {
-  id: string;
-  teamId: string;
-  name: string;
-  category: string;
-  description?: string | null;
-  updatedAt: string;
-  frames?: unknown;
-}
-
-export interface ClubDutyDTO {
-  id: string;
-  clubId: string;
-  title: string;
-  category: string;
-  startsAt: string;
-  endsAt?: string | null;
-  requiredHelpers: number;
-  assignedCount?: number;
-  assignments?: Array<{
-    id: string;
-    memberId: string;
-    status: string;
-    memberName?: string;
-  }>;
-}
-
-export interface CarpoolOfferDTO {
-  id: string;
-  eventId: string;
-  driverName?: string;
-  departureLocation: string;
-  departureTime?: string | null;
-  totalSeats: number;
-  availableSeats: number;
-  notes?: string | null;
-}
-
-export interface InviteInfoDTO {
-  token: string;
-  type: "TEAM_JOIN" | "PROFILE_CLAIM" | "GUARDIAN_LINK";
-  clubName: string;
-  teamName: string;
-  role: MemberRole;
-  expiresAt: string;
 }
 
 export function deriveSelectableTeams(me: MePayloadDTO): SelectableTeamDTO[] {

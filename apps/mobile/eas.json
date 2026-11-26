@@ -1,0 +1,43 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "base": {
+      "node": "22.20.0"
+    },
+    "development": {
+      "extends": "base",
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://throwoff.app"
+      }
+    },
+    "preview": {
+      "extends": "base",
+      "distribution": "internal",
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://throwoff.app"
+      }
+    },
+    "production": {
+      "extends": "base",
+      "channel": "production",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://throwoff.app"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {},
+      "android": {
+        "track": "internal"
+      }
+    }
+  }
+}

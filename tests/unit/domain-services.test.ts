@@ -116,8 +116,10 @@ function createInMemoryHarness() {
     async findById(id) {
       return invites.find((i) => i.id === id) ?? null;
     },
-    async findByTokenWithContext(token) {
-      const invite = invites.find((i) => i.token === token);
+    async findByTokenWithContext(tokenOrShortCode) {
+      const invite = invites.find(
+        (i) => i.token === tokenOrShortCode || i.shortCode === tokenOrShortCode
+      );
       if (!invite) return null;
       const targetMember = invite.targetMemberId
         ? members.find((m) => m.id === invite.targetMemberId) ?? null
@@ -130,10 +132,14 @@ function createInMemoryHarness() {
         targetMember,
       };
     },
+    async findByShortCode(shortCode) {
+      return invites.find((i) => i.shortCode === shortCode) ?? null;
+    },
     async create(input) {
       const entity: TeamInviteEntity = {
         id: `inv-${invites.length + 1}`,
         ...input,
+        shortCode: input.shortCode ?? null,
         usedCount: 0,
         revokedAt: null,
         createdAt: new Date(),

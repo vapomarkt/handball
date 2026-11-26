@@ -21,6 +21,11 @@ import type {
   TeamMemberPublicDTO,
   TeamMemberSensitiveDTO,
 } from "../../../../src/domain/schemas/member";
+import type {
+  QuickProfileUpdateInput,
+  UpdateOnboardingStateInput,
+  UserOnboardingStateDTO,
+} from "../../../../src/domain/schemas/onboarding-state";
 import type { TacticPlayDTO } from "../../../../src/domain/schemas/tactic";
 import type { MePayloadDTO } from "../types/dto";
 
@@ -249,6 +254,30 @@ export class ThrowOffApiClient {
       method: "DELETE",
       body: JSON.stringify(input),
     });
+  }
+
+  updateOnboardingState(
+    input: UpdateOnboardingStateInput
+  ): Promise<{ onboardingState: UserOnboardingStateDTO }> {
+    return this.request<{ onboardingState: UserOnboardingStateDTO }>(
+      "/api/v1/me/onboarding-state",
+      {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      }
+    );
+  }
+
+  updateMyProfile(
+    input: QuickProfileUpdateInput
+  ): Promise<{ member: unknown; child: unknown }> {
+    return this.request<{ member: unknown; child: unknown }>(
+      "/api/v1/me/profile",
+      {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      }
+    );
   }
 }
 

@@ -14,13 +14,59 @@ import {
   TeamInviteEntity,
 } from "../schemas/invite";
 
+const TOKEN_ALPHABET =
+  "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+const SHORT_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
 function generateToken(): string {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
   let token = "";
   for (let i = 0; i < 20; i++) {
-    token += alphabet[Math.floor(Math.random() * alphabet.length)];
+    token += TOKEN_ALPHABET[Math.floor(Math.random() * TOKEN_ALPHABET.length)];
   }
   return token;
+}
+
+export function generateShortCode(): string {
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code +=
+      SHORT_CODE_ALPHABET[
+        Math.floor(Math.random() * SHORT_CODE_ALPHABET.length)
+      ];
+  }
+  return code;
+}
+
+export function formatShortCode(code: string | null | undefined): string {
+  if (!code) return "";
+  const clean = code.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  if (clean.length === 6) {
+    return `${clean.slice(0, 3)}-${clean.slice(3)}`;
+  }
+  return clean;
+}
+
+/**
+ * Normalisiert Benutzereingaben aus WhatsApp, QR-Code oder Code-Feld:
+ * - Volle URL (`https://throwoff.app/invite/abc...`) -> `abc...`
+ * - 6-stelliger Kurzcode mit Bindestrich/Leerzeichen (`h7k-4p9`, `H7K 4P9`) -> `H7K4P9`
+ * - 20-stelliger Token bleibt case-sensitive erhalten.
+ */
+export function normalizeInviteLookup(raw: string): string {
+  let trimmed = raw.trim();
+  if (!trimmed) return "";
+
+  const inviteSegment = trimmed.match(/\/invite\/([^/?#\s]+)/i);
+  if (inviteSegment && inviteSegment[1]) {
+    trimmed = decodeURIComponent(inviteSegment[1]).trim();
+  }
+
+  const strippedShort = trimmed.replace(/[-\s]/g, "");
+  if (/^[a-zA-Z0-9]{6}$/.test(strippedShort)) {
+    return strippedShort.toUpperCase();
+  }
+
+  return trimmed;
 }
 
 function validateInviteUsable(
@@ -51,6 +97,7 @@ function toInviteDTO(
     clubId: invite.clubId,
     teamId: invite.teamId,
     token: invite.token,
+    shortCode: invite.shortCode ?? null,
     type: invite.type,
     role: invite.role,
     targetMemberId: invite.targetMemberId,
@@ -89,6 +136,20 @@ export class InviteService {
     return rows.map((row) => toInviteDTO(row.invite, row.targetMemberName));
   }
 
+  private async allocateShortCode(): Promise<string> {
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const candidate = generateShortCode();
+      if (!this.invites.findByShortCode) {
+        return candidate;
+      }
+      const existing = await this.invites.findByShortCode(candidate);
+      if (!existing) {
+        return candidate;
+      }
+    }
+    return generateShortCode();
+  }
+
   async createInvite(
     viewer: ViewerContext,
     teamId: string,
@@ -100,7 +161,7 @@ export class InviteService {
     }
     if (!canManageInvites(viewer, team.id, team.clubId)) {
       throw DomainError.forbidden(
-        "Nur Trainer, Co-Trainer oder Vereins-Admins dürfen Einladungen erstellen."
+        "Nur Trainer, Co-Trainer, Betreuer oder Vereins-Admins dürfen Einladungen erstellen."
       );
     }
 
@@ -137,10 +198,13 @@ export class InviteService {
         ? 1
         : input.maxUses ?? (input.type === "GUARDIAN_LINK" ? 2 : 30);
 
+    const shortCode = await this.allocateShortCode();
+
     const invite = await this.invites.create({
       clubId: team.clubId,
       teamId: team.id,
       token: generateToken(),
+      shortCode,
       type: input.type,
       role: input.type === "GUARDIAN_LINK" ? "PARENT" : input.role,
       targetMemberId: input.targetMemberId ?? null,
@@ -171,10 +235,16 @@ export class InviteService {
     await this.invites.revoke(inviteId);
   }
 
-  async previewInvite(token: string, now = new Date()): Promise<InvitePreviewDTO> {
-    const found = await this.invites.findByTokenWithContext(token);
+  async previewInvite(
+    rawTokenOrCode: string,
+    now = new Date()
+  ): Promise<InvitePreviewDTO> {
+    const lookup = normalizeInviteLookup(rawTokenOrCode);
+    const found = lookup
+      ? await this.invites.findByTokenWithContext(lookup)
+      : null;
     if (!found) {
-      throw DomainError.notFound("Einladungslink nicht gefunden.");
+      throw DomainError.notFound("Einladungslink oder Code nicht gefunden.");
     }
 
     const validity = validateInviteUsable(found.invite, now);
@@ -192,9 +262,11 @@ export class InviteService {
 
     return {
       token: found.invite.token,
+      shortCode: found.invite.shortCode ?? null,
       type: found.invite.type,
       role: found.invite.role,
       clubName: found.clubName,
+      clubLogoUrl: found.clubLogoUrl ?? null,
       teamName: found.teamName,
       seasonName: found.seasonName,
       // DSGVO: In der öffentlichen Vorschau nur Vorname des Zielprofils
@@ -206,13 +278,16 @@ export class InviteService {
 
   async claimInvite(
     viewer: ViewerContext,
-    token: string,
+    rawTokenOrCode: string,
     rawInput: unknown,
     now = new Date()
   ) {
-    const found = await this.invites.findByTokenWithContext(token);
+    const lookup = normalizeInviteLookup(rawTokenOrCode);
+    const found = lookup
+      ? await this.invites.findByTokenWithContext(lookup)
+      : null;
     if (!found) {
-      throw DomainError.notFound("Einladungslink nicht gefunden.");
+      throw DomainError.notFound("Einladungslink oder Code nicht gefunden.");
     }
 
     const validity = validateInviteUsable(found.invite, now);
@@ -259,6 +334,7 @@ export class InviteService {
       await this.invites.incrementUsedCount(invite.id);
       return {
         type: invite.type,
+        role: claimed.role,
         teamId: invite.teamId,
         memberId: claimed.id,
       };
@@ -282,18 +358,18 @@ export class InviteService {
       }
 
       // Falls das Elternteil noch kein PARENT-Mitglied im Team ist, anlegen
-      const existingParent = await this.members.findByTeamAndUser(
+      let parentMember = await this.members.findByTeamAndUser(
         invite.teamId,
         viewer.userId
       );
-      if (!existingParent) {
+      if (!parentMember) {
         const nameParts = viewer.name.trim().split(/\s+/);
         const firstName = parsed.data.firstName ?? nameParts[0] ?? "Elternteil";
         const lastName =
           parsed.data.lastName ??
           (nameParts.length > 1 ? nameParts.slice(1).join(" ") : "");
 
-        await this.members.create(invite.clubId, invite.teamId, {
+        parentMember = await this.members.create(invite.clubId, invite.teamId, {
           firstName,
           lastName: lastName || firstName,
           role: "PARENT",
@@ -308,15 +384,17 @@ export class InviteService {
           throwingHand: null,
           passNumber: null,
           injuryNote: null,
-          emergencyContact: null,
-          phone: null,
+          emergencyContact: parsed.data.emergencyContact ?? null,
+          phone: parsed.data.phone ?? null,
         });
       }
 
       await this.invites.incrementUsedCount(invite.id);
       return {
         type: invite.type,
+        role: "PARENT" as const,
         teamId: invite.teamId,
+        memberId: parentMember.id,
         childMemberId: targetMember.id,
       };
     }
@@ -351,13 +429,14 @@ export class InviteService {
       throwingHand: null,
       passNumber: null,
       injuryNote: null,
-      emergencyContact: null,
-      phone: null,
+      emergencyContact: parsed.data.emergencyContact ?? null,
+      phone: parsed.data.phone ?? null,
     });
 
     await this.invites.incrementUsedCount(invite.id);
     return {
       type: invite.type,
+      role: joined.role,
       teamId: invite.teamId,
       memberId: joined.id,
     };

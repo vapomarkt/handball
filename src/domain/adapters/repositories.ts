@@ -111,6 +111,7 @@ export interface MemberRepository {
 export interface InviteWithContext {
   invite: TeamInviteEntity;
   clubName: string;
+  clubLogoUrl?: string | null;
   teamName: string;
   seasonName: string;
   targetMember: TeamMemberEntity | null;
@@ -124,11 +125,13 @@ export interface InviteRepository {
     }>
   >;
   findById(inviteId: string): Promise<TeamInviteEntity | null>;
-  findByTokenWithContext(token: string): Promise<InviteWithContext | null>;
+  findByTokenWithContext(tokenOrShortCode: string): Promise<InviteWithContext | null>;
+  findByShortCode?(shortCode: string): Promise<TeamInviteEntity | null>;
   create(input: {
     clubId: string;
     teamId: string;
     token: string;
+    shortCode?: string | null;
     type: InviteType;
     role: MemberRole;
     targetMemberId: string | null;

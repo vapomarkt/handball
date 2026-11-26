@@ -4,9 +4,9 @@ import { ScoutingRepository } from "../adapters/m4-repositories";
 import { TeamRepository } from "../adapters/repositories";
 import { DomainError } from "../errors";
 import {
-  canManageEvents,
+  canManageTacticsAndTraining,
   canViewTeam,
-  isTeamStaff,
+  isTeamCoachingStaff,
   ViewerContext,
 } from "../policies/rbac";
 import {
@@ -48,7 +48,7 @@ export class ScoutingService {
     if (!canViewTeam(viewer, team.id, team.clubId)) {
       throw DomainError.forbidden("Kein Zugriff auf Gegner-Dossiers.");
     }
-    const staff = isTeamStaff(viewer, team.id, team.clubId);
+    const staff = isTeamCoachingStaff(viewer, team.id, team.clubId);
     return this.scouting.listOpponentsByTeam(team.id, !staff);
   }
 
@@ -59,7 +59,7 @@ export class ScoutingService {
   ): Promise<OpponentDTO> {
     const team = await this.teams.findById(teamId);
     if (!team) throw DomainError.notFound("Mannschaft nicht gefunden.");
-    if (!canManageEvents(viewer, team.id, team.clubId)) {
+    if (!canManageTacticsAndTraining(viewer, team.id, team.clubId)) {
       throw DomainError.forbidden(
         "Nur Trainer, Co-Trainer oder Vereins-Admins dürfen Gegner-Dossiers anlegen."
       );
@@ -85,7 +85,7 @@ export class ScoutingService {
     if (!existing || existing.teamId !== teamId) {
       throw DomainError.notFound("Gegner-Dossier nicht gefunden.");
     }
-    if (!canManageEvents(viewer, existing.teamId, existing.clubId)) {
+    if (!canManageTacticsAndTraining(viewer, existing.teamId, existing.clubId)) {
       throw DomainError.forbidden("Keine Berechtigung zum Bearbeiten.");
     }
 
@@ -108,7 +108,7 @@ export class ScoutingService {
     if (!existing || existing.teamId !== teamId) {
       throw DomainError.notFound("Gegner-Dossier nicht gefunden.");
     }
-    if (!canManageEvents(viewer, existing.teamId, existing.clubId)) {
+    if (!canManageTacticsAndTraining(viewer, existing.teamId, existing.clubId)) {
       throw DomainError.forbidden("Keine Berechtigung zum Löschen.");
     }
     await this.scouting.deleteOpponent(opponentId);
@@ -124,7 +124,7 @@ export class ScoutingService {
     if (!opponent || opponent.teamId !== teamId) {
       throw DomainError.notFound("Gegner-Dossier nicht gefunden.");
     }
-    if (!canManageEvents(viewer, opponent.teamId, opponent.clubId)) {
+    if (!canManageTacticsAndTraining(viewer, opponent.teamId, opponent.clubId)) {
       throw DomainError.forbidden(
         "Nur Trainer, Co-Trainer oder Vereins-Admins dürfen Schlüsselspieler anlegen."
       );
@@ -150,7 +150,7 @@ export class ScoutingService {
     if (!found || found.opponentId !== opponentId || found.teamId !== teamId) {
       throw DomainError.notFound("Schlüsselspieler nicht gefunden.");
     }
-    if (!canManageEvents(viewer, found.teamId, found.clubId)) {
+    if (!canManageTacticsAndTraining(viewer, found.teamId, found.clubId)) {
       throw DomainError.forbidden("Keine Berechtigung zum Löschen.");
     }
     await this.scouting.deleteOpponentPlayer(playerId);
@@ -166,7 +166,7 @@ export class ScoutingService {
     if (!opponent || opponent.teamId !== teamId) {
       throw DomainError.notFound("Gegner-Dossier nicht gefunden.");
     }
-    if (!canManageEvents(viewer, opponent.teamId, opponent.clubId)) {
+    if (!canManageTacticsAndTraining(viewer, opponent.teamId, opponent.clubId)) {
       throw DomainError.forbidden(
         "Nur Trainer, Co-Trainer oder Vereins-Admins dürfen nuLiga-Spielerdaten abrufen."
       );
@@ -282,7 +282,7 @@ export class ScoutingService {
     if (!opponent || opponent.teamId !== teamId) {
       throw DomainError.notFound("Gegner-Dossier nicht gefunden.");
     }
-    if (!canManageEvents(viewer, opponent.teamId, opponent.clubId)) {
+    if (!canManageTacticsAndTraining(viewer, opponent.teamId, opponent.clubId)) {
       throw DomainError.forbidden(
         "Nur Trainer, Co-Trainer oder Vereins-Admins dürfen Schlüsselspieler importieren."
       );
@@ -390,7 +390,7 @@ export class ScoutingService {
     if (!canViewTeam(viewer, team.id, team.clubId)) {
       throw DomainError.forbidden("Kein Zugriff auf Scouting-Notizen.");
     }
-    const staff = isTeamStaff(viewer, team.id, team.clubId);
+    const staff = isTeamCoachingStaff(viewer, team.id, team.clubId);
     return this.scouting.listNotesByTeam(team.id, !staff, eventId);
   }
 
@@ -401,7 +401,7 @@ export class ScoutingService {
   ): Promise<ScoutingNoteDTO> {
     const team = await this.teams.findById(teamId);
     if (!team) throw DomainError.notFound("Mannschaft nicht gefunden.");
-    if (!canManageEvents(viewer, team.id, team.clubId)) {
+    if (!canManageTacticsAndTraining(viewer, team.id, team.clubId)) {
       throw DomainError.forbidden(
         "Nur Trainer, Co-Trainer oder Vereins-Admins dürfen Scouting-Notizen anlegen."
       );
@@ -432,7 +432,7 @@ export class ScoutingService {
     if (!existing || existing.teamId !== teamId) {
       throw DomainError.notFound("Scouting-Notiz nicht gefunden.");
     }
-    if (!canManageEvents(viewer, existing.teamId, existing.clubId)) {
+    if (!canManageTacticsAndTraining(viewer, existing.teamId, existing.clubId)) {
       throw DomainError.forbidden("Keine Berechtigung zum Bearbeiten.");
     }
 
@@ -455,7 +455,7 @@ export class ScoutingService {
     if (!existing || existing.teamId !== teamId) {
       throw DomainError.notFound("Scouting-Notiz nicht gefunden.");
     }
-    if (!canManageEvents(viewer, existing.teamId, existing.clubId)) {
+    if (!canManageTacticsAndTraining(viewer, existing.teamId, existing.clubId)) {
       throw DomainError.forbidden("Keine Berechtigung zum Löschen.");
     }
     await this.scouting.deleteNote(noteId);

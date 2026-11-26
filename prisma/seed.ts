@@ -85,6 +85,19 @@ async function upsertDemoUser(params: {
     });
   }
 
+  // Demo-Konten haben Tour/Onboarding bereits abgeschlossen, damit E2E-Flows nicht unterbrochen werden
+  await prisma.userOnboardingState.upsert({
+    where: { userId: user.id },
+    update: {},
+    create: {
+      userId: user.id,
+      tourDisabled: true,
+      profilePromptDismissed: true,
+      passkeyPromptDismissed: true,
+      onboardingCompletedAt: new Date(),
+    },
+  });
+
   return user;
 }
 
@@ -202,6 +215,13 @@ async function main() {
     id: "user-tjh-parent",
     email: "eltern@tus-jahn-hollenstedt.de",
     name: "Familie Hofmann",
+    passwordHash,
+  });
+
+  const managerUser = await upsertDemoUser({
+    id: "user-tjh-manager",
+    email: "betreuer@tus-jahn-hollenstedt.de",
+    name: "Petra Brandt",
     passwordHash,
   });
 
@@ -391,6 +411,19 @@ async function main() {
     firstName: "Samuel",
     lastName: "Franz",
     teamRoles: ["Co-Trainer", "Offizieller C"],
+  });
+
+  await upsertTeamMember({
+    id: "member-mjd-manager",
+    clubId: club.id,
+    teamId: mjdTeam.id,
+    userId: managerUser.id,
+    role: MemberRole.TEAM_MANAGER,
+    firstName: "Petra",
+    lastName: "Brandt",
+    email: managerUser.email,
+    phone: "+49 170 5550199",
+    teamRoles: ["Mannschaftsbetreuerin", "Kassenwart"],
   });
 
   await upsertTeamMember({

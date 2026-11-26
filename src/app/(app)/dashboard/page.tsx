@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { ResinBadge } from "@/components/events/resin-badge";
 import { RsvpControls } from "@/components/events/rsvp-controls";
+import { ProfileCompletionBanner } from "@/components/onboarding/profile-completion-banner";
 import { useAppContext } from "@/components/providers/app-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -150,7 +151,8 @@ export default function DashboardPage() {
   const isStaff =
     activeTeam.role === "CLUB_ADMIN" ||
     activeTeam.role === "COACH" ||
-    activeTeam.role === "ASSISTANT_COACH";
+    activeTeam.role === "ASSISTANT_COACH" ||
+    activeTeam.role === "TEAM_MANAGER";
 
   const players = members.filter((m) => m.role === "PLAYER");
   const fitCount = players.filter((m) => m.availabilityStatus === "FIT").length;
@@ -236,6 +238,9 @@ export default function DashboardPage() {
           </Button>
         </div>
       </div>
+
+      {/* Schnelle Profil-Vervollständigung (nur wenn unvollständig & nicht ausgeblendet) */}
+      <ProfileCompletionBanner />
 
       {/* Zugewiesene Trikotwäsche & Pflegehinweise */}
       {myLaundryDuties.length > 0 && (

@@ -91,7 +91,8 @@ function TerminePageContent() {
   const isStaff =
     activeTeam?.role === "CLUB_ADMIN" ||
     activeTeam?.role === "COACH" ||
-    activeTeam?.role === "ASSISTANT_COACH";
+    activeTeam?.role === "ASSISTANT_COACH" ||
+    activeTeam?.role === "TEAM_MANAGER";
 
   // Eigene Mitgliedschaft & verknüpfte Kinder in diesem Team für 1-Klick-RSVP
   const rsvpTargets = useMemo(() => {

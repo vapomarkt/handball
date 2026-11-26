@@ -87,7 +87,8 @@ export default function TeamRosterPage() {
   const isStaff =
     activeTeam?.role === "CLUB_ADMIN" ||
     activeTeam?.role === "COACH" ||
-    activeTeam?.role === "ASSISTANT_COACH";
+    activeTeam?.role === "ASSISTANT_COACH" ||
+    activeTeam?.role === "TEAM_MANAGER";
 
   const canDelete =
     activeTeam?.role === "CLUB_ADMIN" || activeTeam?.role === "COACH";
@@ -726,6 +727,7 @@ export default function TeamRosterPage() {
           open={inviteDialogOpen}
           onOpenChange={setInviteDialogOpen}
           teamId={activeTeam.teamId}
+          teamName={activeTeam.teamName}
           members={members}
           initialTargetMemberId={inviteTargetId}
           initialType={inviteInitialType}

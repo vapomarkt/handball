@@ -4,6 +4,7 @@ export const MemberRoleSchema = z.enum([
   "CLUB_ADMIN",
   "COACH",
   "ASSISTANT_COACH",
+  "TEAM_MANAGER",
   "PLAYER",
   "PARENT",
   "HELPER",
@@ -14,9 +15,20 @@ export const MEMBER_ROLE_LABELS: Record<MemberRole, string> = {
   CLUB_ADMIN: "Vereins-Admin",
   COACH: "Trainer",
   ASSISTANT_COACH: "Co-Trainer",
+  TEAM_MANAGER: "Betreuer",
   PLAYER: "Spieler",
   PARENT: "Elternteil",
   HELPER: "Vereinshelfer",
+};
+
+export const MEMBER_ROLE_DESCRIPTIONS: Record<MemberRole, string> = {
+  CLUB_ADMIN: "Verwaltet Verein, Saisons, Hallen und alle Mannschaften.",
+  COACH: "Leitet die Mannschaft, plant Training, Taktik, Termine und Kader.",
+  ASSISTANT_COACH: "Unterstützt das Trainer-Team bei Kader, Terminen, Training und Taktik.",
+  TEAM_MANAGER: "Kümmert sich um Organisation, Kader, Termine, Dienste, Kasse und Notfallkontakte.",
+  PLAYER: "Sagt zu Terminen zu/ab, sieht Spielpläne, Fahrgemeinschaften und Dienste.",
+  PARENT: "Verwaltet Zu-/Absagen, Fahrgemeinschaften und Notfallkontakte für verknüpfte Kinder.",
+  HELPER: "Übernimmt Spieltags- und Vereinsdienste wie Zeitnehmer, Kiosk oder Hallenaufbau.",
 };
 
 export const HandballPositionSchema = z.enum([

@@ -14,6 +14,7 @@ enum MemberRole {
   CLUB_ADMIN
   COACH
   ASSISTANT_COACH
+  TEAM_MANAGER
   PLAYER
   PARENT
   HELPER
@@ -229,12 +230,14 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  sessions       Session[]
-  accounts       Account[]
-  teamMembers    TeamMember[]
-  guardianLinks  GuardianLink[] @relation("GuardianUser")
-  createdInvites TeamInvite[]   @relation("InviteCreator")
-  pushDevices    PushDevice[]
+  sessions        Session[]
+  accounts        Account[]
+  passkeys        Passkey[]
+  onboardingState UserOnboardingState?
+  teamMembers     TeamMember[]
+  guardianLinks   GuardianLink[]       @relation("GuardianUser")
+  createdInvites  TeamInvite[]         @relation("InviteCreator")
+  pushDevices     PushDevice[]
 
   @@map("user")
 }
@@ -284,6 +287,40 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+model Passkey {
+  id           String    @id
+  name         String?
+  publicKey    String
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialID String    @unique
+  counter      Int
+  deviceType   String
+  backedUp     Boolean
+  transports   String?
+  createdAt    DateTime? @default(now())
+  aaguid       String?
+
+  @@index([userId])
+  @@map("passkey")
+}
+
+model UserOnboardingState {
+  id                     String    @id @default(cuid())
+  userId                 String    @unique
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profilePromptDismissed Boolean   @default(false)
+  passkeyPromptDismissed Boolean   @default(false)
+  tourDisabled           Boolean   @default(false)
+  tourCompletedRoles     String[]  @default([])
+  tourLastCompletedAt    DateTime?
+  onboardingCompletedAt  DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@map("user_onboarding_state")
 }
 
 // ============================================================================
@@ -455,6 +492,7 @@ model TeamInvite {
   teamId          String
   team            Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
   token           String      @unique
+  shortCode       String?     @unique
   type            InviteType
   role            MemberRole  @default(PLAYER)
   targetMemberId  String?
@@ -469,6 +507,7 @@ model TeamInvite {
 
   @@index([teamId])
   @@index([token])
+  @@index([shortCode])
   @@map("team_invite")
 }
 

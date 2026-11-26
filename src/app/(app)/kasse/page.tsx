@@ -94,7 +94,8 @@ export default function KasseUndNewsPage() {
   const isStaff =
     activeTeam?.role === "CLUB_ADMIN" ||
     activeTeam?.role === "COACH" ||
-    activeTeam?.role === "ASSISTANT_COACH";
+    activeTeam?.role === "ASSISTANT_COACH" ||
+    activeTeam?.role === "TEAM_MANAGER";
 
   const canManageCashbox = Boolean(cashbox?.canManage || isStaff);
 

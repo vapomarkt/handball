@@ -28,6 +28,20 @@ export const ClaimInviteSchema = z.object({
   firstName: z.string().trim().min(1).max(60).optional(),
   lastName: z.string().trim().min(1).max(60).optional(),
   relationship: z.string().trim().min(2).max(40).default("Elternteil"),
+  phone: z
+    .string()
+    .trim()
+    .max(40)
+    .optional()
+    .nullable()
+    .transform((v) => (v === "" ? null : v)),
+  emergencyContact: z
+    .string()
+    .trim()
+    .max(200)
+    .optional()
+    .nullable()
+    .transform((v) => (v === "" ? null : v)),
 });
 export type ClaimInviteInput = z.infer<typeof ClaimInviteSchema>;
 
@@ -43,6 +57,7 @@ export interface TeamInviteEntity {
   clubId: string;
   teamId: string;
   token: string;
+  shortCode: string | null;
   type: InviteType;
   role: MemberRole;
   targetMemberId: string | null;
@@ -59,6 +74,7 @@ export interface TeamInviteDTO {
   clubId: string;
   teamId: string;
   token: string;
+  shortCode: string | null;
   type: InviteType;
   role: MemberRole;
   targetMemberId: string | null;
@@ -72,9 +88,11 @@ export interface TeamInviteDTO {
 
 export interface InvitePreviewDTO {
   token: string;
+  shortCode: string | null;
   type: InviteType;
   role: MemberRole;
   clubName: string;
+  clubLogoUrl?: string | null;
   teamName: string;
   seasonName: string;
   targetMemberFirstName: string | null;

@@ -2,9 +2,9 @@ import { TrainingRepository } from "../adapters/m3-repositories";
 import { TeamRepository } from "../adapters/repositories";
 import { DomainError } from "../errors";
 import {
-  canManageEvents,
+  canManageTacticsAndTraining,
   canViewTeam,
-  isTeamStaff,
+  isTeamCoachingStaff,
   ViewerContext,
 } from "../policies/rbac";
 import {
@@ -37,7 +37,7 @@ export class TrainingService {
   ): Promise<DrillDTO> {
     const team = await this.teams.findById(teamId);
     if (!team) throw DomainError.notFound("Mannschaft nicht gefunden.");
-    if (!canManageEvents(viewer, team.id, team.clubId)) {
+    if (!canManageTacticsAndTraining(viewer, team.id, team.clubId)) {
       throw DomainError.forbidden(
         "Nur Trainer, Co-Trainer oder Vereins-Admins dürfen Übungen anlegen."
       );
@@ -66,7 +66,7 @@ export class TrainingService {
   ): Promise<void> {
     const team = await this.teams.findById(teamId);
     if (!team) throw DomainError.notFound("Mannschaft nicht gefunden.");
-    if (!canManageEvents(viewer, team.id, team.clubId)) {
+    if (!canManageTacticsAndTraining(viewer, team.id, team.clubId)) {
       throw DomainError.forbidden("Keine Berechtigung zum Löschen.");
     }
     const drill = await this.training.findDrillById(drillId);
@@ -86,8 +86,8 @@ export class TrainingService {
       throw DomainError.forbidden("Kein Zugriff auf die Trainingspläne.");
     }
 
-    const staff = isTeamStaff(viewer, team.id, team.clubId);
-    return this.training.listTrainingPlansByTeam(team.id, !staff);
+    const coachingStaff = isTeamCoachingStaff(viewer, team.id, team.clubId);
+    return this.training.listTrainingPlansByTeam(team.id, !coachingStaff);
   }
 
   async createTrainingPlan(
@@ -97,7 +97,7 @@ export class TrainingService {
   ): Promise<TrainingPlanDTO> {
     const team = await this.teams.findById(teamId);
     if (!team) throw DomainError.notFound("Mannschaft nicht gefunden.");
-    if (!canManageEvents(viewer, team.id, team.clubId)) {
+    if (!canManageTacticsAndTraining(viewer, team.id, team.clubId)) {
       throw DomainError.forbidden(
         "Nur Trainer, Co-Trainer oder Vereins-Admins dürfen Trainingspläne anlegen."
       );
@@ -129,7 +129,7 @@ export class TrainingService {
     if (!plan || plan.teamId !== teamId) {
       throw DomainError.notFound("Trainingsplan nicht gefunden.");
     }
-    if (!canManageEvents(viewer, plan.teamId, plan.clubId)) {
+    if (!canManageTacticsAndTraining(viewer, plan.teamId, plan.clubId)) {
       throw DomainError.forbidden("Keine Berechtigung zum Bearbeiten.");
     }
 
@@ -153,7 +153,7 @@ export class TrainingService {
     if (!plan || plan.teamId !== teamId) {
       throw DomainError.notFound("Trainingsplan nicht gefunden.");
     }
-    if (!canManageEvents(viewer, plan.teamId, plan.clubId)) {
+    if (!canManageTacticsAndTraining(viewer, plan.teamId, plan.clubId)) {
       throw DomainError.forbidden("Keine Berechtigung zum Löschen.");
     }
     await this.training.deleteTrainingPlan(planId);

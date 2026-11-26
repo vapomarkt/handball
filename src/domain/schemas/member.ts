@@ -71,10 +71,14 @@ export const UpdateTeamMemberSchema = z.object({
 export type UpdateTeamMemberInput = z.infer<typeof UpdateTeamMemberSchema>;
 
 /**
- * Eingeschränkte Felder, die ein Spieler selbst oder ein verknüpftes Elternteil bearbeiten darf
- * (kein Ändern der eigenen Rolle oder Team-Ämter).
+ * Eingeschränkte Felder, die ein Mitglied selbst oder ein verknüpftes Elternteil bearbeiten darf
+ * (kein Ändern der eigenen Rolle, Trikotnummer, Passnummer oder Team-Ämter).
  */
 export const SelfUpdateMemberSchema = z.object({
+  firstName: z.string().trim().min(1, "Vorname erforderlich.").max(60).optional(),
+  lastName: z.string().trim().min(1, "Nachname erforderlich.").max(60).optional(),
+  primaryPosition: HandballPositionSchema.optional().nullable(),
+  secondaryPosition: HandballPositionSchema.optional().nullable(),
   throwingHand: ThrowingHandSchema.optional().nullable(),
   availabilityStatus: AvailabilityStatusSchema.optional(),
   injuryNote: optionalTrimmedString(500),

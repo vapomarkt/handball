@@ -15,3 +15,6 @@ export * from "../../../src/domain/schemas/duty";
 export * from "../../../src/domain/schemas/tactic";
 export * from "../../../src/domain/schemas/league-catalog";
 export * from "../../../src/domain/schemas/jersey-set";
+export * from "../../../src/domain/schemas/onboarding-state";
+export * from "../../../src/domain/services/onboarding-state-service";
+

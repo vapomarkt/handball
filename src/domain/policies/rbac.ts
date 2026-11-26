@@ -38,7 +38,11 @@ export function getTeamRolesForViewer(
     .map((m) => m.role);
 }
 
-export function isTeamStaff(
+/**
+ * Sportliche Leitung (Trainer-Team): CLUB_ADMIN, COACH, ASSISTANT_COACH.
+ * Berechtigt für Taktiktafel, Trainingspläne, Übungen und Gegner-Scouting.
+ */
+export function isTeamCoachingStaff(
   viewer: ViewerContext,
   teamId: string,
   clubId: string
@@ -46,6 +50,20 @@ export function isTeamStaff(
   if (isClubAdmin(viewer, clubId)) return true;
   const roles = getTeamRolesForViewer(viewer, teamId);
   return roles.includes("COACH") || roles.includes("ASSISTANT_COACH");
+}
+
+/**
+ * Team-Leitung & Organisation: CLUB_ADMIN, COACH, ASSISTANT_COACH und TEAM_MANAGER (Betreuer).
+ * Berechtigt für Kaderpflege, Einladungen, Termine, Hallen, Dienste, Fahrgemeinschaften, Kasse & Notfallkontakte.
+ */
+export function isTeamStaff(
+  viewer: ViewerContext,
+  teamId: string,
+  clubId: string
+): boolean {
+  if (isTeamCoachingStaff(viewer, teamId, clubId)) return true;
+  const roles = getTeamRolesForViewer(viewer, teamId);
+  return roles.includes("TEAM_MANAGER");
 }
 
 export function isTeamHeadCoachOrAdmin(
@@ -116,6 +134,14 @@ export function canManageGuardians(
   return isTeamStaff(viewer, teamId, clubId);
 }
 
+export function canManageTacticsAndTraining(
+  viewer: ViewerContext,
+  teamId: string,
+  clubId: string
+): boolean {
+  return isTeamCoachingStaff(viewer, teamId, clubId);
+}
+
 export type MemberEditScope = "FULL" | "SELF_OR_GUARDIAN" | "NONE";
 
 export function getMemberEditScope(
@@ -139,7 +165,9 @@ export function canManageVenues(viewer: ViewerContext, clubId: string): boolean 
   return viewer.memberships.some(
     (m) =>
       m.clubId === clubId &&
-      (m.role === "COACH" || m.role === "ASSISTANT_COACH")
+      (m.role === "COACH" ||
+        m.role === "ASSISTANT_COACH" ||
+        m.role === "TEAM_MANAGER")
   );
 }
 

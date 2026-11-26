@@ -2,9 +2,9 @@ import { TacticRepository } from "../adapters/m4-repositories";
 import { TeamRepository } from "../adapters/repositories";
 import { DomainError } from "../errors";
 import {
-  canManageEvents,
+  canManageTacticsAndTraining,
   canViewTeam,
-  isTeamStaff,
+  isTeamCoachingStaff,
   ViewerContext,
 } from "../policies/rbac";
 import {
@@ -29,9 +29,9 @@ export class TacticService {
       throw DomainError.forbidden("Kein Zugriff auf das Playbook.");
     }
 
-    const staff = isTeamStaff(viewer, team.id, team.clubId);
-    // Spieler sehen ausschließlich freigegebene Spielzüge
-    return this.tactics.listByTeam(team.id, !staff);
+    const coachingStaff = isTeamCoachingStaff(viewer, team.id, team.clubId);
+    // Spieler, Eltern, Betreuer und Helfer sehen ausschließlich freigegebene Spielzüge
+    return this.tactics.listByTeam(team.id, !coachingStaff);
   }
 
   async getPlay(
@@ -46,8 +46,8 @@ export class TacticService {
     if (!canViewTeam(viewer, play.teamId, play.clubId)) {
       throw DomainError.forbidden("Kein Zugriff auf diesen Spielzug.");
     }
-    const staff = isTeamStaff(viewer, play.teamId, play.clubId);
-    if (!staff && !play.isSharedWithTeam) {
+    const coachingStaff = isTeamCoachingStaff(viewer, play.teamId, play.clubId);
+    if (!coachingStaff && !play.isSharedWithTeam) {
       throw DomainError.forbidden(
         "Dieser Spielzug ist noch nicht für die Mannschaft freigegeben."
       );
@@ -62,7 +62,7 @@ export class TacticService {
   ): Promise<TacticPlayDTO> {
     const team = await this.teams.findById(teamId);
     if (!team) throw DomainError.notFound("Mannschaft nicht gefunden.");
-    if (!canManageEvents(viewer, team.id, team.clubId)) {
+    if (!canManageTacticsAndTraining(viewer, team.id, team.clubId)) {
       throw DomainError.forbidden(
         "Nur Trainer, Co-Trainer oder Vereins-Admins dürfen Spielzüge anlegen."
       );
@@ -89,7 +89,7 @@ export class TacticService {
     if (!play || play.teamId !== teamId) {
       throw DomainError.notFound("Spielzug nicht gefunden.");
     }
-    if (!canManageEvents(viewer, play.teamId, play.clubId)) {
+    if (!canManageTacticsAndTraining(viewer, play.teamId, play.clubId)) {
       throw DomainError.forbidden("Keine Berechtigung zum Bearbeiten.");
     }
 
@@ -113,7 +113,7 @@ export class TacticService {
     if (!play || play.teamId !== teamId) {
       throw DomainError.notFound("Spielzug nicht gefunden.");
     }
-    if (!canManageEvents(viewer, play.teamId, play.clubId)) {
+    if (!canManageTacticsAndTraining(viewer, play.teamId, play.clubId)) {
       throw DomainError.forbidden("Keine Berechtigung zum Löschen.");
     }
     await this.tactics.delete(playId);

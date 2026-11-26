@@ -8,8 +8,11 @@ import {
   canCreateTeam,
   canDeleteMember,
   canManageClub,
+  canManageEvents,
   canManageInvites,
   canManageRoster,
+  canManageTacticsAndTraining,
+  canManageVenues,
   canViewTeam,
   getMemberEditScope,
   ViewerContext,
@@ -287,5 +290,47 @@ describe("DSGVO-Feldsichtbarkeit & serverseitige DTO-Projektion", () => {
 
     const forSelf = projectAttendanceDTO(selfJonasViewer, attendance);
     expect("declineReason" in forSelf).toBe(true);
+  });
+
+  it("gewährt Betreuer (TEAM_MANAGER) Orga- & DSGVO-Rechte, blockiert aber Löschen & Taktik-Schreiben", () => {
+    const teamManagerViewer: ViewerContext = {
+      userId: "user-manager",
+      email: "betreuer@tsv.de",
+      name: "Petra Brandt",
+      memberships: [
+        {
+          memberId: "m-manager",
+          clubId: CLUB_ID,
+          teamId: TEAM_H1,
+          role: "TEAM_MANAGER",
+        },
+      ],
+      linkedChildMemberIds: [],
+      linkedChildTeamIds: [],
+    };
+
+    expect(canViewTeam(teamManagerViewer, TEAM_H1, CLUB_ID)).toBe(true);
+    expect(canManageRoster(teamManagerViewer, TEAM_H1, CLUB_ID)).toBe(true);
+    expect(canManageInvites(teamManagerViewer, TEAM_H1, CLUB_ID)).toBe(true);
+    expect(canManageEvents(teamManagerViewer, TEAM_H1, CLUB_ID)).toBe(true);
+    expect(canManageVenues(teamManagerViewer, CLUB_ID)).toBe(true);
+    expect(getMemberEditScope(teamManagerViewer, sampleTeammate)).toBe("FULL");
+
+    // Kein Löschen von Kader-Mitgliedern und keine sportlich-taktischen Schreibrechte
+    expect(canDeleteMember(teamManagerViewer, TEAM_H1, CLUB_ID)).toBe(false);
+    expect(canManageTacticsAndTraining(teamManagerViewer, TEAM_H1, CLUB_ID)).toBe(
+      false
+    );
+    expect(canManageClub(teamManagerViewer, CLUB_ID)).toBe(false);
+
+    // DSGVO: Betreuer darf Notfallkontakte & Verletzungsnotizen im eigenen Team einsehen
+    expect(canViewSensitiveMemberFields(teamManagerViewer, sampleTeammate)).toBe(
+      true
+    );
+    const dto = projectTeamMemberDTO(teamManagerViewer, sampleTeammate);
+    expect(dto.canViewSensitive).toBe(true);
+    if (dto.canViewSensitive) {
+      expect(dto.emergencyContact).toBe("Maria Keller (+49 174 5556677)");
+    }
   });
 });

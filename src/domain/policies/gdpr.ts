@@ -10,7 +10,7 @@ import { isClubAdmin, isTeamStaff, ViewerContext } from "./rbac";
 /**
  * Verbindliche DSGVO-Feldsichtbarkeits-Regel (API-Layer):
  * Sensible Felder (emergencyContact, passNumber, injuryNote, private Kontaktdaten)
- * dürfen NUR an CLUB_ADMIN, COACH, ASSISTANT_COACH des jeweiligen Teams,
+ * dürfen NUR an CLUB_ADMIN, COACH, ASSISTANT_COACH, TEAM_MANAGER des jeweiligen Teams,
  * den betroffenen User selbst oder verknüpfte PARENT-Accounts ausgeliefert werden.
  */
 export function canViewSensitiveMemberFields(

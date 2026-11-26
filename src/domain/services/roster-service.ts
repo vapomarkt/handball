@@ -113,7 +113,7 @@ export class RosterService {
       return projectTeamMemberDTO(viewer, updated);
     }
 
-    // SELF_OR_GUARDIAN: nur erlaubte Profilfelder
+    // SELF_OR_GUARDIAN: nur erlaubte Profilfelder (Positionen nur bei Spielern)
     const parsed = SelfUpdateMemberSchema.safeParse(rawInput);
     if (!parsed.success) {
       throw DomainError.validation(
@@ -121,7 +121,15 @@ export class RosterService {
         parsed.error.flatten().fieldErrors
       );
     }
-    const updated = await this.members.update(memberId, parsed.data);
+    const sanitized =
+      existing.role === "PLAYER"
+        ? parsed.data
+        : {
+            ...parsed.data,
+            primaryPosition: undefined,
+            secondaryPosition: undefined,
+          };
+    const updated = await this.members.update(memberId, sanitized);
     return projectTeamMemberDTO(viewer, updated);
   }
 

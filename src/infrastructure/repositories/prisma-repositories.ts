@@ -437,11 +437,16 @@ export class PrismaInviteRepository implements InviteRepository {
     return prisma.teamInvite.findUnique({ where: { id: inviteId } });
   }
 
-  async findByTokenWithContext(token: string): Promise<InviteWithContext | null> {
-    const row = await prisma.teamInvite.findUnique({
-      where: { token },
+  async findByTokenWithContext(
+    tokenOrShortCode: string
+  ): Promise<InviteWithContext | null> {
+    const isShort = /^[A-Z0-9]{6}$/.test(tokenOrShortCode);
+    const row = await prisma.teamInvite.findFirst({
+      where: isShort
+        ? { OR: [{ token: tokenOrShortCode }, { shortCode: tokenOrShortCode }] }
+        : { token: tokenOrShortCode },
       include: {
-        club: { select: { name: true } },
+        club: { select: { name: true, logoUrl: true } },
         team: {
           select: {
             name: true,
@@ -456,16 +461,22 @@ export class PrismaInviteRepository implements InviteRepository {
     return {
       invite: row,
       clubName: row.club.name,
+      clubLogoUrl: row.club.logoUrl,
       teamName: row.team.name,
       seasonName: row.team.season.name,
       targetMember: row.targetMember,
     };
   }
 
+  async findByShortCode(shortCode: string): Promise<TeamInviteEntity | null> {
+    return prisma.teamInvite.findUnique({ where: { shortCode } });
+  }
+
   async create(input: {
     clubId: string;
     teamId: string;
     token: string;
+    shortCode?: string | null;
     type: InviteType;
     role: MemberRole;
     targetMemberId: string | null;
@@ -474,7 +485,10 @@ export class PrismaInviteRepository implements InviteRepository {
     expiresAt: Date;
   }): Promise<TeamInviteEntity> {
     return prisma.teamInvite.create({
-      data: input,
+      data: {
+        ...input,
+        shortCode: input.shortCode ?? null,
+      },
     });
   }
 

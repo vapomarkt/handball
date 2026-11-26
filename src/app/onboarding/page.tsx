@@ -8,6 +8,7 @@ import {
   ArrowRight,
   Building2,
   Check,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
   Loader2,
@@ -17,6 +18,7 @@ import {
   Trophy,
   Users,
 } from "lucide-react";
+import { PasskeySetupCard } from "@/components/auth/passkey-setup-card";
 import { BrandLogo } from "@/components/branding/logo";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import {
@@ -45,6 +47,8 @@ import {
 import { TeamGender } from "@/domain/schemas/handball";
 import { LeagueAgeGroup, LeagueDTO } from "@/domain/schemas/league-catalog";
 import { SeasonCatalogDTO } from "@/domain/schemas/season-catalog";
+import { normalizeInviteLookup } from "@/domain/services/invite-service";
+import { useSession } from "@/infrastructure/auth/auth-client";
 import { cn } from "@/lib/utils";
 
 type WizardStep = 1 | 2 | 3;
@@ -87,9 +91,14 @@ function getQuickTeamNameSuggestions(
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { data: session } = useSession();
 
   const [step, setStep] = useState<WizardStep>(1);
   const [showInviteBox, setShowInviteBox] = useState(false);
+  const [completedSetup, setCompletedSetup] = useState<{
+    clubName: string;
+    teamName: string;
+  } | null>(null);
 
   // Schritt 1: Verein & Profil
   const [clubName, setClubName] = useState("");
@@ -98,11 +107,26 @@ export default function OnboardingPage() {
   const [seasonsLoading, setSeasonsLoading] = useState(true);
   const [seasonsError, setSeasonsError] = useState<string | null>(null);
   const [selectedSeasonId, setSelectedSeasonId] = useState("");
-  const [creatorFirstName, setCreatorFirstName] = useState("");
-  const [creatorLastName, setCreatorLastName] = useState("");
+  const [creatorFirstNameOverride, setCreatorFirstNameOverride] = useState<
+    string | null
+  >(null);
+  const [creatorLastNameOverride, setCreatorLastNameOverride] = useState<
+    string | null
+  >(null);
   const [creatorRole, setCreatorRole] = useState<"COACH" | "CLUB_ADMIN">(
     "CLUB_ADMIN"
   );
+
+  const sessionNameParts = (session?.user?.name?.trim() ?? "")
+    .split(/\s+/)
+    .filter(Boolean);
+  const creatorFirstName =
+    creatorFirstNameOverride ?? sessionNameParts[0] ?? "";
+  const creatorLastName =
+    creatorLastNameOverride ??
+    (sessionNameParts.length > 1 ? sessionNameParts.slice(1).join(" ") : "");
+  const setCreatorFirstName = (val: string) => setCreatorFirstNameOverride(val);
+  const setCreatorLastName = (val: string) => setCreatorLastNameOverride(val);
 
   // Schritt 2: Mannschaft & Altersklasse
   const [ageGroup, setAgeGroup] = useState<LeagueAgeGroup>("ADULT");
@@ -337,8 +361,20 @@ export default function OnboardingPage() {
         return;
       }
 
-      router.push("/dashboard");
-      router.refresh();
+      if (data.team?.id && typeof window !== "undefined") {
+        localStorage.setItem("throwoff_active_team_id", data.team.id);
+      }
+
+      await fetch("/api/v1/me/onboarding-state", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ markOnboardingComplete: true }),
+      }).catch(() => {});
+
+      setCompletedSetup({
+        clubName: clubName.trim(),
+        teamName: teamName.trim(),
+      });
     } catch {
       setError("Netzwerkfehler beim Anlegen.");
     } finally {
@@ -348,9 +384,58 @@ export default function OnboardingPage() {
 
   function handleJoinInvite(e: React.FormEvent) {
     e.preventDefault();
-    const cleaned = inviteCode.trim().split("/").pop();
+    const cleaned = normalizeInviteLookup(inviteCode);
     if (!cleaned) return;
     router.push(`/invite/${encodeURIComponent(cleaned)}`);
+  }
+
+  if (completedSetup) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background px-4 py-8">
+        <div className="mx-auto flex w-full max-w-lg items-center justify-between pb-6">
+          <Link href="/">
+            <BrandLogo size="md" />
+          </Link>
+          <ThemeToggle />
+        </div>
+
+        <div className="mx-auto w-full max-w-lg space-y-5">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
+                <CheckCircle2 className="h-4 w-4" />
+                Einrichtung abgeschlossen
+              </div>
+              <CardTitle>
+                {completedSetup.teamName} ({completedSetup.clubName}) ist bereit!
+              </CardTitle>
+              <CardDescription>
+                Du kannst jetzt direkt dein Team einladen (per WhatsApp, QR-Code
+                oder 6-stelligem Code) oder auf der Übersicht starten.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <PasskeySetupCard compact />
+
+              <div className="grid gap-2.5 sm:grid-cols-2 pt-1">
+                <Button asChild className="w-full">
+                  <Link href="/team">
+                    <Users className="h-4 w-4" />
+                    Team einladen
+                  </Link>
+                </Button>
+                <Button variant="outline" asChild className="w-full">
+                  <Link href="/dashboard">
+                    Zur Übersicht
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
   }
 
   return (

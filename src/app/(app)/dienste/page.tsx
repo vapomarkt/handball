@@ -60,7 +60,8 @@ export default function DiensteUndTrainingPage() {
   const isStaff =
     activeTeam?.role === "CLUB_ADMIN" ||
     activeTeam?.role === "COACH" ||
-    activeTeam?.role === "ASSISTANT_COACH";
+    activeTeam?.role === "ASSISTANT_COACH" ||
+    activeTeam?.role === "TEAM_MANAGER";
 
   const myMemberInTeam =
     me?.memberships.find((m) => m.team.id === activeTeam?.teamId) ??

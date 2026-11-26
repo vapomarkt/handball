@@ -2,9 +2,14 @@ import type {
   AvailabilityStatus,
   HandballPosition,
   MemberRole,
+  ThrowingHand,
 } from "../../../../src/domain/schemas/handball";
 import type { GuardianLinkDTO } from "../../../../src/domain/schemas/invite";
 import type { LeagueAgeGroup } from "../../../../src/domain/schemas/league-catalog";
+import type {
+  AuthMethodsSummaryDTO,
+  UserOnboardingStateDTO,
+} from "../../../../src/domain/schemas/onboarding-state";
 
 /** Response shape of GET /api/v1/me (mirrors src/app/api/v1/me/route.ts). */
 export interface ClubSummaryDTO {
@@ -33,9 +38,21 @@ export interface MeMembershipDTO {
   lastName: string;
   jerseyNumber: number | null;
   primaryPosition: HandballPosition | null;
+  secondaryPosition?: HandballPosition | null;
+  throwingHand?: ThrowingHand | null;
   availabilityStatus: AvailabilityStatus;
+  phone?: string | null;
+  emergencyContact?: string | null;
+  injuryNote?: string | null;
   club: ClubSummaryDTO;
   team: TeamSummaryDTO;
+}
+
+export interface MeGuardianLinkDTO extends GuardianLinkDTO {
+  childEmergencyContact?: string | null;
+  childInjuryNote?: string | null;
+  childJerseyNumber?: number | null;
+  childPrimaryPosition?: HandballPosition | null;
 }
 
 export interface MePayloadDTO {
@@ -44,9 +61,11 @@ export interface MePayloadDTO {
     email: string;
     name: string;
   };
+  onboardingState?: UserOnboardingStateDTO;
+  authMethods?: AuthMethodsSummaryDTO;
   memberships: MeMembershipDTO[];
   adminClubTeams: Array<TeamSummaryDTO & { club: ClubSummaryDTO }>;
-  guardianLinks: GuardianLinkDTO[];
+  guardianLinks: MeGuardianLinkDTO[];
 }
 
 export interface SelectableTeamDTO {

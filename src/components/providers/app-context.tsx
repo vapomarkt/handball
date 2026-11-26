@@ -6,16 +6,25 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type {
   AvailabilityStatus,
   HandballPosition,
   MemberRole,
+  ThrowingHand,
 } from "@/domain/schemas/handball";
 import type { GuardianLinkDTO } from "@/domain/schemas/invite";
 import type { LeagueAgeGroup } from "@/domain/schemas/league-catalog";
+import {
+  DEFAULT_ONBOARDING_STATE,
+  type AuthMethodsSummaryDTO,
+  type UpdateOnboardingStateInput,
+  type UserOnboardingStateDTO,
+} from "@/domain/schemas/onboarding-state";
+import { shouldAutoStartTour } from "@/domain/services/onboarding-state-service";
 
 export interface MeMembership {
   memberId: string;
@@ -24,7 +33,12 @@ export interface MeMembership {
   lastName: string;
   jerseyNumber: number | null;
   primaryPosition: HandballPosition | null;
+  secondaryPosition?: HandballPosition | null;
+  throwingHand?: ThrowingHand | null;
   availabilityStatus: AvailabilityStatus;
+  phone?: string | null;
+  emergencyContact?: string | null;
+  injuryNote?: string | null;
   club: {
     id: string;
     name: string;
@@ -42,6 +56,13 @@ export interface MeMembership {
     leagueName: string | null;
     seasonName: string;
   };
+}
+
+export interface MeGuardianLink extends GuardianLinkDTO {
+  childEmergencyContact?: string | null;
+  childInjuryNote?: string | null;
+  childJerseyNumber?: number | null;
+  childPrimaryPosition?: HandballPosition | null;
 }
 
 export interface SelectableTeam {
@@ -64,6 +85,8 @@ export interface MePayload {
     email: string;
     name: string;
   };
+  onboardingState?: UserOnboardingStateDTO;
+  authMethods?: AuthMethodsSummaryDTO;
   memberships: MeMembership[];
   adminClubTeams: Array<{
     id: string;
@@ -82,7 +105,7 @@ export interface MePayload {
       logoUrl: string | null;
     };
   }>;
-  guardianLinks: GuardianLinkDTO[];
+  guardianLinks: MeGuardianLink[];
 }
 
 interface AppContextValue {
@@ -90,6 +113,14 @@ interface AppContextValue {
   loading: boolean;
   selectableTeams: SelectableTeam[];
   activeTeam: SelectableTeam | null;
+  onboardingState: UserOnboardingStateDTO;
+  authMethods: AuthMethodsSummaryDTO;
+  tourActive: boolean;
+  startTour: () => void;
+  closeTour: () => void;
+  updateOnboardingState: (
+    patch: UpdateOnboardingStateInput
+  ) => Promise<UserOnboardingStateDTO | null>;
   setActiveTeamId: (teamId: string) => void;
   refreshMe: () => Promise<void>;
 }
@@ -100,8 +131,12 @@ const STORAGE_KEY = "throwoff_active_team_id";
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [me, setMe] = useState<MePayload | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tourActive, setTourActive] = useState(false);
+  const autoPromptedRolesRef = useRef<Set<string>>(new Set());
+
   const [activeTeamId, setActiveTeamIdState] = useState<string | null>(() =>
     typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null
   );
@@ -225,6 +260,67 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [selectableTeams, activeTeamId]
   );
 
+  const onboardingState = useMemo<UserOnboardingStateDTO>(
+    () => me?.onboardingState ?? DEFAULT_ONBOARDING_STATE,
+    [me?.onboardingState]
+  );
+
+  const authMethods = useMemo<AuthMethodsSummaryDTO>(
+    () => me?.authMethods ?? { hasPassword: true, passkeyCount: 0 },
+    [me?.authMethods]
+  );
+
+  const updateOnboardingState = useCallback(
+    async (
+      patch: UpdateOnboardingStateInput
+    ): Promise<UserOnboardingStateDTO | null> => {
+      try {
+        const res = await fetch("/api/v1/me/onboarding-state", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch),
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        const nextState: UserOnboardingStateDTO | undefined =
+          data.onboardingState;
+        if (nextState) {
+          setMe((prev) =>
+            prev ? { ...prev, onboardingState: nextState } : prev
+          );
+          return nextState;
+        }
+        return null;
+      } catch {
+        return null;
+      }
+    },
+    []
+  );
+
+  // Sanfter automatischer Tour-Start beim ersten Besuch (nicht auf /profil, nie wenn tourDisabled)
+  useEffect(() => {
+    if (loading || !me || !activeTeam) return;
+    if (pathname === "/profil") return;
+    if (!shouldAutoStartTour(onboardingState, activeTeam.role)) return;
+    const key = `${me.user.id}:${activeTeam.role}`;
+    if (autoPromptedRolesRef.current.has(key)) return;
+
+    autoPromptedRolesRef.current.add(key);
+    const timer = setTimeout(() => {
+      setTourActive(true);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [loading, me, activeTeam, onboardingState, pathname]);
+
+  const startTour = useCallback(() => {
+    setTourActive(true);
+  }, []);
+
+  const closeTour = useCallback(() => {
+    setTourActive(false);
+  }, []);
+
   return (
     <AppContext.Provider
       value={{
@@ -232,6 +328,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         loading,
         selectableTeams,
         activeTeam,
+        onboardingState,
+        authMethods,
+        tourActive,
+        startTour,
+        closeTour,
+        updateOnboardingState,
         setActiveTeamId,
         refreshMe: fetchMe,
       }}

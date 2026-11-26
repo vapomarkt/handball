@@ -310,4 +310,84 @@ describe("RosterService & InviteService Fachlogik", () => {
       expect(updated.emergencyContact).toBe("Neue Notfallnummer");
     }
   });
+
+  it("übernimmt bei PROFILE_CLAIM die Zielrolle (z. B. TEAM_MANAGER) und liefert vorbefüllte Profildaten zurück", async () => {
+    const { rosterService, inviteService } = createInMemoryHarness();
+
+    const managerProfile = await rosterService.addMember(coach, "team-1", {
+      firstName: "Petra",
+      lastName: "Brandt",
+      role: "TEAM_MANAGER",
+      phone: "0170 5550199",
+      emergencyContact: "Thomas Brandt 0170 5550100",
+    });
+
+    const invite = await inviteService.createInvite(coach, "team-1", {
+      type: "PROFILE_CLAIM",
+      targetMemberId: managerProfile.id,
+    });
+    expect(invite.role).toBe("TEAM_MANAGER");
+
+    const preview = await inviteService.previewInvite(invite.shortCode!);
+    expect(preview.role).toBe("TEAM_MANAGER");
+
+    const petraUser: ViewerContext = {
+      userId: "u-petra",
+      email: "petra@tsv.de",
+      name: "Petra Brandt",
+      memberships: [],
+      linkedChildMemberIds: [],
+      linkedChildTeamIds: [],
+    };
+    const claimed = await inviteService.claimInvite(
+      petraUser,
+      invite.shortCode!,
+      {}
+    );
+    expect(claimed.role).toBe("TEAM_MANAGER");
+    expect(claimed.memberProfile).toMatchObject({
+      firstName: "Petra",
+      lastName: "Brandt",
+      phone: "0170 5550199",
+      emergencyContact: "Thomas Brandt 0170 5550100",
+    });
+  });
+
+  it("liefert bei GUARDIAN_LINK den bestehenden Notfallkontakt des Kindes für Schritt 2 zurück", async () => {
+    const { rosterService, inviteService } = createInMemoryHarness();
+
+    const child = await rosterService.addMember(coach, "team-1", {
+      firstName: "Leo",
+      lastName: "Weber",
+      role: "PLAYER",
+      isMinor: true,
+      emergencyContact: "Mama 0171 123456",
+    });
+
+    const invite = await inviteService.createInvite(coach, "team-1", {
+      type: "GUARDIAN_LINK",
+      targetMemberId: child.id,
+    });
+    expect(invite.role).toBe("PARENT");
+
+    const parentUser: ViewerContext = {
+      userId: "u-parent",
+      email: "mama@weber.de",
+      name: "Anna Weber",
+      memberships: [],
+      linkedChildMemberIds: [],
+      linkedChildTeamIds: [],
+    };
+    const claimed = await inviteService.claimInvite(
+      parentUser,
+      invite.token,
+      { relationship: "Mutter" }
+    );
+    expect(claimed.role).toBe("PARENT");
+    if (claimed.type === "GUARDIAN_LINK") {
+      expect(claimed.childEmergencyContact).toBe("Mama 0171 123456");
+    }
+    expect(claimed.memberProfile.firstName).toBe("Anna");
+    expect(claimed.memberProfile.lastName).toBe("Weber");
+  });
 });

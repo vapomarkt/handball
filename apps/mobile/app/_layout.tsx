@@ -21,6 +21,7 @@ function AuthGate() {
   const { data: session, isPending } = authClient.useSession();
   const segments = useSegments();
   const inAuthGroup = segments[0] === "(auth)";
+  const inInviteRoute = segments[0] === "invite";
   const isLoggedIn = Boolean(session?.user);
 
   useEffect(() => {
@@ -32,7 +33,9 @@ function AuthGate() {
   }, [isLoggedIn]);
 
   if (isPending) return <Loading />;
-  if (!isLoggedIn && !inAuthGroup) return <Redirect href="/(auth)/login" />;
+  if (!isLoggedIn && !inAuthGroup && !inInviteRoute) {
+    return <Redirect href="/(auth)/login" />;
+  }
   if (isLoggedIn && inAuthGroup) return <Redirect href="/(tabs)" />;
 
   const stack = (

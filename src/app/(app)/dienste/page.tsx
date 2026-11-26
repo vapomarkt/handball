@@ -57,11 +57,12 @@ export default function DiensteUndTrainingPage() {
   const [error, setError] = useState<string | null>(null);
   const [dutyDialogOpen, setDutyDialogOpen] = useState(false);
 
-  const isStaff =
+  const isCoachingStaff =
     activeTeam?.role === "CLUB_ADMIN" ||
     activeTeam?.role === "COACH" ||
-    activeTeam?.role === "ASSISTANT_COACH" ||
-    activeTeam?.role === "TEAM_MANAGER";
+    activeTeam?.role === "ASSISTANT_COACH";
+
+  const isStaff = isCoachingStaff || activeTeam?.role === "TEAM_MANAGER";
 
   const myMemberInTeam =
     me?.memberships.find((m) => m.team.id === activeTeam?.teamId) ??
@@ -606,14 +607,14 @@ export default function DiensteUndTrainingPage() {
         <TrainingPanel
           teamId={activeTeam.teamId}
           mode="plans"
-          isStaff={isStaff}
+          isStaff={isCoachingStaff}
         />
       )}
       {tab === "drills" && (
         <TrainingPanel
           teamId={activeTeam.teamId}
           mode="drills"
-          isStaff={isStaff}
+          isStaff={isCoachingStaff}
         />
       )}
 

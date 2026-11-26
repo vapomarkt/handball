@@ -242,21 +242,39 @@ export default function ProfilePage() {
     }
   }
 
-  async function handleSaveChildEmergency(childMemberId: string) {
+  async function handleSaveChildEmergency(
+    childMemberId: string,
+    currentValue: string | null | undefined
+  ) {
     setChildSavingId(childMemberId);
+    setProfileNotice(null);
+    setSecurityError(null);
     try {
+      const valueToSave =
+        (childContacts[childMemberId] ?? currentValue ?? "").trim() || null;
       const res = await fetch("/api/v1/me/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           childMemberId,
-          childEmergencyContact: (childContacts[childMemberId] ?? "").trim() || null,
+          childEmergencyContact: valueToSave,
         }),
       });
-      if (res.ok) {
-        setProfileNotice("Notfallkontakt für dein Kind wurde gespeichert.");
-        await refreshMe();
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setSecurityError(
+          data?.error?.message ||
+            "Notfallkontakt konnte nicht gespeichert werden."
+        );
+        return;
       }
+      setChildContacts((prev) => {
+        const next = { ...prev };
+        delete next[childMemberId];
+        return next;
+      });
+      setProfileNotice("Notfallkontakt für dein Kind wurde gespeichert.");
+      await refreshMe();
     } finally {
       setChildSavingId(null);
     }
@@ -266,10 +284,9 @@ export default function ProfilePage() {
     await updateOnboardingState({ tourDisabled: !enabled });
   }
 
-  async function handleRestartTour() {
-    await updateOnboardingState({ resetTour: true });
+  function handleRestartTour() {
     router.push("/dashboard");
-    setTimeout(() => startTour(), 120);
+    setTimeout(() => startTour(), 150);
   }
 
   const nameParts = me.user.name.trim().split(/\s+/);
@@ -402,7 +419,10 @@ export default function ProfilePage() {
                     variant="secondary"
                     disabled={childSavingId === child.childMemberId}
                     onClick={() =>
-                      void handleSaveChildEmergency(child.childMemberId)
+                      void handleSaveChildEmergency(
+                        child.childMemberId,
+                        child.childEmergencyContact
+                      )
                     }
                   >
                     {childSavingId === child.childMemberId && (
@@ -630,7 +650,7 @@ export default function ProfilePage() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => void handleRestartTour()}
+            onClick={handleRestartTour}
           >
             <Sparkles className="h-4 w-4 text-primary" />
             Kurztour für „{MEMBER_ROLE_LABELS[activeTeam.role]}“ jetzt starten

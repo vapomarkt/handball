@@ -115,7 +115,6 @@ export const auth = betterAuth({
     },
   },
   plugins: [
-    nextCookies(),
     bearer(),
     expo(),
     emailOTP({
@@ -150,6 +149,7 @@ export const auth = betterAuth({
         }),
       },
     }),
+    nextCookies(),
   ],
 });
 

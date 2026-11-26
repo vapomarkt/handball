@@ -37,7 +37,9 @@ import {
   INVITE_TYPE_LABELS,
   MEMBER_ROLE_DESCRIPTIONS,
   MEMBER_ROLE_LABELS,
+  type HandballPosition,
   type MemberRole,
+  type ThrowingHand,
 } from "@/domain/schemas/handball";
 import type { InvitePreviewDTO } from "@/domain/schemas/invite";
 import {
@@ -55,15 +57,26 @@ const RELATIONSHIPS = [
   "Mutter",
   "Vater",
   "Elternteil",
-  "Erziehungsberechtigte:r",
+  "Sorgeberechtigte Person",
   "Großeltern",
 ];
+
+interface ClaimedMemberProfile {
+  firstName?: string;
+  lastName?: string;
+  phone?: string | null;
+  emergencyContact?: string | null;
+  primaryPosition?: HandballPosition | null;
+  throwingHand?: ThrowingHand | null;
+}
 
 interface ClaimedContext {
   teamId: string;
   role: MemberRole;
   memberId?: string;
   childMemberId?: string;
+  childEmergencyContact?: string | null;
+  memberProfile?: ClaimedMemberProfile;
 }
 
 function InviteClaimContent() {
@@ -178,6 +191,8 @@ function InviteClaimContent() {
           role: (data.role ?? preview?.role ?? "PLAYER") as MemberRole,
           memberId: data.memberId,
           childMemberId: data.childMemberId,
+          childEmergencyContact: data.childEmergencyContact ?? null,
+          memberProfile: data.memberProfile,
         });
         setStep("profile");
       } catch {
@@ -831,6 +846,29 @@ function InviteClaimContent() {
                                   </div>
                                 )}
 
+                              {preview.type === "GUARDIAN_LINK" && (
+                                <div className="space-y-1">
+                                  <Label htmlFor="inv-rel-pw">
+                                    Beziehung zu{" "}
+                                    {preview.targetMemberFirstName ??
+                                      "deinem Kind"}
+                                  </Label>
+                                  <SelectNative
+                                    id="inv-rel-pw"
+                                    value={relationship}
+                                    onChange={(e) =>
+                                      setRelationship(e.target.value)
+                                    }
+                                  >
+                                    {RELATIONSHIPS.map((rel) => (
+                                      <option key={rel} value={rel}>
+                                        {rel}
+                                      </option>
+                                    ))}
+                                  </SelectNative>
+                                </div>
+                              )}
+
                               <div className="space-y-1">
                                 <Label htmlFor="inv-pw-email">
                                   E-Mail-Adresse
@@ -902,10 +940,20 @@ function InviteClaimContent() {
                   initial={{
                     teamId: claimed.teamId,
                     role: claimed.role,
-                    firstName: initialFirst,
-                    lastName: initialLast,
+                    firstName:
+                      claimed.memberProfile?.firstName ?? initialFirst,
+                    lastName:
+                      claimed.memberProfile?.lastName ?? initialLast,
+                    phone: claimed.memberProfile?.phone ?? null,
+                    emergencyContact:
+                      claimed.memberProfile?.emergencyContact ?? null,
+                    primaryPosition:
+                      claimed.memberProfile?.primaryPosition ?? null,
+                    throwingHand: claimed.memberProfile?.throwingHand ?? null,
                     childMemberId: claimed.childMemberId ?? null,
                     childFirstName: preview?.targetMemberFirstName ?? null,
+                    childEmergencyContact:
+                      claimed.childEmergencyContact ?? null,
                   }}
                   submitLabel="Speichern & weiter"
                   skipLabel="Erstmal überspringen"

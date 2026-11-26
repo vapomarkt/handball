@@ -1,4 +1,5 @@
 import { expoClient } from "@better-auth/expo/client";
+import { emailOTPClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import * as SecureStore from "expo-secure-store";
 import { API_URL, APP_SCHEME } from "./config";
@@ -15,6 +16,7 @@ export const authClient = createAuthClient({
       storagePrefix: "throwoff",
       storage: SecureStore,
     }),
+    emailOTPClient(),
   ],
 });
 

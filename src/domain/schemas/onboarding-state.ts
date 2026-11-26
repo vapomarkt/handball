@@ -249,7 +249,7 @@ export const ROLE_TOUR_STEPS: Record<MemberRole, TourStepDefinition[]> = {
       targetId: "nav-dienste",
       title: "Dienste & Mannschaftskasse",
       description:
-        "Organisiere Zeitnehmer, Trikotwäsche und Behalte die Mannschaftskasse im Blick.",
+        "Organisiere Zeitnehmer, Trikotwäsche und behalte die Mannschaftskasse im Blick.",
       routeHint: "/dienste",
     },
   ],

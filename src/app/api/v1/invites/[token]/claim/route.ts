@@ -11,7 +11,7 @@ export async function POST(
   context: { params: Promise<{ token: string }> }
 ) {
   try {
-    const viewer = await requireViewerContext();
+    const viewer = await requireViewerContext(request.headers);
     const { token } = await context.params;
     let body: unknown = {};
     try {

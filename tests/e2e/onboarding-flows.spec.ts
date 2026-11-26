@@ -25,10 +25,11 @@ test.describe("Onboarding, Login-PIN, Kurzcode-Einladung, Betreuer & App-Tour", 
     // Kader-Seite: Betreuer sieht sensible Daten & kann Einladungen öffnen
     await page.goto("/team");
     await expect(
-      page.getByRole("button", { name: /Einladen/i }).first()
+      page.getByRole("button", { name: /Einladungen/i }).first()
     ).toBeVisible();
+    await expect(page.getByText(/Geschützte Profildaten/i).first()).toBeVisible();
 
-    // Taktik-API Schreibzugriff muss für TEAM_MANAGER mit 403 blockiert werden
+    // Taktik- und Trainingsplan-Schreibzugriffe müssen für TEAM_MANAGER mit 403 blockiert werden
     const meRes = await page.request.get("/api/v1/me");
     const me = await meRes.json();
     const teamId = me.memberships?.[0]?.team?.id as string;
@@ -46,6 +47,18 @@ test.describe("Onboarding, Login-PIN, Kurzcode-Einladung, Betreuer & App-Tour", 
       }
     );
     expect(tacticRes.status()).toBe(403);
+
+    const trainingRes = await page.request.post(
+      `/api/v1/teams/${encodeURIComponent(teamId)}/training-plans`,
+      {
+        data: {
+          title: "Unberechtigter Trainingsplan",
+          durationMinutes: 90,
+          focus: "Angriff",
+        },
+      }
+    );
+    expect(trainingRes.status()).toBe(403);
   });
 
   test("Nahtloser Invite-Flow über 6-stelligen Kurzcode + Login-PIN + schnelle Profil-Vervollständigung + abschaltbare App-Tour", async ({

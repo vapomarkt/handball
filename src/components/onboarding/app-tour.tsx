@@ -31,10 +31,12 @@ function findVisibleTarget(targetId: string): HTMLElement | null {
 }
 
 function AppTourOverlay({ role }: { role: MemberRole }) {
-  const { closeTour, updateOnboardingState } = useAppContext();
+  const { closeTour, onboardingState, updateOnboardingState } = useAppContext();
 
   const [stepIndex, setStepIndex] = useState(0);
-  const [dontShowAgain, setDontShowAgain] = useState(false);
+  const [dontShowAgain, setDontShowAgain] = useState(
+    onboardingState.tourDisabled
+  );
   const [highlightRect, setHighlightRect] = useState<HighlightRect | null>(
     null
   );
@@ -76,7 +78,7 @@ function AppTourOverlay({ role }: { role: MemberRole }) {
       closeTour();
       await updateOnboardingState({
         completeTourForRole: role,
-        ...(disableForever ? { tourDisabled: true } : {}),
+        tourDisabled: disableForever,
       });
     },
     [role, closeTour, updateOnboardingState]

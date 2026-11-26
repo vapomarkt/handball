@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { MEMBER_ROLE_LABELS } from "@throwoff/shared";
 import React from "react";
 import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { EmptyState, ErrorState, Loading, Muted, Screen } from "../../src/components/ui";
@@ -48,7 +49,9 @@ export default function TeamScreen() {
                 {item.firstName} {item.lastName}
               </Text>
               <Muted>
-                {[item.role, item.primaryPosition].filter(Boolean).join(" · ")}
+                {[MEMBER_ROLE_LABELS[item.role] ?? item.role, item.primaryPosition]
+                  .filter(Boolean)
+                  .join(" · ")}
               </Muted>
             </View>
             <View style={[styles.dot, { backgroundColor: AVAILABILITY_COLOR[item.availabilityStatus] }]} />

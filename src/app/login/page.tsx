@@ -56,7 +56,11 @@ type AuthMode = "password" | "otp" | "reset";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextUrl = searchParams.get("next") || "/dashboard";
+  const rawNext = searchParams.get("next");
+  const nextUrl =
+    rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//")
+      ? rawNext
+      : "/dashboard";
   const initialMode: AuthMode =
     searchParams.get("mode") === "otp" ? "otp" : "password";
 

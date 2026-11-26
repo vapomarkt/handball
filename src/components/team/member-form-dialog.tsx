@@ -127,6 +127,16 @@ export function MemberFormDialog({
             email: email || null,
           }
         : {
+            firstName,
+            lastName,
+            ...(member?.role === "PLAYER"
+              ? {
+                  primaryPosition: (primaryPosition ||
+                    null) as HandballPosition | null,
+                  secondaryPosition: (secondaryPosition ||
+                    null) as HandballPosition | null,
+                }
+              : {}),
             throwingHand: (throwingHand || null) as ThrowingHand | null,
             availabilityStatus,
             emergencyContact: emergencyContact || null,
@@ -352,43 +362,103 @@ export function MemberFormDialog({
           )}
 
           {!isFull && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="m-self-avail">Verfügbarkeit</Label>
-                <SelectNative
-                  id="m-self-avail"
-                  value={availabilityStatus}
-                  onChange={(e) =>
-                    setAvailabilityStatus(e.target.value as AvailabilityStatus)
-                  }
-                >
-                  {(
-                    Object.keys(
-                      AVAILABILITY_STATUS_LABELS
-                    ) as AvailabilityStatus[]
-                  ).map((s) => (
-                    <option key={s} value={s}>
-                      {AVAILABILITY_STATUS_LABELS[s]}
-                    </option>
-                  ))}
-                </SelectNative>
+            <div className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="m-self-first">Vorname *</Label>
+                  <Input
+                    id="m-self-first"
+                    required
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="m-self-last">Nachname *</Label>
+                  <Input
+                    id="m-self-last"
+                    required
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                  />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="m-self-hand">Wurfhand</Label>
-                <SelectNative
-                  id="m-self-hand"
-                  value={throwingHand}
-                  onChange={(e) => setThrowingHand(e.target.value)}
-                >
-                  <option value="">Keine Angabe</option>
-                  {(Object.keys(THROWING_HAND_LABELS) as ThrowingHand[]).map(
-                    (h) => (
-                      <option key={h} value={h}>
-                        {THROWING_HAND_LABELS[h]}
+
+              {member?.role === "PLAYER" && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="m-self-pos1">Hauptposition</Label>
+                    <SelectNative
+                      id="m-self-pos1"
+                      value={primaryPosition}
+                      onChange={(e) => setPrimaryPosition(e.target.value)}
+                    >
+                      <option value="">Keine</option>
+                      {POSITIONS.map((pos) => (
+                        <option key={pos} value={pos}>
+                          {pos} – {HANDBALL_POSITION_LABELS[pos].full}
+                        </option>
+                      ))}
+                    </SelectNative>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="m-self-pos2">Nebenposition</Label>
+                    <SelectNative
+                      id="m-self-pos2"
+                      value={secondaryPosition}
+                      onChange={(e) => setSecondaryPosition(e.target.value)}
+                    >
+                      <option value="">Keine</option>
+                      {POSITIONS.map((pos) => (
+                        <option key={pos} value={pos}>
+                          {pos} – {HANDBALL_POSITION_LABELS[pos].full}
+                        </option>
+                      ))}
+                    </SelectNative>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="m-self-avail">Verfügbarkeit</Label>
+                  <SelectNative
+                    id="m-self-avail"
+                    value={availabilityStatus}
+                    onChange={(e) =>
+                      setAvailabilityStatus(
+                        e.target.value as AvailabilityStatus
+                      )
+                    }
+                  >
+                    {(
+                      Object.keys(
+                        AVAILABILITY_STATUS_LABELS
+                      ) as AvailabilityStatus[]
+                    ).map((s) => (
+                      <option key={s} value={s}>
+                        {AVAILABILITY_STATUS_LABELS[s]}
                       </option>
-                    )
-                  )}
-                </SelectNative>
+                    ))}
+                  </SelectNative>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="m-self-hand">Wurfhand</Label>
+                  <SelectNative
+                    id="m-self-hand"
+                    value={throwingHand}
+                    onChange={(e) => setThrowingHand(e.target.value)}
+                  >
+                    <option value="">Keine Angabe</option>
+                    {(Object.keys(THROWING_HAND_LABELS) as ThrowingHand[]).map(
+                      (h) => (
+                        <option key={h} value={h}>
+                          {THROWING_HAND_LABELS[h]}
+                        </option>
+                      )
+                    )}
+                  </SelectNative>
+                </div>
               </div>
             </div>
           )}
@@ -398,8 +468,8 @@ export function MemberFormDialog({
             <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
               <Lock className="h-3.5 w-3.5 text-primary" />
               <span>
-                DSGVO-geschützte Daten (nur für Trainer, Vereins-Admin, Spieler
-                selbst & verknüpfte Eltern sichtbar)
+                DSGVO-geschützte Daten (nur für Trainer, Betreuer, Vereins-Admin,
+                Spieler selbst &amp; verknüpfte Eltern sichtbar)
               </span>
             </div>
 

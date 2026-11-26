@@ -63,7 +63,7 @@ export class RosterService {
     }
     if (!canManageRoster(viewer, team.id, team.clubId)) {
       throw DomainError.forbidden(
-        "Nur Trainer, Co-Trainer oder Vereins-Admins dürfen Spieler anlegen."
+        "Nur Trainer, Co-Trainer, Betreuer oder Vereins-Admins dürfen Spieler anlegen."
       );
     }
 

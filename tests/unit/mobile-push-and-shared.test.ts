@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  MEMBER_ROLE_LABELS,
   RegisterPushTokenSchema,
   ThrowOffApiError,
   createThrowOffApiClient,
+  formatShortCode,
+  normalizeInviteLookup,
 } from "@throwoff/shared";
 import {
   ExpoPushService,
@@ -10,6 +13,12 @@ import {
 } from "@/infrastructure/push/expo-push-service";
 
 describe("@throwoff/shared Push-Token-Validierung & API-Client", () => {
+  it("re-exportiert Rollenlabels inkl. Betreuer sowie Einladungs-Kurzcode-Helfer", () => {
+    expect(MEMBER_ROLE_LABELS.TEAM_MANAGER).toBe("Betreuer");
+    expect(normalizeInviteLookup("h7k-4p9")).toBe("H7K4P9");
+    expect(formatShortCode("H7K4P9")).toBe("H7K-4P9");
+  });
+
   it("akzeptiert gültige Expo-Push-Tokens und lehnt ungültige Strings ab", () => {
     const valid = RegisterPushTokenSchema.safeParse({
       expoPushToken: "ExponentPushToken[abc123_XYZ-99]",

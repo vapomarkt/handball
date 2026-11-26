@@ -36,8 +36,14 @@ type SignupMethod = "otp" | "password";
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextUrl = searchParams.get("next") || "/onboarding";
-  const hasExplicitNext = Boolean(searchParams.get("next"));
+  const rawNext = searchParams.get("next");
+  const nextUrl =
+    rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//")
+      ? rawNext
+      : "/onboarding";
+  const hasExplicitNext = Boolean(
+    rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//")
+  );
 
   const [path, setPath] = useState<StartPath>(
     hasExplicitNext ? "create" : "choose"

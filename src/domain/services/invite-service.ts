@@ -175,6 +175,7 @@ export class InviteService {
 
     const input = parsed.data;
     let targetMemberName: string | null = null;
+    let targetMemberRole: TeamInviteEntity["role"] | null = null;
 
     if (input.targetMemberId) {
       const target = await this.members.findById(input.targetMemberId);
@@ -187,6 +188,7 @@ export class InviteService {
         );
       }
       targetMemberName = `${target.firstName} ${target.lastName}`;
+      targetMemberRole = target.role;
     }
 
     const expiresAt = new Date(
@@ -200,13 +202,20 @@ export class InviteService {
 
     const shortCode = await this.allocateShortCode();
 
+    const effectiveRole =
+      input.type === "GUARDIAN_LINK"
+        ? "PARENT"
+        : input.type === "PROFILE_CLAIM" && targetMemberRole
+          ? targetMemberRole
+          : input.role;
+
     const invite = await this.invites.create({
       clubId: team.clubId,
       teamId: team.id,
       token: generateToken(),
       shortCode,
       type: input.type,
-      role: input.type === "GUARDIAN_LINK" ? "PARENT" : input.role,
+      role: effectiveRole,
       targetMemberId: input.targetMemberId ?? null,
       createdByUserId: viewer.userId,
       maxUses,
@@ -337,6 +346,14 @@ export class InviteService {
         role: claimed.role,
         teamId: invite.teamId,
         memberId: claimed.id,
+        memberProfile: {
+          firstName: claimed.firstName,
+          lastName: claimed.lastName,
+          phone: claimed.phone,
+          emergencyContact: claimed.emergencyContact,
+          primaryPosition: claimed.primaryPosition,
+          throwingHand: claimed.throwingHand,
+        },
       };
     }
 
@@ -396,6 +413,15 @@ export class InviteService {
         teamId: invite.teamId,
         memberId: parentMember.id,
         childMemberId: targetMember.id,
+        childEmergencyContact: targetMember.emergencyContact,
+        memberProfile: {
+          firstName: parentMember.firstName,
+          lastName: parentMember.lastName,
+          phone: parentMember.phone,
+          emergencyContact: parentMember.emergencyContact,
+          primaryPosition: parentMember.primaryPosition,
+          throwingHand: parentMember.throwingHand,
+        },
       };
     }
 
@@ -439,6 +465,14 @@ export class InviteService {
       role: joined.role,
       teamId: invite.teamId,
       memberId: joined.id,
+      memberProfile: {
+        firstName: joined.firstName,
+        lastName: joined.lastName,
+        phone: joined.phone,
+        emergencyContact: joined.emergencyContact,
+        primaryPosition: joined.primaryPosition,
+        throwingHand: joined.throwingHand,
+      },
     };
   }
 }

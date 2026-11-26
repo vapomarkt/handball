@@ -458,7 +458,7 @@ export default function TeamRosterPage() {
             <Users className="h-8 w-8 text-muted-foreground" />
             <p className="font-semibold">Keine passenden Mitglieder gefunden</p>
             <p className="text-sm text-muted-foreground">
-              Passe deine Filter an oder füge neue Spieler:innen zum Kader hinzu.
+              Passe deine Filter an oder füge neue Spieler zum Kader hinzu.
             </p>
           </CardContent>
         </Card>

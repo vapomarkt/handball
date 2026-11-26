@@ -171,7 +171,7 @@ export function MemberFormDialog({
           </DialogTitle>
           <DialogDescription>
             {isCreate
-              ? "Lege Spieler:innen bereits vor der Registrierung an. Das Profil kann später per Claim-Link übernommen werden."
+              ? "Lege Spieler bereits vor der Registrierung an. Das Profil kann später per Claim-Link übernommen werden."
               : isFull
                 ? "Bearbeite sportliche Daten, Positionen und geschützte Kontaktdaten."
                 : "Aktualisiere Verfügbarkeit, Wurfhand und geschützte Notfalldaten."}

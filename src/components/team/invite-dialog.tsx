@@ -195,10 +195,10 @@ export function InviteDialog({
                   value={role}
                   onChange={(e) => setRole(e.target.value as MemberRole)}
                 >
-                  <option value="PLAYER">Spieler:in</option>
-                  <option value="ASSISTANT_COACH">Co-Trainer:in</option>
-                  <option value="COACH">Trainer:in</option>
-                  <option value="HELPER">Vereinshelfer:in</option>
+                  <option value="PLAYER">Spieler</option>
+                  <option value="ASSISTANT_COACH">Co-Trainer</option>
+                  <option value="COACH">Trainer</option>
+                  <option value="HELPER">Vereinshelfer</option>
                 </SelectNative>
               </div>
             ) : (

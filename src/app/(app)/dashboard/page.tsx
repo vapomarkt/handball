@@ -307,7 +307,7 @@ export default function DashboardPage() {
             <p className="mt-1 text-2xl font-extrabold">
               {loadingData ? "–" : players.length}
             </p>
-            <p className="text-xs text-muted-foreground">Aktive Spieler:innen</p>
+            <p className="text-xs text-muted-foreground">Aktive Spieler</p>
           </CardContent>
         </Card>
 

@@ -12,11 +12,11 @@ export type MemberRole = z.infer<typeof MemberRoleSchema>;
 
 export const MEMBER_ROLE_LABELS: Record<MemberRole, string> = {
   CLUB_ADMIN: "Vereins-Admin",
-  COACH: "Trainer:in",
-  ASSISTANT_COACH: "Co-Trainer:in",
-  PLAYER: "Spieler:in",
+  COACH: "Trainer",
+  ASSISTANT_COACH: "Co-Trainer",
+  PLAYER: "Spieler",
   PARENT: "Elternteil",
-  HELPER: "Vereinshelfer:in",
+  HELPER: "Vereinshelfer",
 };
 
 export const HandballPositionSchema = z.enum([

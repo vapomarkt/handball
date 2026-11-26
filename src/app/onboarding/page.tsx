@@ -594,7 +594,7 @@ export default function OnboardingPage() {
                         <option value="CLUB_ADMIN">
                           Vereins-Admin & Trainer
                         </option>
-                        <option value="COACH">Trainer:in</option>
+                        <option value="COACH">Trainer</option>
                       </SelectNative>
                     </div>
                   </div>

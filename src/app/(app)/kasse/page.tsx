@@ -855,7 +855,7 @@ export default function KasseUndNewsPage() {
             </div>
             {entryType === "FINE" && (
               <div className="space-y-1.5">
-                <Label htmlFor="entry-member">Spieler:in</Label>
+                <Label htmlFor="entry-member">Spieler</Label>
                 <SelectNative
                   id="entry-member"
                   value={entryMemberId}

@@ -267,7 +267,7 @@ export function DutyFormDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="d-slots">Benötigte Helfer:innen *</Label>
+              <Label htmlFor="d-slots">Benötigte Helfer *</Label>
               <Input
                 id="d-slots"
                 type="number"

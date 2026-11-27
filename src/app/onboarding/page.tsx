@@ -11,9 +11,12 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Download,
   Loader2,
+  Plus,
   RefreshCw,
   Shield,
+  Sparkles,
   Ticket,
   Trophy,
   Users,
@@ -26,6 +29,8 @@ import {
   SelectedHvnbTeam,
 } from "@/components/leagues/hvnb-team-picker";
 import { LeagueSelector } from "@/components/leagues/league-selector";
+import { CreateTeamDialog } from "@/components/team/create-team-dialog";
+import { NuligaRosterImportDialog } from "@/components/team/nuliga-roster-import-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +51,10 @@ import {
 } from "@/domain/data/german-leagues";
 import { TeamGender } from "@/domain/schemas/handball";
 import { LeagueAgeGroup, LeagueDTO } from "@/domain/schemas/league-catalog";
+import type {
+  NuligaRosterImportResultDTO,
+  NuligaRosterPreviewResponseDTO,
+} from "@/domain/schemas/member";
 import { SeasonCatalogDTO } from "@/domain/schemas/season-catalog";
 import { normalizeInviteLookup } from "@/domain/services/invite-service";
 import { useSession } from "@/infrastructure/auth/auth-client";
@@ -96,9 +105,21 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<WizardStep>(1);
   const [showInviteBox, setShowInviteBox] = useState(false);
   const [completedSetup, setCompletedSetup] = useState<{
+    clubId: string;
     clubName: string;
+    teamId: string;
     teamName: string;
+    seasonName: string;
+    hasLeagueLink: boolean;
   } | null>(null);
+  const [rosterPreviewLoading, setRosterPreviewLoading] = useState(false);
+  const [rosterPreview, setRosterPreview] =
+    useState<NuligaRosterPreviewResponseDTO | null>(null);
+  const [rosterImportOpen, setRosterImportOpen] = useState(false);
+  const [rosterImportResult, setRosterImportResult] =
+    useState<NuligaRosterImportResultDTO | null>(null);
+  const [createTeamOpen, setCreateTeamOpen] = useState(false);
+  const [extraTeamsCreated, setExtraTeamsCreated] = useState<string[]>([]);
 
   // Schritt 1: Verein & Profil
   const [clubName, setClubName] = useState("");
@@ -371,9 +392,22 @@ export default function OnboardingPage() {
         body: JSON.stringify({ markOnboardingComplete: true }),
       }).catch(() => {});
 
+      const createdTeamId: string = data.team?.id ?? "";
+      const createdClubId: string = data.club?.id ?? "";
+      const hasLeagueLink = Boolean(
+        selectedHvnbTeam || data.leagueLink?.leagueGroupTeamId
+      );
+
+      setRosterPreview(null);
+      setRosterImportResult(null);
+      setRosterPreviewLoading(hasLeagueLink && Boolean(createdTeamId));
       setCompletedSetup({
+        clubId: createdClubId,
         clubName: clubName.trim(),
+        teamId: createdTeamId,
         teamName: teamName.trim(),
+        seasonName: selectedSeason.name,
+        hasLeagueLink,
       });
     } catch {
       setError("Netzwerkfehler beim Anlegen.");
@@ -381,6 +415,34 @@ export default function OnboardingPage() {
       setSubmitting(false);
     }
   }
+
+  useEffect(() => {
+    if (!completedSetup || !completedSetup.hasLeagueLink || !completedSetup.teamId) {
+      return;
+    }
+    let active = true;
+    fetch(
+      `/api/v1/teams/${encodeURIComponent(completedSetup.teamId)}/members/nuliga-preview`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      }
+    )
+      .then(async (res) => {
+        if (!active || !res.ok) return;
+        const body = (await res.json()) as NuligaRosterPreviewResponseDTO;
+        if (active) setRosterPreview(body);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setRosterPreviewLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [completedSetup]);
 
   function handleJoinInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -390,6 +452,10 @@ export default function OnboardingPage() {
   }
 
   if (completedSetup) {
+    const foundPlayers = rosterPreview?.players.length ?? 0;
+    const foundOfficials = rosterPreview?.officials.length ?? 0;
+    const hasPreviewCandidates = foundPlayers > 0 || foundOfficials > 0;
+
     return (
       <div className="min-h-screen flex flex-col bg-background px-4 py-8">
         <div className="mx-auto flex w-full max-w-lg items-center justify-between pb-6">
@@ -410,11 +476,100 @@ export default function OnboardingPage() {
                 {completedSetup.teamName} ({completedSetup.clubName}) ist bereit!
               </CardTitle>
               <CardDescription>
-                Du kannst jetzt direkt dein Team einladen (per WhatsApp, QR-Code
-                oder 6-stelligem Code) oder auf der Übersicht starten.
+                Du kannst jetzt direkt deinen Kader aus Spielberichten
+                übernehmen, dein Team einladen oder weitere Mannschaften anlegen.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Kader-Import aus nuLiga-Spielberichten */}
+              {completedSetup.teamId &&
+                (rosterImportResult ? (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-sm text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200 flex items-start gap-2.5">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold">
+                        {rosterImportResult.createdCount}{" "}
+                        {rosterImportResult.createdCount === 1
+                          ? "Person"
+                          : "Personen"}{" "}
+                        in den Kader übernommen!
+                      </p>
+                      <p className="text-xs opacity-90 mt-0.5">
+                        Teile jetzt einfach deinen Team-Link auf der Kader-Seite
+                        – beitretende Spieler werden automatisch mit ihrem
+                        Profil verknüpft.
+                      </p>
+                    </div>
+                  </div>
+                ) : rosterPreviewLoading ? (
+                  <div className="rounded-xl border border-border bg-muted/30 p-3.5 flex items-center gap-2.5 text-xs text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+                    <span>
+                      Suche Spieler &amp; Offizielle in den letzten
+                      nuLiga-Spielberichten…
+                    </span>
+                  </div>
+                ) : hasPreviewCandidates ? (
+                  <div className="rounded-xl border border-primary/35 bg-primary/5 p-4 space-y-3">
+                    <div className="flex items-start gap-2.5">
+                      <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-bold text-foreground">
+                          {foundPlayers} Spieler
+                          {foundOfficials > 0
+                            ? ` & ${foundOfficials} Offizielle`
+                            : ""}{" "}
+                          aus Spielberichten gefunden
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Übernehme deinen Kader inkl. Trikotnummern mit einem
+                          Klick statt alle Spieler einzeln abzutippen.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setRosterImportOpen(true)}
+                      className="w-full sm:w-auto"
+                    >
+                      <Download className="h-4 w-4" />
+                      Kader aus Spielberichten übernehmen
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-border bg-muted/20 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div className="text-xs text-muted-foreground">
+                      <p className="font-semibold text-foreground">
+                        Kader schnell aus Spielberichten füllen
+                      </p>
+                      <p className="mt-0.5">
+                        {rosterPreview?.warning ??
+                          "Du hast eine nuLiga-Mannschaftsseite (z. B. anderer Verband oder Vorsaison)? Übernehme Spieler & Offizielle direkt per Link."}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0"
+                      onClick={() => setRosterImportOpen(true)}
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Aus nuLiga laden
+                    </Button>
+                  </div>
+                ))}
+
+              {extraTeamsCreated.length > 0 && (
+                <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                  Weitere angelegte Mannschaften:{" "}
+                  <strong className="text-foreground">
+                    {extraTeamsCreated.join(", ")}
+                  </strong>
+                </div>
+              )}
+
               <PasskeySetupCard compact />
 
               <div className="grid gap-2.5 sm:grid-cols-2 pt-1">
@@ -431,9 +586,55 @@ export default function OnboardingPage() {
                   </Link>
                 </Button>
               </div>
+
+              {completedSetup.clubId && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-muted-foreground hover:text-foreground"
+                  onClick={() => setCreateTeamOpen(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                  Weitere Mannschaft im Verein anlegen
+                </Button>
+              )}
             </CardContent>
           </Card>
         </div>
+
+        {completedSetup.teamId && (
+          <NuligaRosterImportDialog
+            open={rosterImportOpen}
+            onOpenChange={setRosterImportOpen}
+            teamId={completedSetup.teamId}
+            teamName={completedSetup.teamName}
+            initialPreview={rosterPreview}
+            onImported={(res) => setRosterImportResult(res)}
+            onOpenInvite={() => router.push("/team")}
+          />
+        )}
+
+        {completedSetup.clubId && (
+          <CreateTeamDialog
+            open={createTeamOpen}
+            onOpenChange={setCreateTeamOpen}
+            clubId={completedSetup.clubId}
+            clubName={completedSetup.clubName}
+            defaultSeasonName={completedSetup.seasonName}
+            onCreated={(t) =>
+              setExtraTeamsCreated((prev) =>
+                prev.includes(t.name) ? prev : [...prev, t.name]
+              )
+            }
+            onSwitchToTeam={(teamId) => {
+              if (typeof window !== "undefined") {
+                localStorage.setItem("throwoff_active_team_id", teamId);
+              }
+              router.push("/team");
+            }}
+          />
+        )}
       </div>
     );
   }

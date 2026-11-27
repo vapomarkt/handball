@@ -23,19 +23,33 @@ export const CreateSeasonSchema = z.object({
 });
 export type CreateSeasonInput = z.infer<typeof CreateSeasonSchema>;
 
-export const CreateTeamSchema = z.object({
-  name: z.string().trim().min(2, "Mannschaftsname muss mindestens 2 Zeichen lang sein.").max(80),
-  seasonId: z.string().min(1, "Saison muss ausgewählt sein."),
-  category: z.string().trim().min(2).max(50).default("Aktive"),
-  ageGroup: LeagueAgeGroupSchema.optional().nullable(),
-  gender: TeamGenderSchema.default("MALE"),
-  usesResin: z.boolean().optional(),
-  leagueId: z.string().trim().min(1).optional().nullable(),
-  leagueName: z.string().trim().max(100).optional().nullable(),
-  leagueGroupTeamId: z.string().trim().min(1).optional().nullable(),
-  autoImportSchedule: z.boolean().optional().default(true),
-  seedGroupOpponents: z.boolean().optional().default(true),
-});
+export const CreateTeamSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(2, "Mannschaftsname muss mindestens 2 Zeichen lang sein.")
+      .max(80),
+    seasonId: z.string().trim().min(1).optional(),
+    seasonCatalogId: z.string().trim().min(1).optional(),
+    seasonName: z.string().trim().min(3).max(30).optional(),
+    category: z.string().trim().min(2).max(50).default("Aktive"),
+    ageGroup: LeagueAgeGroupSchema.optional().nullable(),
+    gender: TeamGenderSchema.default("MALE"),
+    usesResin: z.boolean().optional(),
+    leagueId: z.string().trim().min(1).optional().nullable(),
+    leagueName: z.string().trim().max(100).optional().nullable(),
+    leagueGroupTeamId: z.string().trim().min(1).optional().nullable(),
+    autoImportSchedule: z.boolean().optional().default(true),
+    seedGroupOpponents: z.boolean().optional().default(true),
+  })
+  .refine(
+    (data) => Boolean(data.seasonId || data.seasonCatalogId || data.seasonName),
+    {
+      message: "Saison muss ausgewählt sein.",
+      path: ["seasonId"],
+    }
+  );
 export type CreateTeamInput = z.infer<typeof CreateTeamSchema>;
 
 export const UpdateTeamSchema = z.object({

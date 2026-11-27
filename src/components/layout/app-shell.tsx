@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -8,6 +9,7 @@ import {
   HelpCircle,
   LayoutDashboard,
   LogOut,
+  Plus,
   Settings,
   Shield,
   UserCircle2,
@@ -18,6 +20,7 @@ import {
 import { BrandLogo } from "@/components/branding/logo";
 import { AppTour } from "@/components/onboarding/app-tour";
 import { useAppContext } from "@/components/providers/app-context";
+import { CreateTeamDialog } from "@/components/team/create-team-dialog";
 import { Button } from "@/components/ui/button";
 import { SelectNative } from "@/components/ui/select-native";
 import { MEMBER_ROLE_LABELS } from "@/domain/schemas/handball";
@@ -73,8 +76,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     selectableTeams,
     activeTeam,
     setActiveTeamId,
+    refreshMe,
     startTour,
   } = useAppContext();
+  const [createTeamOpen, setCreateTeamOpen] = useState(false);
+
+  const canAddTeam = Boolean(
+    activeTeam && (activeTeam.isClubAdmin || activeTeam.role === "COACH")
+  );
 
   async function handleLogout() {
     await signOut();
@@ -164,6 +173,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </>
               )}
             </div>
+            {canAddTeam && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setCreateTeamOpen(true)}
+                className="w-full h-8 text-xs justify-center"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Weitere Mannschaft
+              </Button>
+            )}
           </div>
         )}
 
@@ -267,19 +288,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Link>
 
         {selectableTeams.length > 0 && activeTeam && (
-          <SelectNative
-            data-tour-id="team-switcher"
-            aria-label="Mannschaft wechseln"
-            value={activeTeam.teamId}
-            onChange={(e) => setActiveTeamId(e.target.value)}
-            className="h-9 max-w-[175px] text-xs font-semibold"
-          >
-            {selectableTeams.map((t) => (
-              <option key={t.teamId} value={t.teamId}>
-                {t.teamName}
-              </option>
-            ))}
-          </SelectNative>
+          <div className="flex items-center gap-1 min-w-0">
+            <SelectNative
+              data-tour-id="team-switcher"
+              aria-label="Mannschaft wechseln"
+              value={activeTeam.teamId}
+              onChange={(e) => setActiveTeamId(e.target.value)}
+              className="h-9 max-w-[155px] text-xs font-semibold"
+            >
+              {selectableTeams.map((t) => (
+                <option key={t.teamId} value={t.teamId}>
+                  {t.teamName}
+                </option>
+              ))}
+            </SelectNative>
+            {canAddTeam && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 shrink-0"
+                onClick={() => setCreateTeamOpen(true)}
+                aria-label="Weitere Mannschaft anlegen"
+                title="Weitere Mannschaft anlegen"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         )}
 
         <div className="flex items-center gap-0.5">
@@ -288,7 +324,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               href="/verwaltung"
               data-tour-id="nav-verwaltung"
               aria-label="Verwaltung"
-              title="Saison-Verwaltung"
+              title="Vereins- & Saison-Verwaltung"
               className={cn(
                 "inline-flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
                 pathname === "/verwaltung"
@@ -371,6 +407,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Rollenspezifische, abschaltbare App-Kurztour */}
       <AppTour />
+
+      {/* Weitere Mannschaft im Verein anlegen */}
+      {canAddTeam && activeTeam && (
+        <CreateTeamDialog
+          open={createTeamOpen}
+          onOpenChange={setCreateTeamOpen}
+          clubId={activeTeam.clubId}
+          clubName={activeTeam.clubName}
+          defaultSeasonName={activeTeam.seasonName}
+          onCreated={async () => {
+            await refreshMe();
+          }}
+          onSwitchToTeam={(teamId) => {
+            setActiveTeamId(teamId);
+            router.push("/team");
+          }}
+        />
+      )}
     </div>
   );
 }

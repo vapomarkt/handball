@@ -1,14 +1,17 @@
 import { LeagueCatalogRepository } from "../adapters/league-catalog-repository";
 import {
   ClubRepository,
+  MemberRepository,
   TeamRepository,
 } from "../adapters/repositories";
+import { SeasonCatalogRepository } from "../adapters/season-catalog-repository";
 import { DomainError } from "../errors";
 import {
   canCreateTeam,
   canManageClub,
   canViewClub,
   canViewTeam,
+  isClubAdmin,
   isTeamStaff,
   ViewerContext,
 } from "../policies/rbac";
@@ -38,7 +41,9 @@ export class ClubService {
     private readonly clubs: ClubRepository,
     private readonly teams: TeamRepository,
     private readonly leagueCatalog?: LeagueCatalogRepository,
-    private readonly leagueDirectory?: LeagueDirectoryService
+    private readonly leagueDirectory?: LeagueDirectoryService,
+    private readonly members?: MemberRepository,
+    private readonly seasonCatalog?: SeasonCatalogRepository
   ) {}
 
   async listClubsForUser(viewer: ViewerContext) {
@@ -131,6 +136,68 @@ export class ClubService {
       );
     }
 
+    let resolvedSeasonId = parsed.data.seasonId ?? null;
+    if (!resolvedSeasonId) {
+      let desiredSeasonName = parsed.data.seasonName?.trim() || null;
+      let startDate: Date | null = null;
+      let endDate: Date | null = null;
+
+      if (parsed.data.seasonCatalogId && this.seasonCatalog) {
+        const catalogSeason = await this.seasonCatalog.findById(
+          parsed.data.seasonCatalogId
+        );
+        if (!catalogSeason || !catalogSeason.isActive) {
+          throw DomainError.validation(
+            "Die ausgewählte Saison existiert nicht oder ist nicht mehr aktiv.",
+            { seasonId: ["Bitte wähle eine gültige Saison aus."] }
+          );
+        }
+        desiredSeasonName = catalogSeason.name;
+        startDate = catalogSeason.startDate
+          ? new Date(catalogSeason.startDate)
+          : null;
+        endDate = catalogSeason.endDate ? new Date(catalogSeason.endDate) : null;
+      }
+
+      if (!desiredSeasonName) {
+        throw DomainError.validation("Saison muss ausgewählt sein.", {
+          seasonId: ["Bitte wähle eine Saison aus."],
+        });
+      }
+
+      const clubDetails = await this.clubs.findByIdWithDetails(clubId);
+      if (!clubDetails) {
+        throw DomainError.notFound("Verein nicht gefunden.");
+      }
+      const existingSeason = clubDetails.seasons.find(
+        (s) => s.name.trim().toLowerCase() === desiredSeasonName!.toLowerCase()
+      );
+      if (existingSeason) {
+        resolvedSeasonId = existingSeason.id;
+      } else {
+        const createdSeason = await this.clubs.createSeason({
+          clubId,
+          name: desiredSeasonName,
+          startDate,
+          endDate,
+          isActive: true,
+        });
+        resolvedSeasonId = createdSeason.id;
+      }
+    }
+
+    const existingTeams = await this.teams.findByClubId(clubId);
+    const duplicate = existingTeams.find(
+      (t) =>
+        t.seasonId === resolvedSeasonId &&
+        t.name.trim().toLowerCase() === parsed.data.name.trim().toLowerCase()
+    );
+    if (duplicate) {
+      throw DomainError.conflict(
+        `Die Mannschaft „${parsed.data.name}“ existiert in dieser Saison bereits.`
+      );
+    }
+
     let resolvedLeagueId = parsed.data.leagueId ?? null;
     let resolvedLeagueName = parsed.data.leagueName ?? null;
     let resolvedAgeGroup = parsed.data.ageGroup ?? null;
@@ -158,7 +225,7 @@ export class ClubService {
 
     const team = await this.teams.create({
       clubId,
-      seasonId: parsed.data.seasonId,
+      seasonId: resolvedSeasonId,
       name: parsed.data.name,
       category: parsed.data.category,
       ageGroup: resolvedAgeGroup,
@@ -167,6 +234,33 @@ export class ClubService {
       leagueId: resolvedLeagueId,
       leagueName: resolvedLeagueName,
     });
+
+    // Falls ein Trainer (ohne CLUB_ADMIN-Rolle) eine weitere Mannschaft anlegt,
+    // direkt als COACH eintragen, damit er sofort Zugriff darauf hat.
+    if (!isClubAdmin(viewer, clubId) && this.members) {
+      const nameParts = viewer.name.trim().split(/\s+/).filter(Boolean);
+      const firstName = nameParts[0] || "Trainer";
+      const lastName =
+        nameParts.length > 1 ? nameParts.slice(1).join(" ") : firstName;
+      await this.members.create(clubId, team.id, {
+        firstName,
+        lastName,
+        role: "COACH",
+        availabilityStatus: "FIT",
+        teamRoles: [],
+        isMinor: false,
+        email: viewer.email,
+        userId: viewer.userId,
+        jerseyNumber: null,
+        primaryPosition: null,
+        secondaryPosition: null,
+        throwingHand: null,
+        passNumber: null,
+        injuryNote: null,
+        emergencyContact: null,
+        phone: null,
+      });
+    }
 
     if (parsed.data.leagueGroupTeamId && this.leagueDirectory) {
       await this.leagueDirectory.linkTeamInternal(clubId, team.id, {

@@ -13,6 +13,7 @@ import {
   TeamInviteDTO,
   TeamInviteEntity,
 } from "../schemas/invite";
+import { normalizePlayerNameKey } from "./nuliga-opponent-players";
 
 const TOKEN_ALPHABET =
   "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
@@ -440,6 +441,73 @@ export class InviteService {
       parsed.data.lastName ??
       (nameParts.length > 1 ? nameParts.slice(1).join(" ") : "Neu");
 
+    // DSGVO-konformes Auto-Matching: Falls der Trainer bereits ein Profil (z. B. aus nuLiga-Spielberichten)
+    // ohne Login vorangelegt hat, wird es anhand des Namens automatisch verknüpft statt dupliziert.
+    const incomingNameKey = normalizePlayerNameKey(`${firstName} ${lastName}`);
+    if (incomingNameKey) {
+      const roster = await this.members.findByTeamId(invite.teamId);
+      const staffRoles = new Set(["COACH", "ASSISTANT_COACH", "TEAM_MANAGER"]);
+      const isRoleCompatible = (candidateRole: TeamInviteEntity["role"]) => {
+        if (candidateRole === invite.role) return true;
+        if (staffRoles.has(invite.role) && staffRoles.has(candidateRole)) {
+          return true;
+        }
+        return false;
+      };
+
+      const matchingUnclaimed = roster.filter(
+        (m) =>
+          m.userId === null &&
+          isRoleCompatible(m.role) &&
+          normalizePlayerNameKey(`${m.firstName} ${m.lastName}`) ===
+            incomingNameKey
+      );
+
+      if (matchingUnclaimed.length === 1) {
+        const matched = matchingUnclaimed[0];
+        let claimed = await this.members.assignUser(matched.id, viewer.userId);
+        let hasPatch = false;
+        const patch: {
+          email?: string;
+          phone: string | null | undefined;
+          emergencyContact?: string | null;
+        } = { phone: undefined };
+        if (!claimed.email && viewer.email) {
+          patch.email = viewer.email;
+          hasPatch = true;
+        }
+        if (!claimed.phone && parsed.data.phone) {
+          patch.phone = parsed.data.phone;
+          hasPatch = true;
+        }
+        if (!claimed.emergencyContact && parsed.data.emergencyContact) {
+          patch.emergencyContact = parsed.data.emergencyContact;
+          hasPatch = true;
+        }
+        if (hasPatch) {
+          claimed = await this.members.update(claimed.id, patch);
+        }
+
+        await this.invites.incrementUsedCount(invite.id);
+        return {
+          type: invite.type,
+          role: claimed.role,
+          teamId: invite.teamId,
+          memberId: claimed.id,
+          claimedExistingProfile: true,
+          jerseyNumber: claimed.jerseyNumber,
+          memberProfile: {
+            firstName: claimed.firstName,
+            lastName: claimed.lastName,
+            phone: claimed.phone,
+            emergencyContact: claimed.emergencyContact,
+            primaryPosition: claimed.primaryPosition,
+            throwingHand: claimed.throwingHand,
+          },
+        };
+      }
+    }
+
     const joined = await this.members.create(invite.clubId, invite.teamId, {
       firstName,
       lastName,
@@ -465,6 +533,8 @@ export class InviteService {
       role: joined.role,
       teamId: invite.teamId,
       memberId: joined.id,
+      claimedExistingProfile: false,
+      jerseyNumber: joined.jerseyNumber,
       memberProfile: {
         firstName: joined.firstName,
         lastName: joined.lastName,

@@ -76,6 +76,8 @@ interface ClaimedContext {
   memberId?: string;
   childMemberId?: string;
   childEmergencyContact?: string | null;
+  claimedExistingProfile?: boolean;
+  jerseyNumber?: number | null;
   memberProfile?: ClaimedMemberProfile;
 }
 
@@ -192,6 +194,8 @@ function InviteClaimContent() {
           memberId: data.memberId,
           childMemberId: data.childMemberId,
           childEmergencyContact: data.childEmergencyContact ?? null,
+          claimedExistingProfile: Boolean(data.claimedExistingProfile),
+          jerseyNumber: data.jerseyNumber ?? null,
           memberProfile: data.memberProfile,
         });
         setStep("profile");
@@ -935,7 +939,17 @@ function InviteClaimContent() {
                   jederzeit änderbar.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                {claimed.claimedExistingProfile && (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 px-3 py-2.5 text-xs text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
+                    Dein vorbereitetes Kader-Profil
+                    {claimed.jerseyNumber !== null &&
+                    claimed.jerseyNumber !== undefined
+                      ? ` (#${claimed.jerseyNumber})`
+                      : ""}{" "}
+                    wurde automatisch mit deinem Konto verknüpft.
+                  </div>
+                )}
                 <QuickProfileForm
                   initial={{
                     teamId: claimed.teamId,

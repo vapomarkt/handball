@@ -111,12 +111,20 @@ export const services = {
     clubRepo,
     teamRepo,
     leagueCatalogRepo,
-    leagueDirectoryService
+    leagueDirectoryService,
+    memberRepo,
+    seasonCatalogRepo
   ),
   leagueCatalog: new LeagueCatalogService(leagueCatalogRepo),
   seasonCatalog: new SeasonCatalogService(seasonCatalogRepo),
   leagueDirectory: leagueDirectoryService,
-  roster: new RosterService(teamRepo, memberRepo),
+  roster: new RosterService(
+    teamRepo,
+    memberRepo,
+    leagueDirectoryRepo,
+    leagueSyncRepo,
+    fetchUrlText
+  ),
   invite: new InviteService(teamRepo, memberRepo, inviteRepo, guardianRepo),
   guardian: new GuardianService(
     teamRepo,

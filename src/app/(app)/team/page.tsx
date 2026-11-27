@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  CheckCircle2,
   ChevronRight,
+  Download,
   Droplets,
   Link2,
   Loader2,
@@ -10,6 +12,7 @@ import {
   Search,
   ShieldAlert,
   Shirt,
+  Sparkles,
   Trash2,
   UserCheck,
   UserPlus,
@@ -19,6 +22,7 @@ import { JerseySetsPanel } from "@/components/jerseys/jersey-sets-panel";
 import { useAppContext } from "@/components/providers/app-context";
 import { InviteDialog } from "@/components/team/invite-dialog";
 import { MemberFormDialog } from "@/components/team/member-form-dialog";
+import { NuligaRosterImportDialog } from "@/components/team/nuliga-roster-import-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,7 +45,10 @@ import {
 } from "@/domain/schemas/handball";
 import type { GuardianLinkDTO } from "@/domain/schemas/invite";
 import type { JerseySetDTO } from "@/domain/schemas/jersey-set";
-import type { TeamMemberResponseDTO } from "@/domain/schemas/member";
+import type {
+  NuligaRosterImportResultDTO,
+  TeamMemberResponseDTO,
+} from "@/domain/schemas/member";
 import { formatPhoneNumber, toTelHref } from "@/domain/schemas/phone";
 
 const POSITION_FILTERS: Array<"ALL" | HandballPosition> = [
@@ -84,6 +91,9 @@ export default function TeamRosterPage() {
   const [inviteTargetId, setInviteTargetId] = useState<string | null>(null);
   const [inviteInitialType, setInviteInitialType] =
     useState<InviteType>("TEAM_JOIN");
+  const [nuligaImportOpen, setNuligaImportOpen] = useState(false);
+  const [importNotice, setImportNotice] =
+    useState<NuligaRosterImportResultDTO | null>(null);
 
   const isStaff =
     activeTeam?.role === "CLUB_ADMIN" ||
@@ -351,6 +361,13 @@ export default function TeamRosterPage() {
 
         {isStaff && activeTab === "roster" && (
           <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setNuligaImportOpen(true)}
+            >
+              <Download className="h-4 w-4" />
+              Aus Spielberichten
+            </Button>
             <Button variant="outline" onClick={openTeamInvite}>
               <Link2 className="h-4 w-4" />
               Einladungen
@@ -403,6 +420,89 @@ export default function TeamRosterPage() {
         />
       ) : (
         <>
+          {/* Erfolgs-Banner nach Spielbericht-Import + direkter Link zur Team-Einladung */}
+          {importNotice && (
+            <div
+              role="status"
+              className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+            >
+              <div className="flex items-start gap-2.5 text-sm text-emerald-900 dark:text-emerald-200">
+                <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
+                <div>
+                  <p className="font-semibold">
+                    {importNotice.createdCount}{" "}
+                    {importNotice.createdCount === 1 ? "Person" : "Personen"}{" "}
+                    aus nuLiga übernommen
+                    {importNotice.updatedCount > 0
+                      ? ` · ${importNotice.updatedCount} Trikotnummer${importNotice.updatedCount === 1 ? "" : "n"} ergänzt`
+                      : ""}
+                  </p>
+                  <p className="text-xs opacity-90 mt-0.5">
+                    Teile jetzt einfach den normalen Team-Einladungslink – beim
+                    Beitritt werden die Profile anhand des Namens automatisch
+                    verknüpft.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button size="sm" onClick={openTeamInvite}>
+                  <Link2 className="h-3.5 w-3.5" />
+                  Team-Link teilen
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setImportNotice(null)}
+                >
+                  Schließen
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Schnellstart-Karte, solange noch keine Spieler im Kader sind */}
+          {isStaff &&
+            !loading &&
+            !importNotice &&
+            members.filter((m) => m.role === "PLAYER").length === 0 && (
+              <Card className="border-primary/30 bg-primary/5">
+                <CardContent className="p-4 sm:p-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                      <Sparkles className="h-4 w-4" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-bold text-foreground">
+                        Kader in Sekunden statt einzeln anlegen
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Übernehme Spieler, Trikotnummern und optional Offizielle
+                        direkt aus euren letzten nuLiga-Spielberichten oder teile
+                        einen Team-Link per WhatsApp &amp; QR-Code.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      onClick={() => setNuligaImportOpen(true)}
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Aus Spielberichten importieren
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={openTeamInvite}
+                    >
+                      <Link2 className="h-3.5 w-3.5" />
+                      Team-Link teilen
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
           {/* Filter & Suche */}
       <div className="space-y-3">
         <div className="relative">
@@ -747,6 +847,20 @@ export default function TeamRosterPage() {
           members={members}
           initialTargetMemberId={inviteTargetId}
           initialType={inviteInitialType}
+        />
+      )}
+
+      {isStaff && nuligaImportOpen && (
+        <NuligaRosterImportDialog
+          open={nuligaImportOpen}
+          onOpenChange={setNuligaImportOpen}
+          teamId={activeTeam.teamId}
+          teamName={activeTeam.teamName}
+          onImported={async (res) => {
+            setImportNotice(res);
+            await loadRoster();
+          }}
+          onOpenInvite={openTeamInvite}
         />
       )}
     </div>

@@ -1,4 +1,5 @@
 import { FetchTextFn } from "../adapters/league-provider";
+import type { MemberRole } from "../schemas/handball";
 import type { ThreatLevel } from "../schemas/scouting";
 
 export interface NuligaOpponentPlayerCandidate {
@@ -110,6 +111,48 @@ export function formatPlayerDisplayName(rawName: string): string {
   if (!first) return last;
   if (!last) return first;
   return `${first} ${last}`;
+}
+
+/**
+ * Zerlegt einen nuLiga-Namen ("van der Berg, Jan Luca" oder "Noah Dreyer")
+ * sauber in Vorname, Nachname und Anzeigename.
+ */
+export function splitNuligaPersonName(rawName: string): {
+  firstName: string;
+  lastName: string;
+  displayName: string;
+} {
+  const cleaned = rawName.replace(/\s+/g, " ").trim();
+  if (!cleaned) {
+    return { firstName: "", lastName: "", displayName: "" };
+  }
+
+  const commaIdx = cleaned.indexOf(",");
+  if (commaIdx !== -1) {
+    const lastName = cleaned.slice(0, commaIdx).trim();
+    const firstName = cleaned.slice(commaIdx + 1).trim();
+    if (firstName && lastName) {
+      return {
+        firstName,
+        lastName,
+        displayName: `${firstName} ${lastName}`,
+      };
+    }
+    const single = firstName || lastName;
+    return { firstName: single, lastName: single, displayName: single };
+  }
+
+  const parts = cleaned.split(" ").filter(Boolean);
+  if (parts.length === 1) {
+    return { firstName: parts[0], lastName: parts[0], displayName: parts[0] };
+  }
+  const firstName = parts[0];
+  const lastName = parts.slice(1).join(" ");
+  return {
+    firstName,
+    lastName,
+    displayName: `${firstName} ${lastName}`,
+  };
 }
 
 /**
@@ -296,6 +339,14 @@ export function parseSevenMeterGoalsHtml(html: string): {
   return { rows, anonymizedCount };
 }
 
+export type OfficialCode = "A" | "B" | "C" | "D";
+
+export interface ParsedMeetingReportOfficial {
+  personId: string | null;
+  rawName: string;
+  officialCode: OfficialCode;
+}
+
 export interface ParsedMeetingReportPlayer {
   personId: string | null;
   rawName: string;
@@ -311,6 +362,7 @@ export function parseMeetingReportTeamRosterHtml(
   fallbackClubName?: string | null
 ): {
   players: ParsedMeetingReportPlayer[];
+  officials: ParsedMeetingReportOfficial[];
   anonymizedCount: number;
   matchedSection: boolean;
 } {
@@ -330,20 +382,41 @@ export function parseMeetingReportTeamRosterHtml(
   }
 
   if (!matchedTable) {
-    return { players: [], anonymizedCount: 0, matchedSection: false };
+    return {
+      players: [],
+      officials: [],
+      anonymizedCount: 0,
+      matchedSection: false,
+    };
   }
 
   const players: ParsedMeetingReportPlayer[] = [];
+  const officials: ParsedMeetingReportOfficial[] = [];
   let anonymizedCount = 0;
 
   const trs = matchedTable.split(/<tr\b[^>]*>/i).slice(1);
   for (const tr of trs) {
     const cells = extractCells(tr);
-    if (cells.length < 6) continue;
+    if (cells.length < 2) continue;
 
     const jerseyText = stripTags(cells[0]);
-    // Offizielle (A, B, C, D) überspringen
+    // Offizielle (A, B, C, D) getrennt erfassen
+    if (/^[A-Da-d]$/.test(jerseyText)) {
+      const rawOfficialName = stripTags(cells[1]);
+      if (isAnonymizedPlayerName(rawOfficialName)) {
+        if (rawOfficialName.length > 0) anonymizedCount += 1;
+        continue;
+      }
+      officials.push({
+        personId: extractPersonId(cells[1]),
+        rawName: rawOfficialName,
+        officialCode: jerseyText.toUpperCase() as OfficialCode,
+      });
+      continue;
+    }
     if (/^[A-Za-z]$/.test(jerseyText)) continue;
+    if (cells.length < 6) continue;
+
     const jerseyNumber = parseIntSafe(jerseyText);
     if (jerseyNumber !== null && (jerseyNumber < 1 || jerseyNumber > 99)) {
       continue;
@@ -381,7 +454,7 @@ export function parseMeetingReportTeamRosterHtml(
     });
   }
 
-  return { players, anonymizedCount, matchedSection: true };
+  return { players, officials, anonymizedCount, matchedSection: true };
 }
 
 export function extractMeetingReportUrls(
@@ -741,6 +814,390 @@ export async function fetchNuligaOpponentPlayers(
     players,
     reportsAnalyzed,
     statisticsAvailable,
+    anonymizedDetected,
+    warning,
+  };
+}
+
+export interface NuligaTeamRosterCandidate {
+  kind: "PLAYER" | "OFFICIAL";
+  externalPlayerId: string | null;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  jerseyNumber: number | null;
+  officialCode: OfficialCode | null;
+  suggestedRole: MemberRole;
+  appearances: number;
+}
+
+export interface NuligaTeamRosterFetchTarget {
+  teamName: string;
+  officialTeamName?: string | null;
+  clubName?: string | null;
+  groupUrl?: string | null;
+  teamUrl?: string | null;
+  directReportUrl?: string | null;
+  maxMatchReports?: number;
+}
+
+export interface NuligaTeamRosterFetchResult {
+  resolvedTeamUrl: string | null;
+  resolvedGroupUrl: string | null;
+  players: NuligaTeamRosterCandidate[];
+  officials: NuligaTeamRosterCandidate[];
+  reportsAnalyzed: number;
+  anonymizedDetected: boolean;
+  warning: string | null;
+}
+
+function suggestRoleForOfficialCode(code: OfficialCode): MemberRole {
+  if (code === "A") return "COACH";
+  if (code === "B") return "ASSISTANT_COACH";
+  return "TEAM_MANAGER";
+}
+
+function pickMostFrequentOfficialCode(
+  counts: Map<OfficialCode, number>
+): OfficialCode {
+  let bestCode: OfficialCode = "A";
+  let bestCount = -1;
+  const order: OfficialCode[] = ["A", "B", "C", "D"];
+  for (const code of order) {
+    const count = counts.get(code) ?? 0;
+    if (count > bestCount) {
+      bestCount = count;
+      bestCode = code;
+    }
+  }
+  return bestCode;
+}
+
+interface RosterPlayerAccumulator {
+  externalPlayerId: string | null;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  jerseyCounts: Map<number, number>;
+  appearances: number;
+}
+
+interface RosterOfficialAccumulator {
+  externalPlayerId: string | null;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  codeCounts: Map<OfficialCode, number>;
+  appearances: number;
+}
+
+/**
+ * Lädt den Kader der eigenen Mannschaft (Spieler inkl. Trikotnummern + optional Offizielle A–D)
+ * aus den letzten nuLiga-Spielberichten (mit Statistik-Fallback, falls noch keine Berichte vorliegen).
+ */
+export async function fetchNuligaTeamRoster(
+  fetchText: FetchTextFn,
+  target: NuligaTeamRosterFetchTarget
+): Promise<NuligaTeamRosterFetchResult> {
+  const maxReports = Math.min(Math.max(target.maxMatchReports ?? 8, 1), 15);
+  const directReportUrl =
+    target.directReportUrl && isAllowedNuligaUrl(target.directReportUrl)
+      ? target.directReportUrl
+      : null;
+  let resolvedTeamUrl =
+    target.teamUrl && isAllowedNuligaUrl(target.teamUrl) ? target.teamUrl : null;
+  let resolvedGroupUrl =
+    target.groupUrl && isAllowedNuligaUrl(target.groupUrl)
+      ? target.groupUrl
+      : null;
+
+  const statsUrls =
+    (resolvedGroupUrl ? deriveGroupStatisticsUrls(resolvedGroupUrl) : null) ??
+    (resolvedTeamUrl ? deriveGroupStatisticsUrls(resolvedTeamUrl) : null) ??
+    (directReportUrl ? deriveGroupStatisticsUrls(directReportUrl) : null);
+
+  if (!resolvedGroupUrl && statsUrls) {
+    resolvedGroupUrl = statsUrls.groupUrl;
+  }
+
+  const primaryMatchName = target.officialTeamName?.trim() || target.teamName;
+  const fallbackMatchName =
+    target.clubName?.trim() &&
+    normalizeCompareText(target.clubName) !== normalizeCompareText(primaryMatchName)
+      ? target.clubName.trim()
+      : null;
+
+  if (!directReportUrl && !resolvedTeamUrl && resolvedGroupUrl) {
+    try {
+      const groupHtml = await fetchText(resolvedGroupUrl);
+      resolvedTeamUrl = findTeamPortraitUrlInGroupHtml(
+        groupHtml,
+        resolvedGroupUrl,
+        primaryMatchName,
+        fallbackMatchName
+      );
+    } catch {
+      // Best-effort
+    }
+  }
+
+  if (!directReportUrl && !resolvedTeamUrl && !statsUrls) {
+    return {
+      resolvedTeamUrl: null,
+      resolvedGroupUrl: null,
+      players: [],
+      officials: [],
+      reportsAnalyzed: 0,
+      anonymizedDetected: false,
+      warning:
+        "Keine gültige nuLiga-URL für diese Mannschaft gefunden. Verknüpfe deine HVNB-Staffel oder füge eine nuLiga-Mannschafts- bzw. Spielbericht-URL (https://...liga.nu/...) ein.",
+    };
+  }
+
+  const playerAccByKey = new Map<string, RosterPlayerAccumulator>();
+  const playerKeyByName = new Map<string, string>();
+  const officialAccByKey = new Map<string, RosterOfficialAccumulator>();
+  const officialKeyByName = new Map<string, string>();
+
+  const getOrCreatePlayer = (
+    personId: string | null,
+    rawName: string
+  ): RosterPlayerAccumulator => {
+    const split = splitNuligaPersonName(rawName);
+    const nameKey = normalizePlayerNameKey(split.displayName);
+    const existingKey =
+      (personId && playerAccByKey.has(`p:${personId}`)
+        ? `p:${personId}`
+        : null) ??
+      playerKeyByName.get(nameKey) ??
+      null;
+
+    if (existingKey) {
+      const existing = playerAccByKey.get(existingKey)!;
+      if (personId && !existing.externalPlayerId) {
+        existing.externalPlayerId = personId;
+        playerAccByKey.set(`p:${personId}`, existing);
+      }
+      return existing;
+    }
+
+    const key = personId ? `p:${personId}` : `n:${nameKey}`;
+    const created: RosterPlayerAccumulator = {
+      externalPlayerId: personId,
+      firstName: split.firstName,
+      lastName: split.lastName,
+      displayName: split.displayName,
+      jerseyCounts: new Map(),
+      appearances: 0,
+    };
+    playerAccByKey.set(key, created);
+    playerKeyByName.set(nameKey, key);
+    return created;
+  };
+
+  const getOrCreateOfficial = (
+    personId: string | null,
+    rawName: string
+  ): RosterOfficialAccumulator => {
+    const split = splitNuligaPersonName(rawName);
+    const nameKey = normalizePlayerNameKey(split.displayName);
+    const existingKey =
+      (personId && officialAccByKey.has(`p:${personId}`)
+        ? `p:${personId}`
+        : null) ??
+      officialKeyByName.get(nameKey) ??
+      null;
+
+    if (existingKey) {
+      const existing = officialAccByKey.get(existingKey)!;
+      if (personId && !existing.externalPlayerId) {
+        existing.externalPlayerId = personId;
+        officialAccByKey.set(`p:${personId}`, existing);
+      }
+      return existing;
+    }
+
+    const key = personId ? `p:${personId}` : `n:${nameKey}`;
+    const created: RosterOfficialAccumulator = {
+      externalPlayerId: personId,
+      firstName: split.firstName,
+      lastName: split.lastName,
+      displayName: split.displayName,
+      codeCounts: new Map(),
+      appearances: 0,
+    };
+    officialAccByKey.set(key, created);
+    officialKeyByName.set(nameKey, key);
+    return created;
+  };
+
+  let reportsAnalyzed = 0;
+  let anonymizedCount = 0;
+
+  const processReportHtml = (html: string) => {
+    const parsed = parseMeetingReportTeamRosterHtml(
+      html,
+      primaryMatchName,
+      fallbackMatchName
+    );
+    if (!parsed.matchedSection) return;
+    reportsAnalyzed += 1;
+    anonymizedCount += parsed.anonymizedCount;
+
+    const seenPlayersInReport = new Set<string>();
+    for (const p of parsed.players) {
+      const entry = getOrCreatePlayer(p.personId, p.rawName);
+      const dedupeKey = normalizePlayerNameKey(entry.displayName);
+      if (p.jerseyNumber !== null) {
+        entry.jerseyCounts.set(
+          p.jerseyNumber,
+          (entry.jerseyCounts.get(p.jerseyNumber) ?? 0) + 1
+        );
+      }
+      if (!seenPlayersInReport.has(dedupeKey)) {
+        seenPlayersInReport.add(dedupeKey);
+        entry.appearances += 1;
+      }
+    }
+
+    const seenOfficialsInReport = new Set<string>();
+    for (const o of parsed.officials) {
+      const entry = getOrCreateOfficial(o.personId, o.rawName);
+      const dedupeKey = normalizePlayerNameKey(entry.displayName);
+      entry.codeCounts.set(
+        o.officialCode,
+        (entry.codeCounts.get(o.officialCode) ?? 0) + 1
+      );
+      if (!seenOfficialsInReport.has(dedupeKey)) {
+        seenOfficialsInReport.add(dedupeKey);
+        entry.appearances += 1;
+      }
+    }
+  };
+
+  if (directReportUrl) {
+    try {
+      const reportHtml = await fetchText(directReportUrl);
+      processReportHtml(reportHtml);
+    } catch {
+      // Wird über leere Liste + Hinweis behandelt
+    }
+  } else if (resolvedTeamUrl) {
+    try {
+      const portraitHtml = await fetchText(resolvedTeamUrl);
+      const reportUrls = extractMeetingReportUrls(
+        portraitHtml,
+        resolvedTeamUrl,
+        maxReports
+      );
+      const reportResults = await Promise.allSettled(
+        reportUrls.map((url) => fetchText(url))
+      );
+      for (const res of reportResults) {
+        if (res.status !== "fulfilled") continue;
+        processReportHtml(res.value);
+      }
+    } catch {
+      // Best-effort: ggf. Statistik-Fallback nutzen
+    }
+  }
+
+  // Fallback auf Staffel-Torschützenliste, falls keine Spielberichte gefunden wurden
+  if (reportsAnalyzed === 0 && statsUrls) {
+    try {
+      const goalsHtml = await fetchText(statsUrls.playerGoalsUrl);
+      const parsed = parsePlayerGoalsHtml(goalsHtml);
+      anonymizedCount += parsed.anonymizedCount;
+      for (const row of parsed.rows) {
+        if (
+          !teamNamesMatch(row.clubName, primaryMatchName) &&
+          !(fallbackMatchName && teamNamesMatch(row.clubName, fallbackMatchName))
+        ) {
+          continue;
+        }
+        const entry = getOrCreatePlayer(row.personId, row.rawName);
+        entry.appearances = Math.max(entry.appearances, row.games ?? 1);
+      }
+    } catch {
+      // Best-effort
+    }
+  }
+
+  const uniquePlayers = Array.from(new Set(playerAccByKey.values()));
+  const playerNameKeys = new Set(
+    uniquePlayers.map((p) => normalizePlayerNameKey(p.displayName))
+  );
+
+  const players: NuligaTeamRosterCandidate[] = uniquePlayers
+    .map((p) => ({
+      kind: "PLAYER" as const,
+      externalPlayerId: p.externalPlayerId,
+      firstName: p.firstName,
+      lastName: p.lastName,
+      displayName: p.displayName,
+      jerseyNumber: pickMostFrequentJersey(p.jerseyCounts),
+      officialCode: null,
+      suggestedRole: "PLAYER" as const,
+      appearances: p.appearances,
+    }))
+    .sort((a, b) => {
+      if (b.appearances !== a.appearances) return b.appearances - a.appearances;
+      const numA = a.jerseyNumber ?? 999;
+      const numB = b.jerseyNumber ?? 999;
+      if (numA !== numB) return numA - numB;
+      return a.lastName.localeCompare(b.lastName, "de");
+    });
+
+  // Offizielle, die gleichzeitig als Spieler auf dem Bogen standen (z. B. Spielertrainer),
+  // nicht doppelt in der Offiziellen-Liste aufführen.
+  const uniqueOfficials = Array.from(new Set(officialAccByKey.values())).filter(
+    (o) => !playerNameKeys.has(normalizePlayerNameKey(o.displayName))
+  );
+
+  const officials: NuligaTeamRosterCandidate[] = uniqueOfficials
+    .map((o) => {
+      const code = pickMostFrequentOfficialCode(o.codeCounts);
+      return {
+        kind: "OFFICIAL" as const,
+        externalPlayerId: o.externalPlayerId,
+        firstName: o.firstName,
+        lastName: o.lastName,
+        displayName: o.displayName,
+        jerseyNumber: null,
+        officialCode: code,
+        suggestedRole: suggestRoleForOfficialCode(code),
+        appearances: o.appearances,
+      };
+    })
+    .sort((a, b) => {
+      const codeDiff = (a.officialCode ?? "Z").localeCompare(
+        b.officialCode ?? "Z"
+      );
+      if (codeDiff !== 0) return codeDiff;
+      if (b.appearances !== a.appearances) return b.appearances - a.appearances;
+      return a.lastName.localeCompare(b.lastName, "de");
+    });
+
+  const anonymizedDetected = anonymizedCount > 0;
+  const totalFound = players.length + officials.length;
+  let warning: string | null = null;
+  if (totalFound === 0 && anonymizedDetected) {
+    warning =
+      "nuLiga blendet Spielernamen in dieser Staffel aus Datenschutzgründen (z. B. Jugendbereich) aus. Lade Spieler & Eltern am besten direkt per Team-Link oder QR-Code ein.";
+  } else if (totalFound === 0) {
+    warning =
+      "Für diese Mannschaft wurden in nuLiga aktuell noch keine Spielberichte gefunden. Zu Saisonbeginn kannst du oben auch die nuLiga-Mannschaftsseite der Vorsaison einfügen.";
+  } else if (anonymizedDetected) {
+    warning =
+      "Einzelne Namen sind in nuLiga anonymisiert und wurden übersprungen.";
+  }
+
+  return {
+    resolvedTeamUrl,
+    resolvedGroupUrl,
+    players,
+    officials,
+    reportsAnalyzed,
     anonymizedDetected,
     warning,
   };

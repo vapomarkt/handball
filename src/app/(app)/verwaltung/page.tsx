@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
+  ArrowRight,
   CalendarRange,
   CheckCircle2,
   Eye,
@@ -12,8 +14,10 @@ import {
   Plus,
   Star,
   Trash2,
+  Users,
 } from "lucide-react";
 import { useAppContext } from "@/components/providers/app-context";
+import { CreateTeamDialog } from "@/components/team/create-team-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { TeamDTO } from "@/domain/schemas/club";
 import type { SeasonCatalogDTO } from "@/domain/schemas/season-catalog";
 import { cn } from "@/lib/utils";
 
@@ -61,10 +66,15 @@ interface SeasonFormState {
 }
 
 export default function AdminSeasonsPage() {
-  const { activeTeam } = useAppContext();
+  const router = useRouter();
+  const { activeTeam, setActiveTeamId, refreshMe } = useAppContext();
   const isAdmin = Boolean(activeTeam?.isClubAdmin);
+  const clubId = activeTeam?.clubId ?? null;
 
   const [seasons, setSeasons] = useState<SeasonCatalogDTO[]>([]);
+  const [clubTeams, setClubTeams] = useState<TeamDTO[]>([]);
+  const [loadingTeams, setLoadingTeams] = useState(true);
+  const [createTeamOpen, setCreateTeamOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -96,6 +106,21 @@ export default function AdminSeasonsPage() {
     const maxOrder = Math.max(...seasons.map((s) => s.sortOrder));
     return maxOrder + 10;
   }, [seasons]);
+
+  const fetchClubTeams = useCallback(async () => {
+    if (!isAdmin || !clubId) return;
+    try {
+      const res = await fetch(`/api/v1/clubs/${encodeURIComponent(clubId)}`, {
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setClubTeams(data.teams ?? []);
+      }
+    } finally {
+      setLoadingTeams(false);
+    }
+  }, [isAdmin, clubId]);
 
   const fetchSeasons = useCallback(async () => {
     if (!isAdmin) return;
@@ -145,10 +170,24 @@ export default function AdminSeasonsPage() {
         if (active) setLoading(false);
       });
 
+    if (clubId) {
+      fetch(`/api/v1/clubs/${encodeURIComponent(clubId)}`, {
+        cache: "no-store",
+      })
+        .then(async (res) => {
+          if (!active || !res.ok) return;
+          const data = await res.json();
+          if (active) setClubTeams(data.teams ?? []);
+        })
+        .finally(() => {
+          if (active) setLoadingTeams(false);
+        });
+    }
+
     return () => {
       active = false;
     };
-  }, [isAdmin]);
+  }, [isAdmin, clubId]);
 
   function openCreateDialog() {
     setEditingSeason(null);
@@ -354,17 +393,25 @@ export default function AdminSeasonsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">
-            Saison-Verwaltung
+            Vereins- &amp; Saison-Verwaltung
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Pflege hier die verfügbaren Spielzeiten für das Auswahl-Feld bei der
-            Registrierung neuer Mannschaften.
+            Lege weitere Mannschaften in deinem Verein an und pflege die
+            verfügbaren Spielzeiten.
           </p>
         </div>
-        <Button type="button" onClick={openCreateDialog}>
-          <Plus className="h-4 w-4" />
-          Neue Saison anlegen
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {activeTeam && (
+            <Button type="button" onClick={() => setCreateTeamOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Weitere Mannschaft anlegen
+            </Button>
+          )}
+          <Button type="button" variant="outline" onClick={openCreateDialog}>
+            <Plus className="h-4 w-4" />
+            Neue Saison anlegen
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -384,6 +431,94 @@ export default function AdminSeasonsPage() {
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           <span>{notice}</span>
         </div>
+      )}
+
+      {/* Mannschaften im Verein */}
+      {activeTeam && (
+        <Card>
+          <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Users className="h-4 w-4 text-primary" />
+                Mannschaften · {activeTeam.clubName} ({clubTeams.length})
+              </CardTitle>
+              <CardDescription>
+                Füge weitere Mannschaften hinzu und übernehme deren Kader direkt
+                aus nuLiga-Spielberichten.
+              </CardDescription>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setCreateTeamOpen(true)}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Mannschaft hinzufügen
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {loadingTeams ? (
+              <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Lade Mannschaften…
+              </div>
+            ) : clubTeams.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                Noch keine Mannschaften gefunden.
+              </p>
+            ) : (
+              <div className="divide-y divide-border">
+                {clubTeams.map((team) => {
+                  const isCurrent = team.id === activeTeam.teamId;
+                  return (
+                    <div
+                      key={team.id}
+                      className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-bold text-foreground">
+                            {team.name}
+                          </span>
+                          {team.seasonName && (
+                            <Badge variant="outline" className="text-[11px]">
+                              {team.seasonName}
+                            </Badge>
+                          )}
+                          {isCurrent && (
+                            <Badge variant="secondary" className="text-[11px]">
+                              Aktiv
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {team.leagueName ?? "Ohne Liga-Verknüpfung"}
+                          {typeof team.memberCount === "number"
+                            ? ` · ${team.memberCount} ${team.memberCount === 1 ? "Mitglied" : "Mitglieder"}`
+                            : ""}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setActiveTeamId(team.id);
+                          router.push("/team");
+                        }}
+                        className="self-start sm:self-center shrink-0"
+                      >
+                        Zum Kader
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <Card>
@@ -649,6 +784,24 @@ export default function AdminSeasonsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {activeTeam && (
+        <CreateTeamDialog
+          open={createTeamOpen}
+          onOpenChange={setCreateTeamOpen}
+          clubId={activeTeam.clubId}
+          clubName={activeTeam.clubName}
+          defaultSeasonName={activeTeam.seasonName}
+          onCreated={async (created) => {
+            setNotice(`Mannschaft „${created.name}“ wurde angelegt.`);
+            await Promise.all([fetchClubTeams(), refreshMe()]);
+          }}
+          onSwitchToTeam={(teamId) => {
+            setActiveTeamId(teamId);
+            router.push("/team");
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -54,6 +54,8 @@ export interface MeMembership {
     gender: "MALE" | "FEMALE" | "MIXED";
     usesResin: boolean;
     leagueName: string | null;
+    leagueGroupTeamId?: string | null;
+    seasonId?: string;
     seasonName: string;
   };
 }
@@ -71,6 +73,8 @@ export interface SelectableTeam {
   ageGroup: LeagueAgeGroup | null;
   usesResin: boolean;
   leagueName: string | null;
+  hasLeagueLink: boolean;
+  seasonId?: string;
   seasonName: string;
   clubId: string;
   clubName: string;
@@ -96,6 +100,8 @@ export interface MePayload {
     gender: "MALE" | "FEMALE" | "MIXED";
     usesResin: boolean;
     leagueName: string | null;
+    leagueGroupTeamId?: string | null;
+    seasonId?: string;
     seasonName: string;
     club: {
       id: string;
@@ -215,6 +221,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ageGroup: m.team.ageGroup ?? null,
         usesResin: m.team.usesResin ?? true,
         leagueName: m.team.leagueName,
+        hasLeagueLink: Boolean(m.team.leagueGroupTeamId),
+        seasonId: m.team.seasonId,
         seasonName: m.team.seasonName,
         clubId: m.club.id,
         clubName: m.club.name,
@@ -232,6 +240,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           ageGroup: t.ageGroup ?? null,
           usesResin: t.usesResin ?? true,
           leagueName: t.leagueName,
+          hasLeagueLink: Boolean(t.leagueGroupTeamId),
+          seasonId: t.seasonId,
           seasonName: t.seasonName,
           clubId: t.club.id,
           clubName: t.club.name,

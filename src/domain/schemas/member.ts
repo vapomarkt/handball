@@ -160,3 +160,70 @@ export interface TeamMemberSensitiveDTO
 }
 
 export type TeamMemberResponseDTO = TeamMemberPublicDTO | TeamMemberSensitiveDTO;
+
+// ============================================================================
+// nuLiga Spielbericht-Kaderimport (Spieler & optionale Offizielle A–D)
+// ============================================================================
+
+export const NuligaRosterPreviewSchema = z.object({
+  sourceUrl: z
+    .string()
+    .trim()
+    .url("Bitte eine gültige nuLiga-URL eingeben.")
+    .max(500)
+    .optional()
+    .nullable()
+    .or(z.literal("").transform(() => null)),
+  maxMatchReports: z.number().int().min(1).max(15).optional(),
+});
+export type NuligaRosterPreviewInput = z.infer<typeof NuligaRosterPreviewSchema>;
+
+export const NuligaRosterImportItemSchema = z.object({
+  firstName: z.string().trim().min(1, "Vorname erforderlich.").max(60),
+  lastName: z.string().trim().min(1, "Nachname erforderlich.").max(60),
+  role: MemberRoleSchema.default("PLAYER"),
+  jerseyNumber: z.number().int().min(1).max(99).optional().nullable(),
+  isMinor: z.boolean().optional(),
+});
+
+export const NuligaRosterImportSchema = z.object({
+  members: z
+    .array(NuligaRosterImportItemSchema)
+    .min(1, "Bitte mindestens eine Person auswählen.")
+    .max(80),
+  updateExistingJerseyNumbers: z.boolean().optional().default(true),
+});
+export type NuligaRosterImportInput = z.infer<typeof NuligaRosterImportSchema>;
+
+export interface NuligaRosterCandidateDTO {
+  kind: "PLAYER" | "OFFICIAL";
+  externalPlayerId: string | null;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  jerseyNumber: number | null;
+  officialCode: "A" | "B" | "C" | "D" | null;
+  suggestedRole: MemberRole;
+  appearances: number;
+  alreadyInRoster: boolean;
+  existingMemberId: string | null;
+  existingMemberJerseyNumber: number | null;
+}
+
+export interface NuligaRosterPreviewResponseDTO {
+  resolvedTeamUrl: string | null;
+  resolvedGroupUrl: string | null;
+  reportsAnalyzed: number;
+  anonymizedDetected: boolean;
+  defaultIsMinor: boolean;
+  warning: string | null;
+  players: NuligaRosterCandidateDTO[];
+  officials: NuligaRosterCandidateDTO[];
+}
+
+export interface NuligaRosterImportResultDTO {
+  createdCount: number;
+  updatedCount: number;
+  skippedCount: number;
+  members: TeamMemberResponseDTO[];
+}

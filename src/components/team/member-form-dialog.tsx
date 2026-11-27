@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { SelectNative } from "@/components/ui/select-native";
 import {
   AVAILABILITY_STATUS_LABELS,
@@ -25,6 +26,7 @@ import {
   type ThrowingHand,
 } from "@/domain/schemas/handball";
 import type { TeamMemberResponseDTO } from "@/domain/schemas/member";
+import { normalizePhoneNumber } from "@/domain/schemas/phone";
 
 interface MemberFormDialogProps {
   open: boolean;
@@ -104,6 +106,13 @@ export function MemberFormDialog({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    const normalizedPhone = normalizePhoneNumber(phone);
+    if (!normalizedPhone.ok) {
+      setError(normalizedPhone.error);
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -123,7 +132,7 @@ export function MemberFormDialog({
             passNumber: passNumber || null,
             emergencyContact: emergencyContact || null,
             injuryNote: injuryNote || null,
-            phone: phone || null,
+            phone: normalizedPhone.e164,
             email: email || null,
           }
         : {
@@ -141,7 +150,7 @@ export function MemberFormDialog({
             availabilityStatus,
             emergencyContact: emergencyContact || null,
             injuryNote: injuryNote || null,
-            phone: phone || null,
+            phone: normalizedPhone.e164,
             email: email || null,
           };
 
@@ -499,12 +508,7 @@ export function MemberFormDialog({
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="m-phone">Telefon</Label>
-                <Input
-                  id="m-phone"
-                  placeholder="+49 …"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
+                <PhoneInput id="m-phone" value={phone} onChange={setPhone} />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="m-email">E-Mail (optional)</Label>

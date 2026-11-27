@@ -185,7 +185,7 @@ describe("SelfUpdateMemberSchema für schnelle Profil-Vervollständigung", () =>
       lastName: "Meyer",
       primaryPosition: "LA",
       throwingHand: "LEFT",
-      phone: "0171 999888",
+      phone: "0171 9998880",
       emergencyContact: "Vater 0171 111222",
       role: "CLUB_ADMIN",
       jerseyNumber: 99,
@@ -196,6 +196,7 @@ describe("SelfUpdateMemberSchema für schnelle Profil-Vervollständigung", () =>
     expect(parsed.lastName).toBe("Meyer");
     expect(parsed.primaryPosition).toBe("LA");
     expect(parsed.throwingHand).toBe("LEFT");
+    expect(parsed.phone).toBe("+491719998880");
     expect("role" in parsed).toBe(false);
     expect("jerseyNumber" in parsed).toBe(false);
     expect("passNumber" in parsed).toBe(false);

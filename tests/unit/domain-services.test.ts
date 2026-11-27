@@ -348,7 +348,7 @@ describe("RosterService & InviteService Fachlogik", () => {
     expect(claimed.memberProfile).toMatchObject({
       firstName: "Petra",
       lastName: "Brandt",
-      phone: "0170 5550199",
+      phone: "+491705550199",
       emergencyContact: "Thomas Brandt 0170 5550100",
     });
   });

@@ -42,6 +42,7 @@ import {
 import type { GuardianLinkDTO } from "@/domain/schemas/invite";
 import type { JerseySetDTO } from "@/domain/schemas/jersey-set";
 import type { TeamMemberResponseDTO } from "@/domain/schemas/member";
+import { formatPhoneNumber, toTelHref } from "@/domain/schemas/phone";
 
 const POSITION_FILTERS: Array<"ALL" | HandballPosition> = [
   "ALL",
@@ -603,14 +604,29 @@ export default function TeamRosterPage() {
                                     {member.emergencyContact}
                                   </span>
                                 )}
-                                {member.phone && (
-                                  <span>
-                                    <span className="text-muted-foreground">
-                                      Tel.:{" "}
+                                {member.phone && (() => {
+                                  const formattedPhone = formatPhoneNumber(
+                                    member.phone
+                                  );
+                                  const telHref = toTelHref(member.phone);
+                                  return (
+                                    <span>
+                                      <span className="text-muted-foreground">
+                                        Tel.:{" "}
+                                      </span>
+                                      {telHref ? (
+                                        <a
+                                          href={telHref}
+                                          className="font-mono underline-offset-2 hover:text-primary hover:underline"
+                                        >
+                                          {formattedPhone}
+                                        </a>
+                                      ) : (
+                                        formattedPhone
+                                      )}
                                     </span>
-                                    {member.phone}
-                                  </span>
-                                )}
+                                  );
+                                })()}
                               </div>
                               {member.injuryNote && (
                                 <p className="flex items-center gap-1 text-red-700 dark:text-red-300 pt-0.5">

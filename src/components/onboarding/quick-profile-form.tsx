@@ -5,6 +5,7 @@ import { Check, Loader2, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
 import {
   HANDBALL_POSITION_LABELS,
   THROWING_HAND_LABELS,
@@ -12,6 +13,7 @@ import {
   type MemberRole,
   type ThrowingHand,
 } from "@/domain/schemas/handball";
+import { normalizePhoneNumber } from "@/domain/schemas/phone";
 import { cn } from "@/lib/utils";
 
 const POSITIONS = Object.keys(HANDBALL_POSITION_LABELS) as HandballPosition[];
@@ -69,6 +71,13 @@ export function QuickProfileForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    const normalizedPhone = normalizePhoneNumber(phone);
+    if (!normalizedPhone.ok) {
+      setError(normalizedPhone.error);
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -76,7 +85,7 @@ export function QuickProfileForm({
         teamId: initial.teamId,
         firstName: firstName.trim() || undefined,
         lastName: lastName.trim() || undefined,
-        phone: phone.trim() || null,
+        phone: normalizedPhone.e164,
       };
 
       if (isPlayer) {
@@ -211,14 +220,7 @@ export function QuickProfileForm({
 
       <div className="space-y-1.5">
         <Label htmlFor="qp-phone">Telefonnummer (optional)</Label>
-        <Input
-          id="qp-phone"
-          type="tel"
-          autoComplete="tel"
-          placeholder="z. B. 0170 1234567"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-        />
+        <PhoneInput id="qp-phone" value={phone} onChange={setPhone} />
       </div>
 
       {(isPlayer || isParent) && (

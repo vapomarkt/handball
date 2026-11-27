@@ -422,7 +422,7 @@ async function main() {
     firstName: "Petra",
     lastName: "Brandt",
     email: managerUser.email,
-    phone: "+49 170 5550199",
+    phone: "+491705550199",
     teamRoles: ["Mannschaftsbetreuerin", "Kassenwart"],
   });
 

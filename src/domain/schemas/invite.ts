@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { InviteType, InviteTypeSchema, MemberRole, MemberRoleSchema } from "./handball";
+import { optionalPhoneSchema } from "./phone";
 
 export const CreateTeamInviteSchema = z
   .object({
@@ -28,13 +29,7 @@ export const ClaimInviteSchema = z.object({
   firstName: z.string().trim().min(1).max(60).optional(),
   lastName: z.string().trim().min(1).max(60).optional(),
   relationship: z.string().trim().min(2).max(40).default("Elternteil"),
-  phone: z
-    .string()
-    .trim()
-    .max(40)
-    .optional()
-    .nullable()
-    .transform((v) => (v === "" ? null : v)),
+  phone: optionalPhoneSchema,
   emergencyContact: z
     .string()
     .trim()

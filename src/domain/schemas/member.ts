@@ -9,6 +9,7 @@ import {
   ThrowingHand,
   ThrowingHandSchema,
 } from "./handball";
+import { optionalPhoneSchema } from "./phone";
 
 const optionalTrimmedString = (max: number) =>
   z
@@ -41,7 +42,7 @@ export const CreateTeamMemberSchema = z.object({
     .optional()
     .nullable()
     .or(z.literal("").transform(() => null)),
-  phone: optionalTrimmedString(40),
+  phone: optionalPhoneSchema,
 });
 export type CreateTeamMemberInput = z.infer<typeof CreateTeamMemberSchema>;
 
@@ -66,7 +67,7 @@ export const UpdateTeamMemberSchema = z.object({
     .optional()
     .nullable()
     .or(z.literal("").transform(() => null)),
-  phone: optionalTrimmedString(40),
+  phone: optionalPhoneSchema,
 });
 export type UpdateTeamMemberInput = z.infer<typeof UpdateTeamMemberSchema>;
 
@@ -83,7 +84,7 @@ export const SelfUpdateMemberSchema = z.object({
   availabilityStatus: AvailabilityStatusSchema.optional(),
   injuryNote: optionalTrimmedString(500),
   emergencyContact: optionalTrimmedString(200),
-  phone: optionalTrimmedString(40),
+  phone: optionalPhoneSchema,
   email: z
     .string()
     .trim()

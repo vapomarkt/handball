@@ -16,6 +16,7 @@ export * from "../../../src/domain/schemas/tactic";
 export * from "../../../src/domain/schemas/league-catalog";
 export * from "../../../src/domain/schemas/jersey-set";
 export * from "../../../src/domain/schemas/onboarding-state";
+export * from "../../../src/domain/schemas/phone";
 export * from "../../../src/domain/services/onboarding-state-service";
 export {
   formatShortCode,

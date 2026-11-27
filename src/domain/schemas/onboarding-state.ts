@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MemberRole, MemberRoleSchema } from "./handball";
+import { optionalPhoneSchema } from "./phone";
 
 export interface UserOnboardingStateDTO {
   profilePromptDismissed: boolean;
@@ -40,13 +41,7 @@ export const QuickProfileUpdateSchema = z.object({
   teamId: z.string().min(1).optional(),
   firstName: z.string().trim().min(1, "Vorname erforderlich.").max(60).optional(),
   lastName: z.string().trim().min(1, "Nachname erforderlich.").max(60).optional(),
-  phone: z
-    .string()
-    .trim()
-    .max(40)
-    .nullable()
-    .transform((v) => (v === "" ? null : v))
-    .optional(),
+  phone: optionalPhoneSchema,
   emergencyContact: z
     .string()
     .trim()

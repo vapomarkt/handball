@@ -25,7 +25,6 @@ import { Label } from "@/components/ui/label";
 import { SelectNative } from "@/components/ui/select-native";
 import {
   DECLINE_REASON_CATEGORY_LABELS,
-  EVENT_TYPE_LABELS,
   RSVP_STATUS_LABELS,
   type EventDTO,
 } from "@/domain/schemas/event";
@@ -35,6 +34,11 @@ import {
 } from "@/domain/schemas/jersey-set";
 import type { TeamMemberResponseDTO } from "@/domain/schemas/member";
 import { CarpoolSection } from "./carpool-section";
+import {
+  EventTypeBadge,
+  MatchLocationBadge,
+  MatchResultBadge,
+} from "./match-badges";
 import { ResinBadge } from "./resin-badge";
 
 interface EventDetailDialogProps {
@@ -159,9 +163,10 @@ export function EventDetailDialog({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <div className="flex flex-wrap items-center gap-2 pb-1">
-            <Badge variant={event.type === "MATCH" ? "default" : "secondary"}>
-              {EVENT_TYPE_LABELS[event.type]}
-            </Badge>
+            {md && (
+              <MatchLocationBadge isHome={md.isHome} labelMode="long" />
+            )}
+            <EventTypeBadge type={event.type} />
             {usesResin && event.venue && (
               <ResinBadge policy={event.venue.resinPolicy} />
             )}
@@ -225,14 +230,7 @@ export function EventDetailDialog({
                   Spieltag: {md.isHome ? "Heimspiel" : "Auswärtsspiel"} gegen{" "}
                   {md.opponentName}
                 </h3>
-                {md.homeScoreFull !== null && md.awayScoreFull !== null && (
-                  <Badge variant="default" className="font-mono text-sm">
-                    {md.homeScoreFull} : {md.awayScoreFull}
-                    {md.homeScoreHalf !== null && md.awayScoreHalf !== null
-                      ? ` (${md.homeScoreHalf}:${md.awayScoreHalf})`
-                      : ""}
-                  </Badge>
-                )}
+                <MatchResultBadge matchDetails={md} />
               </div>
 
               {!isStaff ? (

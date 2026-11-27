@@ -85,7 +85,8 @@ async function fetchUrlText(url: string): Promise<string> {
 const leagueSyncService = new LeagueSyncService(
   teamRepo,
   leagueSyncRepo,
-  fetchUrlText
+  fetchUrlText,
+  leagueDirectoryRepo
 );
 
 const leagueDirectoryService = new LeagueDirectoryService(

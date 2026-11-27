@@ -97,7 +97,10 @@ export class PrismaLeagueSyncRepository implements LeagueSyncRepository {
       where: {
         provider: { in: ["ICAL_URL", "HVNB_NULIGA"] },
         isEnabled: true,
-        sourceUrl: { not: null },
+        OR: [
+          { sourceUrl: { not: null } },
+          { provider: "HVNB_NULIGA", leagueGroupTeamId: { not: null } },
+        ],
       },
     });
     return rows.map(mapSource);
@@ -158,7 +161,16 @@ export class PrismaLeagueSyncRepository implements LeagueSyncRepository {
       },
       include: {
         venue: { select: { name: true } },
-        matchDetails: { select: { opponentName: true, isHome: true } },
+        matchDetails: {
+          select: {
+            opponentName: true,
+            isHome: true,
+            homeScoreHalf: true,
+            awayScoreHalf: true,
+            homeScoreFull: true,
+            awayScoreFull: true,
+          },
+        },
       },
     });
 
@@ -175,7 +187,94 @@ export class PrismaLeagueSyncRepository implements LeagueSyncRepository {
         isCancelled: r.isCancelled,
         opponentName: r.matchDetails?.opponentName ?? null,
         isHome: r.matchDetails?.isHome ?? null,
+        homeScoreHalf: r.matchDetails?.homeScoreHalf ?? null,
+        awayScoreHalf: r.matchDetails?.awayScoreHalf ?? null,
+        homeScoreFull: r.matchDetails?.homeScoreFull ?? null,
+        awayScoreFull: r.matchDetails?.awayScoreFull ?? null,
       }));
+  }
+
+  async findPastMatchesWithoutScoresByTeam(
+    teamId: string,
+    before: Date
+  ): Promise<
+    Array<{
+      eventId: string;
+      externalId: string | null;
+      title: string;
+      startAt: Date;
+      opponentName: string;
+      isHome: boolean;
+      homeScoreHalf: number | null;
+      awayScoreHalf: number | null;
+      homeScoreFull: number | null;
+      awayScoreFull: number | null;
+    }>
+  > {
+    const rows = await prisma.event.findMany({
+      where: {
+        teamId,
+        type: "MATCH",
+        isCancelled: false,
+        startAt: { lt: before },
+        matchDetails: {
+          is: {
+            OR: [{ homeScoreFull: null }, { awayScoreFull: null }],
+          },
+        },
+      },
+      include: {
+        matchDetails: {
+          select: {
+            opponentName: true,
+            isHome: true,
+            homeScoreHalf: true,
+            awayScoreHalf: true,
+            homeScoreFull: true,
+            awayScoreFull: true,
+          },
+        },
+      },
+    });
+
+    return rows
+      .filter((r) => r.matchDetails !== null)
+      .map((r) => ({
+        eventId: r.id,
+        externalId: r.externalId,
+        title: r.title,
+        startAt: r.startAt,
+        opponentName: r.matchDetails!.opponentName,
+        isHome: r.matchDetails!.isHome,
+        homeScoreHalf: r.matchDetails!.homeScoreHalf,
+        awayScoreHalf: r.matchDetails!.awayScoreHalf,
+        homeScoreFull: r.matchDetails!.homeScoreFull,
+        awayScoreFull: r.matchDetails!.awayScoreFull,
+      }));
+  }
+
+  async backfillMatchScores(
+    eventId: string,
+    scores: {
+      homeScoreFull: number;
+      awayScoreFull: number;
+      homeScoreHalf: number | null;
+      awayScoreHalf: number | null;
+    }
+  ): Promise<void> {
+    await prisma.matchDetails.update({
+      where: { eventId },
+      data: {
+        homeScoreFull: scores.homeScoreFull,
+        awayScoreFull: scores.awayScoreFull,
+        ...(scores.homeScoreHalf !== null
+          ? { homeScoreHalf: scores.homeScoreHalf }
+          : {}),
+        ...(scores.awayScoreHalf !== null
+          ? { awayScoreHalf: scores.awayScoreHalf }
+          : {}),
+      },
+    });
   }
 
   async findOrCreateVenueByNamePreservingResin(
@@ -218,6 +317,10 @@ export class PrismaLeagueSyncRepository implements LeagueSyncRepository {
     isCancelled: boolean;
     opponentName: string;
     isHome: boolean;
+    homeScoreHalf?: number | null;
+    awayScoreHalf?: number | null;
+    homeScoreFull?: number | null;
+    awayScoreFull?: number | null;
   }): Promise<{ eventId: string }> {
     const created = await prisma.event.create({
       data: {
@@ -235,6 +338,10 @@ export class PrismaLeagueSyncRepository implements LeagueSyncRepository {
             opponentName: input.opponentName,
             isHome: input.isHome,
             throwOffAt: input.startAt,
+            homeScoreHalf: input.homeScoreHalf ?? null,
+            awayScoreHalf: input.awayScoreHalf ?? null,
+            homeScoreFull: input.homeScoreFull ?? null,
+            awayScoreFull: input.awayScoreFull ?? null,
           },
         },
       },
@@ -252,10 +359,30 @@ export class PrismaLeagueSyncRepository implements LeagueSyncRepository {
     isCancelled: boolean;
     opponentName: string;
     isHome: boolean;
+    backfillScores?: {
+      homeScoreFull: number;
+      awayScoreFull: number;
+      homeScoreHalf: number | null;
+      awayScoreHalf: number | null;
+    } | null;
   }): Promise<void> {
     // VERBINDLICHER SCHUTZ LOKALER ANREICHERUNGEN:
     // Nur externe Terminfelder werden aktualisiert; meetingAt, description,
-    // jerseyColor, nominatedMemberIds, refereeNote, scores und carpools werden NICHT berührt!
+    // jerseyColor, nominatedMemberIds, refereeNote und carpools werden NICHT berührt!
+    // Ergebnisse werden nur nachgetragen, wenn explizit über `backfillScores` übergeben.
+    const scoreData = input.backfillScores
+      ? {
+          homeScoreFull: input.backfillScores.homeScoreFull,
+          awayScoreFull: input.backfillScores.awayScoreFull,
+          ...(input.backfillScores.homeScoreHalf !== null
+            ? { homeScoreHalf: input.backfillScores.homeScoreHalf }
+            : {}),
+          ...(input.backfillScores.awayScoreHalf !== null
+            ? { awayScoreHalf: input.backfillScores.awayScoreHalf }
+            : {}),
+        }
+      : {};
+
     await prisma.$transaction([
       prisma.event.update({
         where: { id: input.eventId },
@@ -273,12 +400,14 @@ export class PrismaLeagueSyncRepository implements LeagueSyncRepository {
           opponentName: input.opponentName,
           isHome: input.isHome,
           throwOffAt: input.startAt,
+          ...scoreData,
         },
         create: {
           eventId: input.eventId,
           opponentName: input.opponentName,
           isHome: input.isHome,
           throwOffAt: input.startAt,
+          ...scoreData,
         },
       }),
     ]);

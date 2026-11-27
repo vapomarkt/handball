@@ -8,16 +8,21 @@ import {
   ChevronRight,
   Clock,
   ExternalLink,
+  Loader2,
   MapPin,
   Plus,
   RefreshCw,
   Trash2,
-  Trophy,
   Users,
 } from "lucide-react";
 import { EventDetailDialog } from "@/components/events/event-detail-dialog";
 import { EventFormDialog } from "@/components/events/event-form-dialog";
 import { LeagueSyncPanel } from "@/components/events/league-sync-panel";
+import {
+  EventTypeBadge,
+  MatchLocationBadge,
+  MatchResultBadge,
+} from "@/components/events/match-badges";
 import { ResinBadge } from "@/components/events/resin-badge";
 import { RsvpControls } from "@/components/events/rsvp-controls";
 import { VenueFormDialog } from "@/components/events/venue-form-dialog";
@@ -42,6 +47,7 @@ import {
 } from "@/domain/schemas/event";
 import type { RsvpStatus } from "@/domain/schemas/handball";
 import type { JerseySetDTO } from "@/domain/schemas/jersey-set";
+import type { LeagueImportSourceDTO } from "@/domain/schemas/league";
 import type { TeamMemberResponseDTO } from "@/domain/schemas/member";
 
 type ActiveTab = "events" | "venues" | "stats" | "sync";
@@ -75,10 +81,15 @@ function TerminePageContent() {
   const [events, setEvents] = useState<EventDTO[]>([]);
   const [venues, setVenues] = useState<VenueDTO[]>([]);
   const [jerseySets, setJerseySets] = useState<JerseySetDTO[]>([]);
+  const [leagueSources, setLeagueSources] = useState<LeagueImportSourceDTO[]>(
+    []
+  );
   const [roster, setRoster] = useState<TeamMemberResponseDTO[]>([]);
   const [stats, setStats] = useState<MemberAttendanceStatDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [syncingResults, setSyncingResults] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
 
   // Dialogs
   const [eventFormOpen, setEventFormOpen] = useState(false);
@@ -93,6 +104,17 @@ function TerminePageContent() {
     activeTeam?.role === "COACH" ||
     activeTeam?.role === "ASSISTANT_COACH" ||
     activeTeam?.role === "TEAM_MANAGER";
+
+  const syncableSources = useMemo(
+    () =>
+      leagueSources.filter(
+        (s) =>
+          (s.provider === "HVNB_NULIGA" &&
+            (Boolean(s.sourceUrl) || Boolean(s.leagueGroupTeamId))) ||
+          (s.provider === "ICAL_URL" && Boolean(s.sourceUrl))
+      ),
+    [leagueSources]
+  );
 
   // Eigene Mitgliedschaft & verknüpfte Kinder in diesem Team für 1-Klick-RSVP
   const rsvpTargets = useMemo(() => {
@@ -119,7 +141,7 @@ function TerminePageContent() {
   const loadAll = useCallback(async () => {
     if (!activeTeam) return;
     try {
-      const [evRes, venRes, rosRes, statRes, jsRes] = await Promise.all([
+      const [evRes, venRes, rosRes, statRes, jsRes, srcRes] = await Promise.all([
         fetch(
           `/api/v1/teams/${encodeURIComponent(activeTeam.teamId)}/events`,
           { cache: "no-store" }
@@ -138,6 +160,10 @@ function TerminePageContent() {
         ),
         fetch(
           `/api/v1/clubs/${encodeURIComponent(activeTeam.clubId)}/jersey-sets?teamId=${encodeURIComponent(activeTeam.teamId)}`,
+          { cache: "no-store" }
+        ),
+        fetch(
+          `/api/v1/teams/${encodeURIComponent(activeTeam.teamId)}/league-sources`,
           { cache: "no-store" }
         ),
       ]);
@@ -161,6 +187,10 @@ function TerminePageContent() {
       if (jsRes.ok) {
         const d = await jsRes.json();
         setJerseySets(d.jerseySets ?? []);
+      }
+      if (srcRes.ok) {
+        const d = await srcRes.json();
+        setLeagueSources(d.sources ?? []);
       }
       setError(null);
     } catch {
@@ -191,14 +221,19 @@ function TerminePageContent() {
         `/api/v1/clubs/${encodeURIComponent(activeTeam.clubId)}/jersey-sets?teamId=${encodeURIComponent(activeTeam.teamId)}`,
         { cache: "no-store" }
       ),
+      fetch(
+        `/api/v1/teams/${encodeURIComponent(activeTeam.teamId)}/league-sources`,
+        { cache: "no-store" }
+      ),
     ])
-      .then(async ([evRes, venRes, rosRes, statRes, jsRes]) => {
+      .then(async ([evRes, venRes, rosRes, statRes, jsRes, srcRes]) => {
         if (!active) return;
         if (evRes.ok) setEvents((await evRes.json()).events ?? []);
         if (venRes.ok) setVenues((await venRes.json()).venues ?? []);
         if (rosRes.ok) setRoster((await rosRes.json()).members ?? []);
         if (statRes.ok) setStats((await statRes.json()).stats ?? []);
         if (jsRes.ok) setJerseySets((await jsRes.json()).jerseySets ?? []);
+        if (srcRes.ok) setLeagueSources((await srcRes.json()).sources ?? []);
         setError(null);
       })
       .catch(() => {
@@ -228,6 +263,49 @@ function TerminePageContent() {
     () => events.find((e) => e.id === effectiveSelectedEventId) ?? null,
     [events, effectiveSelectedEventId]
   );
+
+  async function handleSyncResults() {
+    if (!activeTeam || syncableSources.length === 0) return;
+    setSyncingResults(true);
+    setSyncFeedback(null);
+    setError(null);
+    try {
+      let totalResults = 0;
+      let hadError = false;
+      for (const src of syncableSources) {
+        const res = await fetch(
+          `/api/v1/teams/${encodeURIComponent(activeTeam.teamId)}/league-sources/${encodeURIComponent(src.id)}/sync`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          totalResults += data.summary?.resultsUpdatedCount ?? 0;
+        } else {
+          hadError = true;
+        }
+      }
+      await loadAll();
+      if (totalResults > 0) {
+        setSyncFeedback(
+          totalResults === 1
+            ? "1 Spielergebnis automatisch aus der Liga nachgetragen."
+            : `${totalResults} Spielergebnisse automatisch aus der Liga nachgetragen.`
+        );
+      } else if (hadError) {
+        setError("Ergebnisse konnten aktuell nicht aus der Liga abgerufen werden.");
+      } else {
+        setSyncFeedback("Alle verfügbaren Spielergebnisse sind bereits aktuell.");
+      }
+    } catch {
+      setError("Ergebnisse konnten aktuell nicht aus der Liga abgerufen werden.");
+    } finally {
+      setSyncingResults(false);
+    }
+  }
 
   async function handleDeleteEvent(ev: EventDTO) {
     if (!activeTeam) return;
@@ -377,16 +455,42 @@ function TerminePageContent() {
               )}
             </div>
 
-            <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showPast}
-                onChange={(e) => setShowPast(e.target.checked)}
-                className="h-4 w-4 rounded border-border accent-primary"
-              />
-              Vergangene Termine anzeigen
-            </label>
+            <div className="flex flex-wrap items-center gap-3">
+              {isStaff && showPast && syncableSources.length > 0 && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={syncingResults}
+                  onClick={handleSyncResults}
+                  className="h-8 text-xs"
+                >
+                  {syncingResults ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  )}
+                  Ergebnisse abrufen
+                </Button>
+              )}
+
+              <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showPast}
+                  onChange={(e) => setShowPast(e.target.checked)}
+                  className="h-4 w-4 rounded border-border accent-primary"
+                />
+                Vergangene Termine anzeigen
+              </label>
+            </div>
           </div>
+
+          {syncFeedback && (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-medium text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-200">
+              {syncFeedback}
+            </div>
+          )}
 
           {loading ? (
             <p className="text-sm text-muted-foreground py-6">Lade Termine…</p>
@@ -408,43 +512,31 @@ function TerminePageContent() {
                   key={ev.id}
                   interactive
                   data-testid={`event-card-${ev.id}`}
+                  className={cn(
+                    ev.matchDetails &&
+                      (ev.matchDetails.isHome
+                        ? "border-l-4 border-l-primary"
+                        : "border-l-4 border-l-secondary"),
+                    ev.isCancelled && "opacity-70"
+                  )}
                 >
                   <CardContent className="p-4 sm:p-5 space-y-3.5">
                     <div className="flex items-start justify-between gap-3">
                       <div className="space-y-1.5 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge
-                            variant={
-                              ev.type === "MATCH" ? "default" : "secondary"
-                            }
-                          >
-                            {EVENT_TYPE_LABELS[ev.type]}
-                          </Badge>
                           {ev.matchDetails && (
-                            <Badge variant="outline">
-                              {ev.matchDetails.isHome ? "Heim" : "Auswärts"}
-                            </Badge>
+                            <MatchLocationBadge isHome={ev.matchDetails.isHome} />
                           )}
+                          {ev.matchDetails && (
+                            <MatchResultBadge matchDetails={ev.matchDetails} />
+                          )}
+                          {ev.isCancelled && (
+                            <Badge variant="injured">Abgesagt</Badge>
+                          )}
+                          <EventTypeBadge type={ev.type} />
                           {activeTeam.usesResin && ev.venue && (
                             <ResinBadge policy={ev.venue.resinPolicy} />
                           )}
-                          {ev.matchDetails?.homeScoreFull !== null &&
-                            ev.matchDetails?.homeScoreFull !== undefined &&
-                            ev.matchDetails?.awayScoreFull !== null &&
-                            ev.matchDetails?.awayScoreFull !== undefined && (
-                              <Badge
-                                variant="default"
-                                className="font-mono bg-secondary text-secondary-foreground"
-                              >
-                                <Trophy className="h-3 w-3 mr-1" />
-                                {ev.matchDetails.homeScoreFull}:
-                                {ev.matchDetails.awayScoreFull}
-                                {ev.matchDetails.homeScoreHalf !== null &&
-                                ev.matchDetails.awayScoreHalf !== null
-                                  ? ` (${ev.matchDetails.homeScoreHalf}:${ev.matchDetails.awayScoreHalf})`
-                                  : ""}
-                              </Badge>
-                            )}
                         </div>
 
                         <h2 className="text-base font-bold text-foreground">

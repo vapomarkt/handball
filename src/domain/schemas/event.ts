@@ -32,6 +32,69 @@ export const EVENT_TYPE_LABELS: Record<EventType, string> = {
   CLUB_EVENT: "Vereinstermin",
 };
 
+export const MatchOutcomeSchema = z.enum(["WIN", "LOSS", "DRAW"]);
+export type MatchOutcome = z.infer<typeof MatchOutcomeSchema>;
+
+export const MATCH_OUTCOME_LABELS: Record<MatchOutcome, string> = {
+  WIN: "Gewonnen",
+  LOSS: "Verloren",
+  DRAW: "Unentschieden",
+};
+
+/**
+ * Ermittelt aus Sicht der eigenen Mannschaft, ob ein Spiel gewonnen, verloren
+ * oder unentschieden ausgegangen ist. Gibt `null` zurück, solange kein Endstand vorliegt.
+ */
+export function getMatchOutcome(matchDetails: {
+  isHome: boolean;
+  homeScoreFull: number | null;
+  awayScoreFull: number | null;
+}): MatchOutcome | null {
+  if (
+    matchDetails.homeScoreFull === null ||
+    matchDetails.awayScoreFull === null
+  ) {
+    return null;
+  }
+  const ownScore = matchDetails.isHome
+    ? matchDetails.homeScoreFull
+    : matchDetails.awayScoreFull;
+  const opponentScore = matchDetails.isHome
+    ? matchDetails.awayScoreFull
+    : matchDetails.homeScoreFull;
+
+  if (ownScore > opponentScore) return "WIN";
+  if (ownScore < opponentScore) return "LOSS";
+  return "DRAW";
+}
+
+/**
+ * Formatiert den Spielstand als `Heim:Gast` (optional inkl. Halbzeitstand in Klammern).
+ */
+export function formatMatchScore(matchDetails: {
+  homeScoreFull: number | null;
+  awayScoreFull: number | null;
+  homeScoreHalf?: number | null;
+  awayScoreHalf?: number | null;
+}): string | null {
+  if (
+    matchDetails.homeScoreFull === null ||
+    matchDetails.awayScoreFull === null
+  ) {
+    return null;
+  }
+  const full = `${matchDetails.homeScoreFull}:${matchDetails.awayScoreFull}`;
+  if (
+    matchDetails.homeScoreHalf !== null &&
+    matchDetails.homeScoreHalf !== undefined &&
+    matchDetails.awayScoreHalf !== null &&
+    matchDetails.awayScoreHalf !== undefined
+  ) {
+    return `${full} (${matchDetails.homeScoreHalf}:${matchDetails.awayScoreHalf})`;
+  }
+  return full;
+}
+
 export const DeclineReasonCategorySchema = z.enum([
   "WORK",
   "INJURY",

@@ -4,6 +4,10 @@ import {
 } from "../adapters/league-provider";
 import { DomainError } from "../errors";
 import { CsvColumnMapping } from "../schemas/league";
+import {
+  parseScorePair,
+  parseScoreWithOptionalHalf,
+} from "./nuliga-match-results";
 
 export interface CsvParseOptions {
   teamNameMatch: string;
@@ -104,6 +108,14 @@ export class CsvLeagueProviderAdapter
     const awayIdx = colIndex(mapping.awayTeamColumn);
     const venueIdx = colIndex(mapping.venueColumn);
     const extIdx = colIndex(mapping.externalIdColumn);
+    const scoreIdx =
+      colIndex(mapping.scoreColumn) !== -1
+        ? colIndex(mapping.scoreColumn)
+        : headers.findIndex((h) => h === "ergebnis" || h === "endstand");
+    const halfScoreIdx =
+      colIndex(mapping.halfScoreColumn) !== -1
+        ? colIndex(mapping.halfScoreColumn)
+        : headers.findIndex((h) => h === "halbzeit" || h === "hz");
 
     if (dateIdx === -1 || homeIdx === -1 || awayIdx === -1) {
       throw DomainError.validation(
@@ -142,6 +154,11 @@ export class CsvLeagueProviderAdapter
           .toLowerCase()
           .replace(/\s+/g, "-")}-${startAt.toISOString().slice(0, 10)}`;
 
+      const rawScore = scoreIdx >= 0 ? (cells[scoreIdx] ?? "") : "";
+      const rawHalf = halfScoreIdx >= 0 ? (cells[halfScoreIdx] ?? "") : "";
+      const parsedScore = rawScore ? parseScoreWithOptionalHalf(rawScore) : null;
+      const parsedHalf = rawHalf ? parseScorePair(rawHalf) : parsedScore?.half ?? null;
+
       matches.push({
         externalId,
         title: `${homeTeam} vs. ${awayTeam}`,
@@ -151,6 +168,12 @@ export class CsvLeagueProviderAdapter
         endAt: new Date(startAt.getTime() + 105 * 60 * 1000),
         venueName,
         isCancelled: false,
+        homeTeamName: homeTeam,
+        awayTeamName: awayTeam,
+        homeScoreFull: parsedScore?.full.home ?? null,
+        awayScoreFull: parsedScore?.full.away ?? null,
+        homeScoreHalf: parsedHalf?.home ?? null,
+        awayScoreHalf: parsedHalf?.away ?? null,
       });
     }
 

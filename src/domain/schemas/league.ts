@@ -67,6 +67,8 @@ export const CsvColumnMappingSchema = z.object({
   awayTeamColumn: z.string().trim().min(1, "Gastteam-Spalte erforderlich."),
   venueColumn: z.string().trim().optional().nullable(),
   externalIdColumn: z.string().trim().optional().nullable(),
+  scoreColumn: z.string().trim().optional().nullable(),
+  halfScoreColumn: z.string().trim().optional().nullable(),
   delimiter: z.enum([";", ","]).default(";"),
 });
 export type CsvColumnMapping = z.infer<typeof CsvColumnMappingSchema>;
@@ -122,5 +124,6 @@ export interface SyncRunSummaryDTO {
   createdCount: number;
   updatedCount: number;
   unchangedCount: number;
+  resultsUpdatedCount?: number;
   changes: LeagueSyncChangeLogDTO[];
 }

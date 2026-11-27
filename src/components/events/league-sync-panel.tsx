@@ -192,8 +192,12 @@ export function LeagueSyncPanel({
         return;
       }
       const s = data.summary;
+      const resultSuffix =
+        s.resultsUpdatedCount && s.resultsUpdatedCount > 0
+          ? `, ${s.resultsUpdatedCount} ${s.resultsUpdatedCount === 1 ? "Ergebnis" : "Ergebnisse"} nachgetragen`
+          : "";
       setMessage(
-        `Sync abgeschlossen: ${s.createdCount} neu, ${s.updatedCount} geändert, ${s.unchangedCount} unverändert.`
+        `Sync abgeschlossen: ${s.createdCount} neu, ${s.updatedCount} geändert, ${s.unchangedCount} unverändert${resultSuffix}.`
       );
       await loadData();
       onImported();
@@ -336,11 +340,11 @@ export function LeagueSyncPanel({
         <div>
           <p className="font-bold">Schutz lokaler Team-Daten beim Re-Sync</p>
           <p className="mt-0.5">
-            Automatische & manuelle Liga-Syncs aktualisieren ausschließlich
-            Anwurfzeit, Halle und Spielstatus über die externe ID. Lokale
+            Automatische & manuelle Liga-Syncs aktualisieren Anwurfzeit, Halle,
+            Spielstatus sowie fehlende Ergebnisse vergangener Spiele. Lokale
             Anreicherungen (Treffpunktzeit, Trikotfarbe, Spieltagskader,
-            Fahrgemeinschaften, Notizen und die Harz-Regelung einer Halle) werden
-            niemals überschrieben.
+            Fahrgemeinschaften, Notizen, Harz-Regelung und bereits manuell
+            erfasste Endstände) werden niemals überschrieben.
           </p>
         </div>
       </div>
@@ -403,7 +407,8 @@ export function LeagueSyncPanel({
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
-                  {activeHvnbSource.sourceUrl && (
+                  {(activeHvnbSource.sourceUrl ||
+                    activeHvnbSource.leagueGroupTeamId) && (
                     <Button
                       type="button"
                       size="sm"
@@ -415,7 +420,9 @@ export function LeagueSyncPanel({
                       ) : (
                         <RefreshCw className="h-3.5 w-3.5" />
                       )}
-                      Spielplan syncen
+                      {activeHvnbSource.sourceUrl
+                        ? "Spielplan & Ergebnisse syncen"
+                        : "Ergebnisse abrufen"}
                     </Button>
                   )}
                   <Button
@@ -547,9 +554,9 @@ export function LeagueSyncPanel({
 
                   {isStaff && (
                     <div className="flex items-center gap-1.5 shrink-0">
-                      {(src.provider === "ICAL_URL" ||
-                        src.provider === "HVNB_NULIGA") &&
-                        src.sourceUrl && (
+                      {((src.provider === "ICAL_URL" && src.sourceUrl) ||
+                        (src.provider === "HVNB_NULIGA" &&
+                          (src.sourceUrl || src.leagueGroupTeamId))) && (
                           <Button
                             size="sm"
                             variant="outline"

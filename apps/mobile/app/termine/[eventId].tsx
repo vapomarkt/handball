@@ -1,5 +1,10 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import type { RsvpStatus } from "@throwoff/shared";
+import {
+  formatMatchScore,
+  getMatchOutcome,
+  MATCH_OUTCOME_LABELS,
+  type RsvpStatus,
+} from "@throwoff/shared";
 import { useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -65,6 +70,8 @@ export default function EventDetailScreen() {
   const event = eventQuery.data.event;
   const mine = event.attendances.find((a) => a.memberId === activeMemberId);
   const offline = rsvp.isPaused;
+  const outcome = event.matchDetails ? getMatchOutcome(event.matchDetails) : null;
+  const scoreText = event.matchDetails ? formatMatchScore(event.matchDetails) : null;
 
   return (
     <Screen>
@@ -87,10 +94,25 @@ export default function EventDetailScreen() {
           ) : null}
           {event.matchDetails ? (
             <Body>
-              {event.matchDetails.isHome ? "Heimspiel" : "Auswärtsspiel"} gegen{" "}
+              {event.matchDetails.isHome ? "🏠 Heimspiel" : "🚌 Auswärtsspiel"} gegen{" "}
               {event.matchDetails.opponentName}
               {event.matchDetails.jerseySet ? `\nTrikots: ${event.matchDetails.jerseySet.name}` : ""}
             </Body>
+          ) : null}
+          {outcome && scoreText ? (
+            <Text
+              style={{
+                color:
+                  outcome === "WIN"
+                    ? colors.success
+                    : outcome === "LOSS"
+                      ? colors.danger
+                      : colors.warning,
+                fontWeight: "700",
+              }}
+            >
+              {MATCH_OUTCOME_LABELS[outcome]} · {scoreText}
+            </Text>
           ) : null}
           {event.description ? <Body>{event.description}</Body> : null}
         </Card>

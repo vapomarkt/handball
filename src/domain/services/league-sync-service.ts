@@ -1,3 +1,4 @@
+import { LeagueDirectoryRepository } from "../adapters/league-directory-repository";
 import {
   FetchTextFn,
   LeagueSyncRepository,
@@ -16,7 +17,14 @@ import {
 } from "../schemas/league";
 import { CsvLeagueProviderAdapter } from "./csv-parser";
 import { IcalLeagueProviderAdapter } from "./ical-parser";
-import { computeLeagueMergePlan } from "./league-merge";
+import { computeLeagueMergePlan, formatScoreSummary } from "./league-merge";
+import {
+  fetchNuligaMatchResults,
+  findMatchingNuligaResult,
+  NuligaMatchResultsTarget,
+  ParsedNuligaMatchResult,
+} from "./nuliga-match-results";
+import { isAllowedNuligaUrl } from "./nuliga-opponent-players";
 
 export class LeagueSyncService {
   private readonly icalAdapter = new IcalLeagueProviderAdapter();
@@ -25,7 +33,8 @@ export class LeagueSyncService {
   constructor(
     private readonly teams: TeamRepository,
     private readonly leagueSync: LeagueSyncRepository,
-    private readonly fetchText: FetchTextFn
+    private readonly fetchText: FetchTextFn,
+    private readonly leagueDirectory?: LeagueDirectoryRepository
   ) {}
 
   async listSources(
@@ -195,28 +204,209 @@ export class LeagueSyncService {
     return summary;
   }
 
+  private async resolveNuligaResultsTarget(
+    source: LeagueImportSourceDTO,
+    parsedMatches: NormalizedLeagueMatch[]
+  ): Promise<NuligaMatchResultsTarget | null> {
+    let teamUrl: string | null = null;
+    let groupUrl: string | null = null;
+    let clubName: string | null = null;
+    let teamName: string | null = source.teamNameMatch ?? null;
+    let groupName: string | null =
+      parsedMatches.find((m) => m.leagueGroupName)?.leagueGroupName ?? null;
+
+    let groupTeamId = source.leagueGroupTeamId ?? null;
+    if (!groupTeamId) {
+      const team = await this.teams.findById(source.teamId);
+      groupTeamId = team?.leagueGroupTeamId ?? null;
+    }
+
+    if (groupTeamId && this.leagueDirectory) {
+      try {
+        const groupTeam = await this.leagueDirectory.findGroupTeamById(groupTeamId);
+        if (groupTeam) {
+          teamUrl = groupTeam.externalUrl;
+          groupUrl = groupTeam.group.externalUrl;
+          clubName = groupTeam.clubName;
+          teamName = groupTeam.name;
+          groupName = groupTeam.group.name;
+        }
+      } catch {
+        // Best-effort
+      }
+    }
+
+    const fallbackNuligaUrl =
+      source.sourceUrl && isAllowedNuligaUrl(source.sourceUrl)
+        ? source.sourceUrl
+        : null;
+
+    if (!teamUrl && !groupUrl && !fallbackNuligaUrl) {
+      return null;
+    }
+
+    return {
+      teamUrl,
+      groupUrl,
+      fallbackNuligaUrl,
+      clubName,
+      teamName,
+      groupName,
+    };
+  }
+
+  private enrichMatchesWithNuligaResults(
+    matches: NormalizedLeagueMatch[],
+    results: ParsedNuligaMatchResult[],
+    teamNameMatch?: string | null
+  ): NormalizedLeagueMatch[] {
+    if (results.length === 0) return matches;
+
+    return matches.map((match) => {
+      if (
+        match.homeScoreFull !== null &&
+        match.homeScoreFull !== undefined &&
+        match.awayScoreFull !== null &&
+        match.awayScoreFull !== undefined
+      ) {
+        return match;
+      }
+
+      const found = findMatchingNuligaResult(results, {
+        startAt: match.startAt,
+        isHome: match.isHome,
+        opponentName: match.opponentName,
+        homeTeamName: match.homeTeamName,
+        awayTeamName: match.awayTeamName,
+        teamNameMatch,
+        matchNumber: match.matchNumber,
+      });
+
+      if (!found) return match;
+
+      return {
+        ...match,
+        homeScoreFull: found.homeScoreFull,
+        awayScoreFull: found.awayScoreFull,
+        homeScoreHalf: found.homeScoreHalf,
+        awayScoreHalf: found.awayScoreHalf,
+      };
+    });
+  }
+
+  private async backfillRemainingPastMatches(
+    source: LeagueImportSourceDTO,
+    results: ParsedNuligaMatchResult[],
+    skipEventIds: Set<string>
+  ): Promise<{ count: number; changes: LeagueSyncChangeLogDTO[] }> {
+    if (
+      results.length === 0 ||
+      !this.leagueSync.findPastMatchesWithoutScoresByTeam ||
+      !this.leagueSync.backfillMatchScores
+    ) {
+      return { count: 0, changes: [] };
+    }
+
+    const pastMatches = await this.leagueSync.findPastMatchesWithoutScoresByTeam(
+      source.teamId,
+      new Date()
+    );
+
+    let count = 0;
+    const changes: LeagueSyncChangeLogDTO[] = [];
+
+    for (const match of pastMatches) {
+      if (skipEventIds.has(match.eventId)) continue;
+
+      const found = findMatchingNuligaResult(results, {
+        startAt: match.startAt,
+        isHome: match.isHome,
+        opponentName: match.opponentName,
+        teamNameMatch: source.teamNameMatch,
+      });
+      if (!found) continue;
+
+      const scores = {
+        homeScoreFull: found.homeScoreFull,
+        awayScoreFull: found.awayScoreFull,
+        homeScoreHalf: found.homeScoreHalf,
+        awayScoreHalf: found.awayScoreHalf,
+      };
+
+      await this.leagueSync.backfillMatchScores(match.eventId, scores);
+      const log = await this.leagueSync.createChangeLog({
+        sourceId: source.id,
+        teamId: source.teamId,
+        eventId: match.eventId,
+        externalId: match.externalId ?? `event-${match.eventId}`,
+        changeType: "UPDATED",
+        summary: `Ergebnis nachgetragen (${match.title}): ${formatScoreSummary(scores)}`,
+      });
+      changes.push(log);
+      count += 1;
+    }
+
+    return { count, changes };
+  }
+
   private async executeIcalSync(
     source: LeagueImportSourceDTO,
     inlineIcalContent?: string
   ): Promise<SyncRunSummaryDTO> {
     try {
+      let matches: NormalizedLeagueMatch[] = [];
       let rawIcal = inlineIcalContent;
+
       if (!rawIcal) {
-        if (!source.sourceUrl) {
+        if (source.sourceUrl) {
+          rawIcal = await this.fetchText(source.sourceUrl);
+        } else if (!source.leagueGroupTeamId) {
           throw DomainError.validation(
             "Für diese Importquelle ist keine iCal-URL hinterlegt."
           );
         }
-        rawIcal = await this.fetchText(source.sourceUrl);
       }
 
-      const matches = this.icalAdapter.parse(rawIcal, {
-        teamNameMatch: source.teamNameMatch,
-      });
+      if (rawIcal) {
+        matches = this.icalAdapter.parse(rawIcal, {
+          teamNameMatch: source.teamNameMatch,
+        });
+      }
 
-      const summary = await this.applyMergedMatches(source, matches);
+      let nuligaResults: ParsedNuligaMatchResult[] = [];
+      if (!inlineIcalContent) {
+        const target = await this.resolveNuligaResultsTarget(source, matches);
+        if (target) {
+          nuligaResults = await fetchNuligaMatchResults(this.fetchText, target);
+          matches = this.enrichMatchesWithNuligaResults(
+            matches,
+            nuligaResults,
+            target.teamName ?? source.teamNameMatch
+          );
+        }
+      }
+
+      const { summary, touchedEventIds } = await this.applyMergedMatchesDetailed(
+        source,
+        matches
+      );
+
+      const backfilled = await this.backfillRemainingPastMatches(
+        source,
+        nuligaResults,
+        touchedEventIds
+      );
+
+      const finalSummary: SyncRunSummaryDTO = {
+        ...summary,
+        updatedCount: summary.updatedCount + backfilled.count,
+        resultsUpdatedCount:
+          (summary.resultsUpdatedCount ?? 0) + backfilled.count,
+        changes: [...summary.changes, ...backfilled.changes],
+      };
+
       await this.leagueSync.updateSourceSyncStatus(source.id, "SUCCESS", null);
-      return summary;
+      return finalSummary;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Sync fehlgeschlagen.";
@@ -229,6 +419,17 @@ export class LeagueSyncService {
     source: LeagueImportSourceDTO,
     incomingMatches: NormalizedLeagueMatch[]
   ): Promise<SyncRunSummaryDTO> {
+    const { summary } = await this.applyMergedMatchesDetailed(
+      source,
+      incomingMatches
+    );
+    return summary;
+  }
+
+  private async applyMergedMatchesDetailed(
+    source: LeagueImportSourceDTO,
+    incomingMatches: NormalizedLeagueMatch[]
+  ): Promise<{ summary: SyncRunSummaryDTO; touchedEventIds: Set<string> }> {
     const existing = await this.leagueSync.findSyncedMatchesByTeam(
       source.teamId
     );
@@ -237,7 +438,9 @@ export class LeagueSyncService {
     let createdCount = 0;
     let updatedCount = 0;
     let unchangedCount = 0;
+    let resultsUpdatedCount = 0;
     const changes: LeagueSyncChangeLogDTO[] = [];
+    const touchedEventIds = new Set<string>();
 
     for (const action of plan) {
       if (action.kind === "UNCHANGED") {
@@ -257,6 +460,12 @@ export class LeagueSyncService {
       }
 
       if (action.kind === "CREATE") {
+        const hasInitialScore =
+          action.incoming.homeScoreFull !== null &&
+          action.incoming.homeScoreFull !== undefined &&
+          action.incoming.awayScoreFull !== null &&
+          action.incoming.awayScoreFull !== undefined;
+
         const created = await this.leagueSync.createSyncedMatchEvent({
           clubId: source.clubId,
           teamId: source.teamId,
@@ -268,7 +477,12 @@ export class LeagueSyncService {
           isCancelled: action.incoming.isCancelled,
           opponentName: action.incoming.opponentName,
           isHome: action.incoming.isHome,
+          homeScoreFull: action.incoming.homeScoreFull ?? null,
+          awayScoreFull: action.incoming.awayScoreFull ?? null,
+          homeScoreHalf: action.incoming.homeScoreHalf ?? null,
+          awayScoreHalf: action.incoming.awayScoreHalf ?? null,
         });
+        touchedEventIds.add(created.eventId);
 
         const log = await this.leagueSync.createChangeLog({
           sourceId: source.id,
@@ -282,6 +496,7 @@ export class LeagueSyncService {
         });
         changes.push(log);
         createdCount += 1;
+        if (hasInitialScore) resultsUpdatedCount += 1;
       } else if (action.kind === "UPDATE" && action.existing) {
         await this.leagueSync.updateSyncedMatchSchedulePreservingLocal({
           eventId: action.existing.eventId,
@@ -292,7 +507,9 @@ export class LeagueSyncService {
           isCancelled: action.incoming.isCancelled,
           opponentName: action.incoming.opponentName,
           isHome: action.incoming.isHome,
+          backfillScores: action.backfillScores ?? null,
         });
+        touchedEventIds.add(action.existing.eventId);
 
         const log = await this.leagueSync.createChangeLog({
           sourceId: source.id,
@@ -308,16 +525,21 @@ export class LeagueSyncService {
         });
         changes.push(log);
         updatedCount += 1;
+        if (action.backfillScores) resultsUpdatedCount += 1;
       }
     }
 
     return {
-      sourceId: source.id,
-      processedCount: incomingMatches.length,
-      createdCount,
-      updatedCount,
-      unchangedCount,
-      changes,
+      summary: {
+        sourceId: source.id,
+        processedCount: incomingMatches.length,
+        createdCount,
+        updatedCount,
+        unchangedCount,
+        resultsUpdatedCount,
+        changes,
+      },
+      touchedEventIds,
     };
   }
 }

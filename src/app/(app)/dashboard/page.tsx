@@ -16,6 +16,7 @@ import {
   UserCheck,
   Users,
 } from "lucide-react";
+import { MatchLocationBadge } from "@/components/events/match-badges";
 import { ResinBadge } from "@/components/events/resin-badge";
 import { RsvpControls } from "@/components/events/rsvp-controls";
 import { ProfileCompletionBanner } from "@/components/onboarding/profile-completion-banner";
@@ -511,9 +512,10 @@ export default function DashboardPage() {
                   </Link>
                 </CardTitle>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <Badge variant="outline">
-                    {nextMatch.matchDetails.isHome ? "Heimspiel" : "Auswärts"}
-                  </Badge>
+                  <MatchLocationBadge
+                    isHome={nextMatch.matchDetails.isHome}
+                    labelMode="long"
+                  />
                   <ChevronRight
                     className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
                     aria-hidden="true"

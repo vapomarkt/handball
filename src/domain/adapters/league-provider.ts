@@ -16,6 +16,13 @@ import {
  * Normalisiertes Liga-Spiel als gemeinsamer Vertrag aller Provider-Adapter
  * (iCal, CSV, und künftig nuLiga-HTML / nuPortalRS / handball.net).
  */
+export interface MatchScoresSnapshot {
+  homeScoreFull: number;
+  awayScoreFull: number;
+  homeScoreHalf: number | null;
+  awayScoreHalf: number | null;
+}
+
 export interface NormalizedLeagueMatch {
   externalId: string;
   title: string;
@@ -25,6 +32,14 @@ export interface NormalizedLeagueMatch {
   endAt: Date | null;
   venueName: string | null;
   isCancelled: boolean;
+  matchNumber?: string | null;
+  leagueGroupName?: string | null;
+  homeTeamName?: string | null;
+  awayTeamName?: string | null;
+  homeScoreHalf?: number | null;
+  awayScoreHalf?: number | null;
+  homeScoreFull?: number | null;
+  awayScoreFull?: number | null;
 }
 
 export interface LeagueProviderAdapter<TOptions = unknown> {
@@ -43,6 +58,23 @@ export interface ExistingSyncedMatch {
   isCancelled: boolean;
   opponentName: string | null;
   isHome: boolean | null;
+  homeScoreHalf?: number | null;
+  awayScoreHalf?: number | null;
+  homeScoreFull?: number | null;
+  awayScoreFull?: number | null;
+}
+
+export interface ExistingUnscoredMatch {
+  eventId: string;
+  externalId: string | null;
+  title: string;
+  startAt: Date;
+  opponentName: string;
+  isHome: boolean;
+  homeScoreHalf: number | null;
+  awayScoreHalf: number | null;
+  homeScoreFull: number | null;
+  awayScoreFull: number | null;
 }
 
 export interface LeagueSyncRepository {
@@ -62,6 +94,14 @@ export interface LeagueSyncRepository {
   deleteSource(sourceId: string): Promise<void>;
 
   findSyncedMatchesByTeam(teamId: string): Promise<ExistingSyncedMatch[]>;
+  findPastMatchesWithoutScoresByTeam?(
+    teamId: string,
+    before: Date
+  ): Promise<ExistingUnscoredMatch[]>;
+  backfillMatchScores?(
+    eventId: string,
+    scores: MatchScoresSnapshot
+  ): Promise<void>;
   findOrCreateVenueByNamePreservingResin(
     clubId: string,
     venueName: string
@@ -77,11 +117,17 @@ export interface LeagueSyncRepository {
     isCancelled: boolean;
     opponentName: string;
     isHome: boolean;
+    homeScoreHalf?: number | null;
+    awayScoreHalf?: number | null;
+    homeScoreFull?: number | null;
+    awayScoreFull?: number | null;
   }): Promise<{ eventId: string }>;
   /**
    * Aktualisiert AUSSCHLIESSLICH externe Liga-Felder.
    * Lokale Anreicherungen (meetingAt, description, jerseyColor, nominatedMemberIds,
-   * refereeNote, scores, carpools, venue.resinPolicy) bleiben 100% unberührt!
+   * refereeNote, carpools, venue.resinPolicy) sowie bereits manuell gepflegte
+   * Endstände bleiben 100% unberührt; fehlende Ergebnisse können gezielt
+   * über `backfillScores` nachgetragen werden.
    */
   updateSyncedMatchSchedulePreservingLocal(input: {
     eventId: string;
@@ -92,6 +138,7 @@ export interface LeagueSyncRepository {
     isCancelled: boolean;
     opponentName: string;
     isHome: boolean;
+    backfillScores?: MatchScoresSnapshot | null;
   }): Promise<void>;
 
   createChangeLog(input: {

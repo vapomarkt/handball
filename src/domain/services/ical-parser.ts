@@ -2,6 +2,7 @@ import {
   LeagueProviderAdapter,
   NormalizedLeagueMatch,
 } from "../adapters/league-provider";
+import { parseScoreWithOptionalHalf } from "./nuliga-match-results";
 
 export interface IcalParseOptions {
   teamNameMatch?: string | null;
@@ -105,20 +106,63 @@ function parseIcalDate(rawValue: string, tzid?: string | null): Date | null {
  *   Heim: HL Buchholz 08 - Rosengarten II
  *   Gast: TuS Jahn Hollenstedt
  */
-function parseTeamsFromDescription(
-  description: string | null
-): { home: string; away: string } | null {
-  if (!description) return null;
+function parseDescriptionMetadata(description: string | null): {
+  home: string | null;
+  away: string | null;
+  matchNumber: string | null;
+  leagueGroupName: string | null;
+  homeScoreFull: number | null;
+  awayScoreFull: number | null;
+  homeScoreHalf: number | null;
+  awayScoreHalf: number | null;
+} {
+  if (!description) {
+    return {
+      home: null,
+      away: null,
+      matchNumber: null,
+      leagueGroupName: null,
+      homeScoreFull: null,
+      awayScoreFull: null,
+      homeScoreHalf: null,
+      awayScoreHalf: null,
+    };
+  }
+
+  const lines = description
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
   const homeMatch = description.match(/(?:^|\n)Heim:\s*(.+)/i);
   const awayMatch = description.match(/(?:^|\n)Gast:\s*(.+)/i);
-  if (homeMatch && awayMatch) {
-    const home = homeMatch[1].trim();
-    const away = awayMatch[1].trim();
-    if (home && away) {
-      return { home, away };
-    }
+  const nrMatch = description.match(/(?:^|\n)Begegnungs-Nr:\s*(\d+)/i);
+  const scoreMatch = description.match(/(?:^|\n)(?:Ergebnis|Resultat|Endstand):\s*(.+)/i);
+
+  let leagueGroupName: string | null = null;
+  if (
+    lines[0] &&
+    !/^(?:Heim|Gast|Halle|Adresse|Begegnungs-Nr|Ergebnis|Resultat|Endstand):/i.test(
+      lines[0]
+    )
+  ) {
+    leagueGroupName = lines[0];
   }
-  return null;
+
+  const parsedScore = scoreMatch
+    ? parseScoreWithOptionalHalf(scoreMatch[1])
+    : null;
+
+  return {
+    home: homeMatch ? homeMatch[1].trim() || null : null,
+    away: awayMatch ? awayMatch[1].trim() || null : null,
+    matchNumber: nrMatch ? nrMatch[1] : null,
+    leagueGroupName,
+    homeScoreFull: parsedScore?.full.home ?? null,
+    awayScoreFull: parsedScore?.full.away ?? null,
+    homeScoreHalf: parsedScore?.half?.home ?? null,
+    awayScoreHalf: parsedScore?.half?.away ?? null,
+  };
 }
 
 function resolveHomeAway(
@@ -143,15 +187,22 @@ function resolveHomeAway(
 
 function parseMatchup(
   summary: string,
-  description: string | null,
+  descMeta: ReturnType<typeof parseDescriptionMetadata>,
   teamNameMatch?: string | null
-): { isHome: boolean; opponentName: string; cleanTitle: string } {
-  const fromDesc = parseTeamsFromDescription(description);
-  if (fromDesc) {
-    const resolved = resolveHomeAway(fromDesc.home, fromDesc.away, teamNameMatch);
+): {
+  isHome: boolean;
+  opponentName: string;
+  cleanTitle: string;
+  homeTeamName: string | null;
+  awayTeamName: string | null;
+} {
+  if (descMeta.home && descMeta.away) {
+    const resolved = resolveHomeAway(descMeta.home, descMeta.away, teamNameMatch);
     return {
       ...resolved,
-      cleanTitle: `${fromDesc.home} vs. ${fromDesc.away}`,
+      cleanTitle: `${descMeta.home} vs. ${descMeta.away}`,
+      homeTeamName: descMeta.home,
+      awayTeamName: descMeta.away,
     };
   }
 
@@ -169,6 +220,8 @@ function parseMatchup(
     return {
       ...resolveHomeAway(home, away, teamNameMatch),
       cleanTitle: summary,
+      homeTeamName: home,
+      awayTeamName: away,
     };
   }
 
@@ -184,10 +237,18 @@ function parseMatchup(
     return {
       ...resolveHomeAway(home, away, teamNameMatch),
       cleanTitle: summary,
+      homeTeamName: home,
+      awayTeamName: away,
     };
   }
 
-  return { isHome: true, opponentName: summary, cleanTitle: summary };
+  return {
+    isHome: true,
+    opponentName: summary,
+    cleanTitle: summary,
+    homeTeamName: null,
+    awayTeamName: null,
+  };
 }
 
 export class IcalLeagueProviderAdapter
@@ -239,11 +300,14 @@ export class IcalLeagueProviderAdapter
           : new Date(startAt.getTime() + 105 * 60 * 1000);
         const externalId =
           uid || `ical-${startAt.toISOString()}-${summary.slice(0, 32)}`;
-        const { isHome, opponentName, cleanTitle } = parseMatchup(
-          summary,
-          description,
-          options.teamNameMatch
-        );
+        const descMeta = parseDescriptionMetadata(description);
+        const {
+          isHome,
+          opponentName,
+          cleanTitle,
+          homeTeamName,
+          awayTeamName,
+        } = parseMatchup(summary, descMeta, options.teamNameMatch);
 
         matches.push({
           externalId,
@@ -254,6 +318,14 @@ export class IcalLeagueProviderAdapter
           endAt,
           venueName: location,
           isCancelled: status.toUpperCase() === "CANCELLED",
+          matchNumber: descMeta.matchNumber,
+          leagueGroupName: descMeta.leagueGroupName,
+          homeTeamName,
+          awayTeamName,
+          homeScoreFull: descMeta.homeScoreFull,
+          awayScoreFull: descMeta.awayScoreFull,
+          homeScoreHalf: descMeta.homeScoreHalf,
+          awayScoreHalf: descMeta.awayScoreHalf,
         });
         continue;
       }

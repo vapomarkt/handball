@@ -1,7 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import type { EventDTO } from "@throwoff/shared";
+import {
+  formatMatchScore,
+  getMatchOutcome,
+  MATCH_OUTCOME_LABELS,
+  type EventDTO,
+  type MatchOutcome,
+} from "@throwoff/shared";
 import { router } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import {
   EmptyState,
@@ -18,7 +24,7 @@ import { colors, radius, spacing } from "../../src/theme";
 
 const TYPE_LABEL: Record<EventDTO["type"], string> = {
   TRAINING: "Training",
-  MATCH: "Spiel",
+  MATCH: "Punktspiel",
   TOURNAMENT: "Turnier",
   CLUB_EVENT: "Verein",
 };
@@ -30,9 +36,17 @@ const STATUS_LABEL = {
   PENDING: { text: "Offen", color: colors.textMuted },
 } as const;
 
+const OUTCOME_COLORS: Record<MatchOutcome, { bg: string; text: string }> = {
+  WIN: { bg: "rgba(34, 197, 94, 0.18)", text: colors.success },
+  LOSS: { bg: "rgba(239, 68, 68, 0.18)", text: colors.danger },
+  DRAW: { bg: "rgba(245, 158, 11, 0.18)", text: colors.warning },
+};
+
 export default function TermineScreen() {
   const { activeTeam, activeMemberId } = useActiveTeam();
   const teamId = activeTeam?.teamId;
+  const [showPast, setShowPast] = useState(false);
+
   const query = useQuery({
     queryKey: queryKeys.events(teamId ?? "-"),
     queryFn: () => api.listTeamEvents(teamId!),
@@ -45,11 +59,30 @@ export default function TermineScreen() {
 
   const since = Date.now() - 1000 * 60 * 60 * 6;
   const events = (query.data?.events ?? [])
-    .filter((e) => new Date(e.startAt).getTime() >= since)
+    .filter((e) => (showPast ? true : new Date(e.startAt).getTime() >= since))
     .sort((a, b) => a.startAt.localeCompare(b.startAt));
 
   return (
     <Screen>
+      <View style={styles.filterBar}>
+        <Pressable
+          onPress={() => setShowPast(false)}
+          style={[styles.filterPill, !showPast && styles.filterPillActive]}
+        >
+          <Text style={[styles.filterText, !showPast && styles.filterTextActive]}>
+            Anstehend
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setShowPast(true)}
+          style={[styles.filterPill, showPast && styles.filterPillActive]}
+        >
+          <Text style={[styles.filterText, showPast && styles.filterTextActive]}>
+            Alle inkl. Vergangene
+          </Text>
+        </Pressable>
+      </View>
+
       <FlatList
         data={events}
         keyExtractor={(e) => e.id}
@@ -61,17 +94,62 @@ export default function TermineScreen() {
             tintColor={colors.primary}
           />
         }
-        ListEmptyComponent={<EmptyState text="Keine anstehenden Termine." />}
+        ListEmptyComponent={<EmptyState text="Keine passenden Termine." />}
         renderItem={({ item }) => {
           const mine = item.attendances.find((a) => a.memberId === activeMemberId);
           const status = STATUS_LABEL[mine?.status ?? "PENDING"];
+          const md = item.matchDetails;
+          const outcome = md ? getMatchOutcome(md) : null;
+          const scoreText = md ? formatMatchScore(md) : null;
+
           return (
             <Pressable
               onPress={() => router.push(`/termine/${item.id}`)}
-              style={[styles.row, item.isCancelled && styles.cancelled]}
+              style={[
+                styles.row,
+                md && (md.isHome ? styles.rowHome : styles.rowAway),
+                item.isCancelled && styles.cancelled,
+              ]}
             >
               <View style={styles.rowMain}>
-                <Text style={styles.type}>{TYPE_LABEL[item.type]}</Text>
+                <View style={styles.badgeRow}>
+                  {md ? (
+                    <View
+                      style={[
+                        styles.locationBadge,
+                        md.isHome ? styles.homeBadge : styles.awayBadge,
+                      ]}
+                    >
+                      <Text style={styles.locationBadgeText}>
+                        {md.isHome ? "🏠 Heim" : "🚌 Auswärts"}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {outcome && scoreText ? (
+                    <View
+                      style={[
+                        styles.outcomeBadge,
+                        { backgroundColor: OUTCOME_COLORS[outcome].bg },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.outcomeBadgeText,
+                          { color: OUTCOME_COLORS[outcome].text },
+                        ]}
+                      >
+                        {MATCH_OUTCOME_LABELS[outcome]} · {scoreText}
+                      </Text>
+                    </View>
+                  ) : null}
+                  <Text
+                    style={
+                      item.type === "MATCH" ? styles.typeSubtle : styles.type
+                    }
+                  >
+                    {TYPE_LABEL[item.type]}
+                  </Text>
+                </View>
                 <Text style={styles.title}>
                   {item.isCancelled ? "ABGESAGT · " : ""}
                   {item.title}
@@ -96,6 +174,26 @@ export default function TermineScreen() {
 }
 
 const styles = StyleSheet.create({
+  filterBar: {
+    flexDirection: "row",
+    gap: spacing(2),
+    paddingHorizontal: spacing(4),
+    paddingTop: spacing(3),
+  },
+  filterPill: {
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing(3),
+    paddingVertical: spacing(1.5),
+  },
+  filterPillActive: {
+    borderColor: colors.primary,
+    backgroundColor: "rgba(217, 93, 36, 0.16)",
+  },
+  filterText: { color: colors.textMuted, fontSize: 12, fontWeight: "600" },
+  filterTextActive: { color: colors.primary },
   list: { padding: spacing(4), gap: spacing(3) },
   row: {
     flexDirection: "row",
@@ -106,10 +204,33 @@ const styles = StyleSheet.create({
     padding: spacing(4),
     gap: spacing(3),
   },
+  rowHome: { borderLeftWidth: 4, borderLeftColor: colors.primary },
+  rowAway: { borderLeftWidth: 4, borderLeftColor: colors.textMuted },
   cancelled: { opacity: 0.55 },
   rowMain: { flex: 1, gap: spacing(1) },
   rowSide: { alignItems: "flex-end", gap: spacing(1) },
+  badgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: spacing(1.5),
+  },
+  locationBadge: {
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing(2),
+    paddingVertical: 2,
+  },
+  homeBadge: { backgroundColor: colors.primary },
+  awayBadge: { backgroundColor: colors.surfaceAlt },
+  locationBadgeText: { color: colors.text, fontSize: 11, fontWeight: "700" },
+  outcomeBadge: {
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing(2),
+    paddingVertical: 2,
+  },
+  outcomeBadgeText: { fontSize: 11, fontWeight: "700" },
   type: { color: colors.primary, fontSize: 12, fontWeight: "700", textTransform: "uppercase" },
+  typeSubtle: { color: colors.textMuted, fontSize: 11, fontWeight: "600" },
   title: { color: colors.text, fontSize: 16, fontWeight: "700" },
   status: { fontWeight: "700" },
 });

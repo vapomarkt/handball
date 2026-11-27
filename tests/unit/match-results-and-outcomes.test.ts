@@ -24,9 +24,11 @@ import {
   formatMatchScore,
   formatOfficialMatchScore,
   getMatchOutcome,
+  hasAnyMatchScore,
   hasOfficialScoreDiscrepancy,
   MATCH_OUTCOME_LABELS,
   MatchDetailsDTO,
+  shouldShowMatchScoreEditor,
 } from "@/domain/schemas/event";
 import {
   LeagueImportSourceDTO,
@@ -877,3 +879,121 @@ describe("Manuelle Spielstand-Korrektur & Abweichung zum offiziellen Ergebnis", 
     });
   });
 });
+
+describe("Kontextabhängige Ergebniserfassung (shouldShowMatchScoreEditor)", () => {
+  const now = new Date("2026-11-27T12:00:00.000Z");
+
+  it("blendet Ergebnisfelder bei zukünftigen Spielen ohne Spielstand standardmäßig aus", () => {
+    expect(
+      shouldShowMatchScoreEditor(
+        {
+          startAt: "2026-11-28T15:00:00.000Z",
+          isCancelled: false,
+          matchDetails: {
+            throwOffAt: "2026-11-28T15:00:00.000Z",
+            homeScoreFull: null,
+            awayScoreFull: null,
+            homeScoreHalf: null,
+            awayScoreHalf: null,
+          },
+        },
+        now
+      )
+    ).toBe(false);
+  });
+
+  it("zeigt Ergebnisfelder ab exakt dem Anwurfzeitpunkt (throwOffAt bevorzugt vor startAt)", () => {
+    expect(
+      shouldShowMatchScoreEditor(
+        {
+          startAt: "2026-11-27T11:00:00.000Z",
+          isCancelled: false,
+          matchDetails: {
+            throwOffAt: "2026-11-27T12:00:00.000Z",
+            homeScoreFull: null,
+            awayScoreFull: null,
+          },
+        },
+        now
+      )
+    ).toBe(true);
+
+    // startAt liegt schon zurück, aber throwOffAt noch in der Zukunft -> noch ausblenden
+    expect(
+      shouldShowMatchScoreEditor(
+        {
+          startAt: "2026-11-27T11:30:00.000Z",
+          isCancelled: false,
+          matchDetails: {
+            throwOffAt: "2026-11-27T12:30:00.000Z",
+            homeScoreFull: null,
+            awayScoreFull: null,
+          },
+        },
+        now
+      )
+    ).toBe(false);
+  });
+
+  it("blendet Ergebnisfelder bei abgesagten Spielen ohne Ergebnis aus, zeigt sie aber bei vorhandenem Spielstand", () => {
+    expect(
+      shouldShowMatchScoreEditor(
+        {
+          startAt: "2026-11-20T15:00:00.000Z",
+          isCancelled: true,
+          matchDetails: {
+            homeScoreFull: null,
+            awayScoreFull: null,
+          },
+        },
+        now
+      )
+    ).toBe(false);
+
+    // Zukunftsspiel oder abgesagtes Spiel MIT lokalem oder offiziellem Ergebnis -> sichtbar
+    expect(
+      shouldShowMatchScoreEditor(
+        {
+          startAt: "2026-12-05T15:00:00.000Z",
+          isCancelled: false,
+          matchDetails: {
+            homeScoreFull: 28,
+            awayScoreFull: 24,
+          },
+        },
+        now
+      )
+    ).toBe(true);
+
+    expect(
+      shouldShowMatchScoreEditor(
+        {
+          startAt: "2026-12-05T15:00:00.000Z",
+          isCancelled: true,
+          matchDetails: {
+            homeScoreFull: null,
+            awayScoreFull: null,
+            officialHomeScoreFull: 0,
+            officialAwayScoreFull: 2,
+          },
+        },
+        now
+      )
+    ).toBe(true);
+  });
+
+  it("erkennt vorhandene Teil-, End- oder offizielle Spielstände über hasAnyMatchScore", () => {
+    expect(hasAnyMatchScore(null)).toBe(false);
+    expect(
+      hasAnyMatchScore({
+        homeScoreHalf: null,
+        awayScoreHalf: null,
+        homeScoreFull: null,
+        awayScoreFull: null,
+      })
+    ).toBe(false);
+    expect(hasAnyMatchScore({ homeScoreHalf: 12 })).toBe(true);
+    expect(hasAnyMatchScore({ officialAwayScoreFull: 0 })).toBe(true);
+  });
+});
+

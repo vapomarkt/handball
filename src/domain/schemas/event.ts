@@ -177,6 +177,94 @@ export function hasOfficialScoreDiscrepancy(matchDetails: {
   return false;
 }
 
+/**
+ * Prüft, ob für ein Punktspiel bereits ein lokaler oder offizieller Spielstand
+ * (Halbzeit- oder Endstand) gespeichert ist.
+ */
+export function hasAnyMatchScore(
+  matchDetails:
+    | {
+        homeScoreHalf?: number | null;
+        awayScoreHalf?: number | null;
+        homeScoreFull?: number | null;
+        awayScoreFull?: number | null;
+        officialHomeScoreHalf?: number | null;
+        officialAwayScoreHalf?: number | null;
+        officialHomeScoreFull?: number | null;
+        officialAwayScoreFull?: number | null;
+      }
+    | null
+    | undefined
+): boolean {
+  if (!matchDetails) return false;
+  return (
+    (matchDetails.homeScoreFull !== null &&
+      matchDetails.homeScoreFull !== undefined) ||
+    (matchDetails.awayScoreFull !== null &&
+      matchDetails.awayScoreFull !== undefined) ||
+    (matchDetails.homeScoreHalf !== null &&
+      matchDetails.homeScoreHalf !== undefined) ||
+    (matchDetails.awayScoreHalf !== null &&
+      matchDetails.awayScoreHalf !== undefined) ||
+    (matchDetails.officialHomeScoreFull !== null &&
+      matchDetails.officialHomeScoreFull !== undefined) ||
+    (matchDetails.officialAwayScoreFull !== null &&
+      matchDetails.officialAwayScoreFull !== undefined) ||
+    (matchDetails.officialHomeScoreHalf !== null &&
+      matchDetails.officialHomeScoreHalf !== undefined) ||
+    (matchDetails.officialAwayScoreHalf !== null &&
+      matchDetails.officialAwayScoreHalf !== undefined)
+  );
+}
+
+/**
+ * Entscheidet, ob die Ergebniserfassung in der Detailansicht standardmäßig
+ * sichtbar sein soll.
+ *
+ * - `true`: ab Anwurf (`throwOffAt ?? startAt`), sofern nicht abgesagt, ODER
+ *   sobald bereits ein Spielstand (lokal oder offiziell) vorliegt.
+ * - `false`: bei zukünftigen bzw. abgesagten Spielen ohne Ergebnis; dort bleibt
+ *   die Eingabe für Sondersituationen (z. B. vorgezogenes Spiel oder Wertung)
+ *   über einen kompakten Toggle flexibel erreichbar.
+ */
+export function shouldShowMatchScoreEditor(
+  event: {
+    startAt: string | Date;
+    isCancelled?: boolean;
+    matchDetails?:
+      | {
+          throwOffAt?: string | Date | null;
+          homeScoreHalf?: number | null;
+          awayScoreHalf?: number | null;
+          homeScoreFull?: number | null;
+          awayScoreFull?: number | null;
+          officialHomeScoreHalf?: number | null;
+          officialAwayScoreHalf?: number | null;
+          officialHomeScoreFull?: number | null;
+          officialAwayScoreFull?: number | null;
+        }
+      | null;
+  },
+  now: Date = new Date()
+): boolean {
+  if (hasAnyMatchScore(event.matchDetails)) {
+    return true;
+  }
+  if (event.isCancelled) {
+    return false;
+  }
+  const reference = event.matchDetails?.throwOffAt ?? event.startAt;
+  const referenceMs =
+    reference instanceof Date
+      ? reference.getTime()
+      : new Date(reference).getTime();
+  if (Number.isNaN(referenceMs)) {
+    return false;
+  }
+  return now.getTime() >= referenceMs;
+}
+
+
 export const DeclineReasonCategorySchema = z.enum([
   "WORK",
   "INJURY",

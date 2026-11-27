@@ -9,6 +9,7 @@ import {
   Lock,
   MapPin,
   Pencil,
+  Plus,
   RotateCcw,
   Shirt,
   Trophy,
@@ -32,6 +33,7 @@ import {
   formatOfficialMatchScore,
   hasOfficialScoreDiscrepancy,
   RSVP_STATUS_LABELS,
+  shouldShowMatchScoreEditor,
   type EventDTO,
 } from "@/domain/schemas/event";
 import {
@@ -113,16 +115,44 @@ export function EventDetailDialog({
   const [savingMatch, setSavingMatch] = useState(false);
   const [matchSavedMsg, setMatchSavedMsg] = useState<string | null>(null);
   const [matchError, setMatchError] = useState<string | null>(null);
+  const [openedAt] = useState(() => new Date());
+  const [showScoreOverride, setShowScoreOverride] = useState(false);
 
   if (!event) return null;
 
   const players = roster.filter((m) => m.role === "PLAYER");
+  const scoreRelevantByDefault = shouldShowMatchScoreEditor(event, openedAt);
+  const showScoreFields = scoreRelevantByDefault || showScoreOverride;
 
   function toggleNomination(memberId: string) {
     setNominated((prev) =>
       prev.includes(memberId)
         ? prev.filter((id) => id !== memberId)
         : [...prev, memberId]
+    );
+  }
+
+  function handleHideScoreOverride() {
+    setShowScoreOverride(false);
+    setHomeScoreHalf(
+      md?.homeScoreHalf !== null && md?.homeScoreHalf !== undefined
+        ? String(md.homeScoreHalf)
+        : ""
+    );
+    setAwayScoreHalf(
+      md?.awayScoreHalf !== null && md?.awayScoreHalf !== undefined
+        ? String(md.awayScoreHalf)
+        : ""
+    );
+    setHomeScoreFull(
+      md?.homeScoreFull !== null && md?.homeScoreFull !== undefined
+        ? String(md.homeScoreFull)
+        : ""
+    );
+    setAwayScoreFull(
+      md?.awayScoreFull !== null && md?.awayScoreFull !== undefined
+        ? String(md.awayScoreFull)
+        : ""
     );
   }
 
@@ -134,21 +164,29 @@ export function EventDetailDialog({
     setMatchSavedMsg(null);
 
     try {
+      const payload: Record<string, unknown> = {
+        jerseySetId: jerseySetId || null,
+        jerseyColor: jerseyColor || null,
+        refereeNote: refereeNote || null,
+        nominatedMemberIds: nominated,
+      };
+      if (showScoreFields) {
+        payload.homeScoreHalf =
+          homeScoreHalf === "" ? null : Number(homeScoreHalf);
+        payload.awayScoreHalf =
+          awayScoreHalf === "" ? null : Number(awayScoreHalf);
+        payload.homeScoreFull =
+          homeScoreFull === "" ? null : Number(homeScoreFull);
+        payload.awayScoreFull =
+          awayScoreFull === "" ? null : Number(awayScoreFull);
+      }
+
       const res = await fetch(
         `/api/v1/teams/${encodeURIComponent(teamId)}/events/${encodeURIComponent(event.id)}/match`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            jerseySetId: jerseySetId || null,
-            jerseyColor: jerseyColor || null,
-            refereeNote: refereeNote || null,
-            nominatedMemberIds: nominated,
-            homeScoreHalf: homeScoreHalf === "" ? null : Number(homeScoreHalf),
-            awayScoreHalf: awayScoreHalf === "" ? null : Number(awayScoreHalf),
-            homeScoreFull: homeScoreFull === "" ? null : Number(homeScoreFull),
-            awayScoreFull: awayScoreFull === "" ? null : Number(awayScoreFull),
-          }),
+          body: JSON.stringify(payload),
         }
       );
       const data = await res.json();
@@ -156,7 +194,17 @@ export function EventDetailDialog({
         setMatchError(data?.error?.message || "Speichern fehlgeschlagen.");
         return;
       }
-      setMatchSavedMsg("Spieltagsdaten & Kader gespeichert.");
+      const hasScoreInput =
+        showScoreFields &&
+        (homeScoreFull !== "" ||
+          awayScoreFull !== "" ||
+          homeScoreHalf !== "" ||
+          awayScoreHalf !== "");
+      setMatchSavedMsg(
+        hasScoreInput
+          ? "Spieltagsdaten & Ergebnis gespeichert."
+          : "Spieltagsdaten & Kader gespeichert."
+      );
       onUpdated();
     } catch {
       setMatchError("Netzwerkfehler beim Speichern.");
@@ -219,6 +267,66 @@ export function EventDetailDialog({
   const scoreDiscrepancy = md ? hasOfficialScoreDiscrepancy(md) : false;
   const officialScoreLabel = md ? formatOfficialMatchScore(md) : null;
   const localScoreLabel = md ? formatMatchScore(md) : null;
+
+  const scoreInputsGrid = (
+    <div
+      className="grid gap-3 sm:grid-cols-2"
+      data-testid="match-score-inputs"
+    >
+      <div className="space-y-1">
+        <Label className="text-xs">Halbzeitstand (Heim : Gast)</Label>
+        <div className="flex items-center gap-2">
+          <Input
+            aria-label="Halbzeit Heim"
+            type="number"
+            min={0}
+            max={99}
+            placeholder="HZ Heim"
+            value={homeScoreHalf}
+            onChange={(e) => setHomeScoreHalf(e.target.value)}
+            className="h-9 text-xs font-mono"
+          />
+          <span className="font-bold">:</span>
+          <Input
+            aria-label="Halbzeit Gast"
+            type="number"
+            min={0}
+            max={99}
+            placeholder="HZ Gast"
+            value={awayScoreHalf}
+            onChange={(e) => setAwayScoreHalf(e.target.value)}
+            className="h-9 text-xs font-mono"
+          />
+        </div>
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">Endstand (Heim : Gast)</Label>
+        <div className="flex items-center gap-2">
+          <Input
+            aria-label="Endstand Heim"
+            type="number"
+            min={0}
+            max={99}
+            placeholder="Ende Heim"
+            value={homeScoreFull}
+            onChange={(e) => setHomeScoreFull(e.target.value)}
+            className="h-9 text-xs font-mono"
+          />
+          <span className="font-bold">:</span>
+          <Input
+            aria-label="Endstand Gast"
+            type="number"
+            min={0}
+            max={99}
+            placeholder="Ende Gast"
+            value={awayScoreFull}
+            onChange={(e) => setAwayScoreFull(e.target.value)}
+            className="h-9 text-xs font-mono"
+          />
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -393,6 +501,9 @@ export function EventDetailDialog({
                 </div>
               ) : (
                 <form onSubmit={handleSaveMatch} className="space-y-4">
+                  {/* Ab Anwurf / bei bereits vorhandenem Spielstand steht die Ergebniserfassung oben */}
+                  {scoreRelevantByDefault && scoreInputsGrid}
+
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="space-y-1">
                       <Label htmlFor="md-jersey" className="text-xs">
@@ -457,62 +568,6 @@ export function EventDetailDialog({
                     </div>
                   </div>
 
-                  {/* Ergebniserfassung Halbzeit & Endstand */}
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Halbzeitstand (Heim : Gast)</Label>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          aria-label="Halbzeit Heim"
-                          type="number"
-                          min={0}
-                          max={99}
-                          placeholder="HZ Heim"
-                          value={homeScoreHalf}
-                          onChange={(e) => setHomeScoreHalf(e.target.value)}
-                          className="h-9 text-xs font-mono"
-                        />
-                        <span className="font-bold">:</span>
-                        <Input
-                          aria-label="Halbzeit Gast"
-                          type="number"
-                          min={0}
-                          max={99}
-                          placeholder="HZ Gast"
-                          value={awayScoreHalf}
-                          onChange={(e) => setAwayScoreHalf(e.target.value)}
-                          className="h-9 text-xs font-mono"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Endstand (Heim : Gast)</Label>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          aria-label="Endstand Heim"
-                          type="number"
-                          min={0}
-                          max={99}
-                          placeholder="Ende Heim"
-                          value={homeScoreFull}
-                          onChange={(e) => setHomeScoreFull(e.target.value)}
-                          className="h-9 text-xs font-mono"
-                        />
-                        <span className="font-bold">:</span>
-                        <Input
-                          aria-label="Endstand Gast"
-                          type="number"
-                          min={0}
-                          max={99}
-                          placeholder="Ende Gast"
-                          value={awayScoreFull}
-                          onChange={(e) => setAwayScoreFull(e.target.value)}
-                          className="h-9 text-xs font-mono"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
                   {/* Spieltagskader-Nominierung */}
                   <div className="space-y-1.5">
                     <Label className="text-xs">
@@ -541,6 +596,30 @@ export function EventDetailDialog({
                     </div>
                   </div>
 
+                  {/* Optional aufgeklappte Ergebniserfassung für Sondersituationen vor Anwurf */}
+                  {!scoreRelevantByDefault && showScoreOverride && (
+                    <div
+                      data-testid="early-score-editor"
+                      className="rounded-lg border border-dashed border-border bg-muted/20 p-3 space-y-2.5"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          {event.isCancelled
+                            ? "Ergebnis (abgesagtes Spiel / Wertung)"
+                            : "Ergebnis (vor regulärem Anwurf)"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleHideScoreOverride}
+                          className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        >
+                          Ausblenden
+                        </button>
+                      </div>
+                      {scoreInputsGrid}
+                    </div>
+                  )}
+
                   {matchError && (
                     <p role="alert" className="text-xs text-red-600">
                       {matchError}
@@ -552,12 +631,29 @@ export function EventDetailDialog({
                     </p>
                   )}
 
-                  <Button type="submit" size="sm" disabled={savingMatch}>
-                    {savingMatch && (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Button type="submit" size="sm" disabled={savingMatch}>
+                      {savingMatch && (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      )}
+                      {showScoreFields
+                        ? "Spieltagsdaten & Ergebnis speichern"
+                        : "Spieltagsdaten & Kader speichern"}
+                    </Button>
+
+                    {!scoreRelevantByDefault && !showScoreOverride && (
+                      <button
+                        type="button"
+                        data-testid="toggle-early-score-entry"
+                        onClick={() => setShowScoreOverride(true)}
+                        title="Für Sondersituationen, z. B. vorgezogenes Spiel oder Spielwertung"
+                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
+                      >
+                        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                        Ergebnis eintragen
+                      </button>
                     )}
-                    Spieltagsdaten & Ergebnis speichern
-                  </Button>
+                  </div>
                 </form>
               )}
             </div>

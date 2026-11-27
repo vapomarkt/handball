@@ -977,7 +977,7 @@ export function HandballCourtBoard({
       <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           {/* Playback Controls */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <Button
               type="button"
               size="sm"
@@ -1062,7 +1062,7 @@ export function HandballCourtBoard({
 
           {/* Keyframe-Aktionen für Trainer */}
           {editable && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               <Button
                 type="button"
                 size="sm"

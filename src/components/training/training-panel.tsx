@@ -445,7 +445,7 @@ export function TrainingPanel({ teamId, mode, isStaff }: TrainingPanelProps) {
                   })}
                 </div>
               </div>
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex flex-wrap justify-end gap-2 pt-2">
                 <Button
                   type="button"
                   variant="outline"
@@ -627,7 +627,7 @@ export function TrainingPanel({ teamId, mode, isStaff }: TrainingPanelProps) {
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <Label>
                   Phasen ({totalDraftMinutes} / {planTarget} Min.)
                 </Label>

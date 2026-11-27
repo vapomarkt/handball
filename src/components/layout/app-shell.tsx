@@ -3,20 +3,25 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   Calendar,
   ClipboardList,
   HelpCircle,
   LayoutDashboard,
   LogOut,
+  Moon,
+  MoreVertical,
   Plus,
   Settings,
   Shield,
+  Sun,
   UserCircle2,
   Users,
   Wallet,
   Waypoints,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { BrandLogo } from "@/components/branding/logo";
 import { AppTour } from "@/components/onboarding/app-tour";
 import { useAppContext } from "@/components/providers/app-context";
@@ -70,6 +75,7 @@ const NAV_ITEMS = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { resolvedTheme, setTheme } = useTheme();
   const {
     me,
     loading,
@@ -102,7 +108,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col md:flex-row bg-background">
+    <div className="flex min-h-screen w-full flex-col overflow-x-clip md:flex-row bg-background">
       {/* Desktop / Tablet Sidebar */}
       <aside className="hidden md:flex md:w-68 md:flex-col md:fixed md:inset-y-0 border-r border-border bg-card">
         <div className="flex h-16 items-center justify-between px-5 border-b border-border">
@@ -278,7 +284,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Mobile Top Header */}
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-border bg-card/95 px-4 backdrop-blur-sm md:hidden">
+      <header className="sticky top-0 z-30 flex h-14 w-full min-w-0 items-center justify-between gap-1.5 sm:gap-2 border-b border-border bg-card/95 px-2.5 sm:px-4 backdrop-blur-sm md:hidden">
         <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
           {activeTeam?.clubLogoUrl ? (
             /* eslint-disable-next-line @next/next/no-img-element */
@@ -293,13 +299,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Link>
 
         {selectableTeams.length > 0 && activeTeam && (
-          <div className="flex items-center gap-1 min-w-0">
+          <div className="flex min-w-0 flex-1 items-center gap-1 max-w-[220px] sm:max-w-[280px]">
             <SelectNative
               data-tour-id="team-switcher"
               aria-label="Mannschaft wechseln"
               value={activeTeam.teamId}
               onChange={(e) => setActiveTeamId(e.target.value)}
-              className="h-9 max-w-[155px] text-xs font-semibold"
+              className="h-9 min-w-0 flex-1 px-2 text-xs font-semibold"
             >
               {selectableTeams.map((t) => (
                 <option key={t.teamId} value={t.teamId}>
@@ -323,7 +329,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5 shrink-0">
           {activeTeam?.isClubAdmin && (
             <Link
               href="/verwaltung"
@@ -331,7 +337,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               aria-label="Verwaltung"
               title="Vereins- & Saison-Verwaltung"
               className={cn(
-                "inline-flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
+                "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors",
                 pathname === "/verwaltung"
                   ? "bg-primary/12 text-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -340,23 +346,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Settings className="h-4 w-4" />
             </Link>
           )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={startTour}
-            aria-label="Kurztour starten"
-            title="Kurztour starten"
-          >
-            <HelpCircle className="h-4 w-4" />
-          </Button>
           <Link
             href="/profil"
             data-tour-id="nav-profil"
             aria-label="Mein Profil"
             title="Profil & Sicherheit"
             className={cn(
-              "inline-flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
+              "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors",
               pathname === "/profil"
                 ? "bg-primary/12 text-primary"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -364,29 +360,101 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           >
             <UserCircle2 className="h-4 w-4" />
           </Link>
-          <ThemeToggle />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={handleLogout}
-            aria-label="Abmelden"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
+
+          {/* Auf größeren Mobilgeräten (sm..md) direkt sichtbar */}
+          <div className="hidden sm:flex items-center gap-0.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={startTour}
+              aria-label="Kurztour starten"
+              title="Kurztour starten"
+            >
+              <HelpCircle className="h-4 w-4" />
+            </Button>
+            <ThemeToggle className="h-9 w-9" />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={handleLogout}
+              aria-label="Abmelden"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Auf Smartphones (< sm) kompakt im Mehr-Menü, damit der Header nie überläuft */}
+          <div className="sm:hidden">
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9"
+                  aria-label="Weitere Optionen"
+                  title="Weitere Optionen"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                  align="end"
+                  sideOffset={6}
+                  className="z-50 min-w-[200px] rounded-xl border border-border bg-card p-1.5 text-card-foreground shadow-xl"
+                >
+                  <DropdownMenu.Item
+                    onSelect={() => startTour()}
+                    className="flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium outline-none hover:bg-muted focus:bg-muted"
+                  >
+                    <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                    <span>Kurztour starten</span>
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    onSelect={() =>
+                      setTheme(resolvedTheme === "dark" ? "light" : "dark")
+                    }
+                    className="flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium outline-none hover:bg-muted focus:bg-muted"
+                  >
+                    {resolvedTheme === "dark" ? (
+                      <Sun className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Moon className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span>
+                      {resolvedTheme === "dark" ? "Heller Modus" : "Dunkelmodus"}
+                    </span>
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Separator className="my-1 h-px bg-border" />
+                  <DropdownMenu.Item
+                    onSelect={() => void handleLogout()}
+                    className="flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-destructive outline-none hover:bg-destructive/10 focus:bg-destructive/10"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>Abmelden</span>
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 md:pl-68 pb-20 md:pb-8">
-        <div className="mx-auto max-w-5xl px-4 py-5 sm:px-6 lg:px-8">
+      <main className="flex-1 min-w-0 w-full md:pl-68 pb-20 md:pb-8">
+        <div className="mx-auto w-full min-w-0 max-w-5xl px-3.5 py-4 sm:px-6 sm:py-5 lg:px-8">
           {children}
         </div>
       </main>
 
       {/* Mobile Bottom Tab-Bar */}
       <nav
-        className="fixed bottom-0 inset-x-0 z-40 grid grid-cols-6 border-t border-border bg-card/95 backdrop-blur-sm md:hidden"
+        className="fixed bottom-0 inset-x-0 z-40 grid grid-cols-6 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm md:hidden"
         aria-label="Mobile Navigation"
       >
         {NAV_ITEMS.map((item) => {
@@ -399,12 +467,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               href={item.href}
               data-tour-id={item.tourId}
               className={cn(
-                "flex min-h-[58px] flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors",
+                "flex min-h-[58px] min-w-0 flex-col items-center justify-center gap-1 px-0.5 text-[10px] font-semibold transition-colors",
                 active ? "text-primary" : "text-muted-foreground"
               )}
             >
-              <Icon className="h-5 w-5" />
-              <span>{item.label}</span>
+              <Icon className="h-5 w-5 shrink-0" />
+              <span className="max-w-full truncate leading-tight">
+                {item.label}
+              </span>
             </Link>
           );
         })}

@@ -260,7 +260,7 @@ export default function TaktikUndScoutingPage() {
       {tab === "playbook" && (
         <div className="grid gap-6 lg:grid-cols-12">
           {/* Playbook-Liste (links) */}
-          <div className="lg:col-span-4 space-y-3">
+          <div className="lg:col-span-4 min-w-0 space-y-3">
             <SelectNative
               aria-label="Kategorie filtern"
               value={categoryFilter}
@@ -359,7 +359,7 @@ export default function TaktikUndScoutingPage() {
           </div>
 
           {/* Interaktives Taktikboard (rechts) */}
-          <div className="lg:col-span-8 space-y-4">
+          <div className="lg:col-span-8 min-w-0 space-y-4">
             <Card>
               <CardHeader className="pb-3">
                 {isStaff ? (

@@ -19,14 +19,14 @@ export function DialogContent({
       <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs" />
       <DialogPrimitive.Content
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg max-h-[90vh] overflow-y-auto -translate-x-1/2 -translate-y-1/2 gap-4 rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-xl",
+          "fixed left-1/2 top-1/2 z-50 grid grid-cols-1 w-[calc(100vw-1.5rem)] sm:w-[calc(100%-2rem)] max-w-lg max-h-[90dvh] overflow-y-auto overflow-x-hidden -translate-x-1/2 -translate-y-1/2 gap-4 rounded-2xl border border-border bg-card p-4 sm:p-6 text-card-foreground shadow-xl [&>*]:min-w-0",
           className
         )}
         {...props}
       >
         {children}
         <DialogPrimitive.Close
-          className="absolute right-4 top-4 rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="absolute right-3 top-3 sm:right-4 sm:top-4 rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="Schließen"
         >
           <X className="h-5 w-5" />
@@ -42,7 +42,7 @@ export function DialogHeader({
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("flex flex-col space-y-1.5 pr-8 text-left", className)}
+      className={cn("flex min-w-0 flex-col space-y-1.5 pr-8 text-left", className)}
       {...props}
     />
   );
@@ -54,7 +54,7 @@ export function DialogTitle({
 }: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>) {
   return (
     <DialogPrimitive.Title
-      className={cn("text-lg font-bold tracking-tight", className)}
+      className={cn("text-base sm:text-lg font-bold tracking-tight break-words", className)}
       {...props}
     />
   );
@@ -66,7 +66,7 @@ export function DialogDescription({
 }: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>) {
   return (
     <DialogPrimitive.Description
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn("text-sm text-muted-foreground break-words", className)}
       {...props}
     />
   );

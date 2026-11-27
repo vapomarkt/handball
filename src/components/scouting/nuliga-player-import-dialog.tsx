@@ -255,8 +255,8 @@ export function NuligaPlayerImportDialog({
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Download className="h-4 w-4 text-primary" />
-            Schlüsselspieler aus nuLiga importieren – {opponent.name}
+            <Download className="h-4 w-4 shrink-0 text-primary" />
+            <span>Schlüsselspieler aus nuLiga importieren – {opponent.name}</span>
           </DialogTitle>
           <DialogDescription>
             Übernimmt Namen, Trikotnummern, Saisontore und 7m-Schützen direkt
@@ -271,9 +271,9 @@ export function NuligaPlayerImportDialog({
             e.preventDefault();
             void fetchPreview(sourceUrl);
           }}
-          className="flex flex-col sm:flex-row gap-2 items-end"
+          className="flex flex-col sm:flex-row gap-2 sm:items-end"
         >
-          <div className="space-y-1 flex-1 w-full">
+          <div className="space-y-1 flex-1 min-w-0 w-full">
             <Label htmlFor="nuliga-opp-url" className="text-xs">
               nuLiga-Mannschafts- oder Staffelseite (optional, sonst automatisch
               aus Staffel)
@@ -291,7 +291,7 @@ export function NuligaPlayerImportDialog({
             variant="outline"
             size="sm"
             disabled={loadingPreview}
-            className="shrink-0 h-9"
+            className="w-full sm:w-auto shrink-0 h-9"
           >
             {loadingPreview ? (
               <Loader2 className="h-4 w-4 animate-spin" />

@@ -368,15 +368,15 @@ export default function KasseUndNewsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-border pb-2">
+      <div className="flex flex-wrap gap-2 border-b border-border pb-2">
         <Button
           variant={tab === "news" ? "default" : "ghost"}
           size="sm"
           onClick={() => setTab("news")}
           data-testid="tab-news"
         >
-          <Megaphone className="h-4 w-4 mr-1.5" />
-          Schwarzes Brett & Umfragen ({announcements.length})
+          <Megaphone className="h-4 w-4 shrink-0" />
+          Schwarzes Brett &amp; Umfragen ({announcements.length})
         </Button>
         <Button
           variant={tab === "cashbox" ? "default" : "ghost"}
@@ -384,7 +384,7 @@ export default function KasseUndNewsPage() {
           onClick={() => setTab("cashbox")}
           data-testid="tab-cashbox"
         >
-          <Wallet className="h-4 w-4 mr-1.5" />
+          <Wallet className="h-4 w-4 shrink-0" />
           Mannschaftskasse
           {cashbox ? ` (${formatCentsEur(cashbox.summary.balanceCents)})` : ""}
         </Button>
@@ -504,14 +504,14 @@ export default function KasseUndNewsPage() {
                               : "border-border hover:bg-muted/50"
                           }`}
                         >
-                          <div className="flex items-center justify-between text-sm font-medium">
-                            <span className="flex items-center gap-1.5">
+                          <div className="flex items-center justify-between gap-2 text-sm font-medium">
+                            <span className="flex min-w-0 items-center gap-1.5 break-words">
                               {opt.votedByMe && (
                                 <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
                               )}
-                              {opt.label}
+                              <span className="min-w-0 break-words">{opt.label}</span>
                             </span>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                               {opt.voteCount} ({pct}%)
                             </span>
                           </div>
@@ -577,7 +577,7 @@ export default function KasseUndNewsPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Kassenbuch */}
-            <div className="lg:col-span-7 space-y-3">
+            <div className="lg:col-span-7 min-w-0 space-y-3">
               <h2 className="text-base font-semibold flex items-center gap-2">
                 <Coins className="h-4 w-4 text-primary" />
                 Kassenbuch ({cashbox?.entries.length ?? 0})
@@ -585,7 +585,7 @@ export default function KasseUndNewsPage() {
               {cashbox?.entries.map((entry) => (
                 <Card key={entry.id} data-testid={`cash-entry-${entry.id}`}>
                   <CardContent className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="space-y-1">
+                    <div className="space-y-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <Badge
                           variant={
@@ -604,14 +604,14 @@ export default function KasseUndNewsPage() {
                           </span>
                         )}
                       </div>
-                      <p className="font-medium text-sm">{entry.title}</p>
+                      <p className="font-medium text-sm break-words">{entry.title}</p>
                       {entry.notes && (
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground break-words">
                           {entry.notes}
                         </p>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 self-end sm:self-center">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 self-end sm:self-center shrink-0">
                       <span
                         className={`font-bold text-sm tabular-nums ${
                           entry.type === "EXPENSE"
@@ -645,7 +645,7 @@ export default function KasseUndNewsPage() {
             </div>
 
             {/* Strafenkatalog */}
-            <div className="lg:col-span-5 space-y-3">
+            <div className="lg:col-span-5 min-w-0 space-y-3">
               <h2 className="text-base font-semibold flex items-center gap-2">
                 <Receipt className="h-4 w-4 text-primary" />
                 Handball-Strafenkatalog
@@ -653,14 +653,14 @@ export default function KasseUndNewsPage() {
               <div className="space-y-2.5">
                 {cashbox?.catalog.map((item) => (
                   <Card key={item.id} data-testid={`fine-catalog-${item.id}`}>
-                    <CardContent className="py-3 flex items-center justify-between gap-3">
-                      <div>
-                        <p className="font-medium text-sm">{item.title}</p>
+                    <CardContent className="py-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm break-words">{item.title}</p>
                         <p className="text-xs text-muted-foreground">
                           {item.category}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
                         <Badge variant="secondary" className="tabular-nums">
                           {formatCentsEur(item.amountCents)}
                         </Badge>
@@ -740,7 +740,7 @@ export default function KasseUndNewsPage() {
                 </label>
               </div>
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -795,7 +795,7 @@ export default function KasseUndNewsPage() {
               />
               Mehrfachauswahl erlauben
             </label>
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -821,7 +821,7 @@ export default function KasseUndNewsPage() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateEntry} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="entry-type">Buchungsart</Label>
                 <SelectNative
@@ -880,7 +880,7 @@ export default function KasseUndNewsPage() {
                 onChange={(e) => setEntryNotes(e.target.value)}
               />
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -913,7 +913,7 @@ export default function KasseUndNewsPage() {
                 placeholder="z. B. Handy in der Kabine"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="cat-euro">Betrag (€)</Label>
                 <Input
@@ -933,7 +933,7 @@ export default function KasseUndNewsPage() {
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
               <Button
                 type="button"
                 variant="outline"

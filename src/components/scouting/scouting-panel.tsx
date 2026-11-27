@@ -436,14 +436,14 @@ export function ScoutingPanel({
                 {activeOpponent.keyPlayers.map((player) => (
                   <Card key={player.id}>
                     <CardContent className="p-4 flex flex-col sm:flex-row gap-4 justify-between">
-                      <div className="space-y-2 flex-1">
+                      <div className="space-y-2 flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-secondary-foreground font-mono text-xs font-bold">
+                          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary text-secondary-foreground font-mono text-xs font-bold">
                             {player.jerseyNumber
                               ? `#${player.jerseyNumber}`
                               : "–"}
                           </span>
-                          <h3 className="font-bold text-sm">{player.name}</h3>
+                          <h3 className="font-bold text-sm break-words">{player.name}</h3>
                           {player.position && (
                             <Badge variant="position">{player.position}</Badge>
                           )}
@@ -528,10 +528,10 @@ export function ScoutingPanel({
 
           {/* Hinspiel-, Video-Notizen & Matchplan-Verknüpfung */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-base font-bold flex items-center gap-1.5">
-                <Video className="h-4 w-4 text-primary" />
-                Matchplan, Hinspiel- & Video-Notizen (
+                <Video className="h-4 w-4 text-primary shrink-0" />
+                Matchplan, Hinspiel- &amp; Video-Notizen (
                 {activeOpponent.scoutingNotes.length})
               </h2>
               {isStaff && (

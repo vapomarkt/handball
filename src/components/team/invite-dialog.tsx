@@ -356,7 +356,7 @@ export function InviteDialog({
                     </div>
 
                     {inv.shortCode && (
-                      <div className="flex items-center justify-between rounded-lg bg-primary/8 px-3 py-1.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-primary/8 px-3 py-1.5">
                         <span className="text-xs text-muted-foreground">
                           Kurzcode zum Vorlesen:
                         </span>
@@ -443,7 +443,7 @@ export function InviteDialog({
           </DialogHeader>
 
           {qrInvite && (
-            <div className="flex flex-col items-center gap-4 py-2">
+            <div className="flex flex-col items-center gap-4 py-2 min-w-0">
               <div className="flex flex-wrap items-center justify-center gap-1.5">
                 <Badge variant="secondary">
                   {MEMBER_ROLE_LABELS[qrInvite.role]}
@@ -455,11 +455,11 @@ export function InviteDialog({
 
               {qrSvg ? (
                 <div
-                  className="rounded-2xl border border-border bg-white p-4 shadow-xs"
+                  className="max-w-full overflow-hidden rounded-2xl border border-border bg-white p-3 sm:p-4 shadow-xs [&_svg]:h-auto [&_svg]:max-w-full"
                   dangerouslySetInnerHTML={{ __html: qrSvg }}
                 />
               ) : (
-                <div className="flex h-60 w-60 items-center justify-center rounded-2xl border border-border">
+                <div className="flex h-52 w-52 max-w-full items-center justify-center rounded-2xl border border-border">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               )}

@@ -25,48 +25,63 @@ async function AuthenticatedRedirect() {
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col overflow-x-clip bg-background">
       <Suspense fallback={null}>
         <AuthenticatedRedirect />
       </Suspense>
       <header className="border-b border-border bg-card/80 backdrop-blur-sm">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">
-          <BrandLogo size="md" />
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Button variant="ghost" asChild>
+        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-2 px-3 sm:px-6">
+          <BrandLogo
+            size="sm"
+            className="shrink-0 gap-2 sm:gap-2.5"
+          />
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            <ThemeToggle className="h-9 w-9 sm:h-10 sm:w-10" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="whitespace-nowrap px-2.5 sm:min-h-11 sm:px-4 sm:text-sm"
+              asChild
+            >
               <Link href="/login">Anmelden</Link>
             </Button>
-            <Button asChild>
-              <Link href="/register">Kostenlos starten</Link>
+            <Button
+              size="sm"
+              className="whitespace-nowrap px-3 sm:min-h-11 sm:px-4 sm:text-sm"
+              asChild
+            >
+              <Link href="/register">
+                <span className="sm:hidden">Starten</span>
+                <span className="hidden sm:inline">Kostenlos starten</span>
+              </Link>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="flex-1">
-        <section className="mx-auto max-w-5xl px-4 py-14 sm:px-6 sm:py-20">
-          <div className="max-w-2xl space-y-6">
-            <p className="text-sm font-semibold uppercase tracking-wider text-primary">
+      <main className="flex-1 min-w-0">
+        <section className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-20">
+          <div className="max-w-2xl space-y-5 sm:space-y-6">
+            <p className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-primary">
               Für Handball-Teams, Trainer, Eltern & Vereine
             </p>
-            <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl">
+            <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-5xl break-words">
               {BRANDING.appName} bringt deinen Handballverein auf ein Spielfeld.
             </h1>
-            <p className="text-lg leading-relaxed text-muted-foreground">
+            <p className="text-base sm:text-lg leading-relaxed text-muted-foreground">
               Schluss mit Zettelwirtschaft zwischen Messenger, Excel und
               Taktik-Apps. Organisiere Kader, Handball-Positionen,
               Eltern-Kind-Profile und Mannschaften in einer schnellen,
               DSGVO-sicheren Plattform – optimiert für die Sporthalle.
             </p>
-            <div className="flex flex-wrap gap-3 pt-2">
-              <Button size="lg" asChild>
+            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 pt-2">
+              <Button size="lg" className="w-full sm:w-auto" asChild>
                 <Link href="/register">
                   Team oder Verein anlegen
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight className="h-4 w-4 shrink-0" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" asChild>
+              <Button size="lg" variant="outline" className="w-full sm:w-auto" asChild>
                 <Link href="/login">Bereits registriert? Anmelden</Link>
               </Button>
             </div>

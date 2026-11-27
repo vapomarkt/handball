@@ -274,16 +274,16 @@ export function JerseySetsPanel({
 
                   {/* Schnell-Zustandsänderung für Trainer */}
                   {isStaff && (
-                    <div className="flex items-center justify-between gap-2 border-t border-border pt-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2.5">
                       <label
                         htmlFor={`quick-cond-${set.id}`}
-                        className="text-xs font-medium text-muted-foreground shrink-0"
+                        className="text-xs font-medium text-muted-foreground"
                       >
                         Zustand schnell ändern:
                       </label>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex w-full sm:w-auto items-center gap-1.5">
                         {updatingId === set.id && (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-primary" />
                         )}
                         <SelectNative
                           id={`quick-cond-${set.id}`}
@@ -295,7 +295,7 @@ export function JerseySetsPanel({
                               e.target.value as JerseyCondition
                             )
                           }
-                          className="h-8 text-xs w-40"
+                          className="h-8 text-xs w-full sm:w-40"
                         >
                           {CONDITIONS.map((c) => (
                             <option key={c} value={c}>

@@ -107,7 +107,7 @@ export function OtpPinInput({
 
   return (
     <div
-      className="flex items-center justify-center gap-2 sm:gap-2.5"
+      className="mx-auto grid w-full max-w-[332px] grid-cols-6 gap-1.5 sm:gap-2.5"
       role="group"
       aria-label="6-stellige Login-PIN"
     >
@@ -131,7 +131,7 @@ export function OtpPinInput({
           onPaste={handlePaste}
           onFocus={(e) => e.currentTarget.select()}
           className={cn(
-            "h-14 w-11 sm:h-15 sm:w-12 rounded-xl border-2 bg-background text-center font-mono text-2xl font-extrabold text-foreground shadow-xs transition-all",
+            "h-12 w-full min-w-0 sm:h-14 rounded-xl border-2 bg-background text-center font-mono text-xl sm:text-2xl font-extrabold text-foreground shadow-xs transition-all",
             "focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25",
             digit ? "border-primary/60" : "border-input",
             disabled && "opacity-60 cursor-not-allowed"

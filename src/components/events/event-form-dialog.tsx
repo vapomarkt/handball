@@ -537,7 +537,7 @@ export function EventFormDialog({
             <span>Absagegrund verpflichtend abfragen (DSGVO-geschützt)</span>
           </label>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-wrap justify-end gap-2 pt-2">
             <Button
               type="button"
               variant="outline"

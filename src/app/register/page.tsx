@@ -236,7 +236,7 @@ function RegisterForm() {
                   <Label htmlFor="reg-invite-code" className="text-xs">
                     6-stelliger Team-Code oder Einladungslink
                   </Label>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <Input
                       id="reg-invite-code"
                       placeholder="z. B. H7K-4P9"
@@ -245,9 +245,9 @@ function RegisterForm() {
                         setInviteInput(e.target.value);
                         setError(null);
                       }}
-                      className="font-mono uppercase"
+                      className="font-mono uppercase flex-1"
                     />
-                    <Button type="submit">
+                    <Button type="submit" className="shrink-0">
                       Weiter
                       <ArrowRight className="h-4 w-4" />
                     </Button>
@@ -344,14 +344,14 @@ function RegisterForm() {
                     setInfo(null);
                   }}
                   className={cn(
-                    "flex items-center justify-center gap-1.5 rounded-lg py-2 transition-all cursor-pointer",
+                    "flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-center leading-tight transition-all cursor-pointer",
                     method === "otp"
                       ? "bg-card text-foreground shadow-xs"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Mail className="h-3.5 w-3.5" />
-                  Login-PIN (empfohlen)
+                  <Mail className="h-3.5 w-3.5 shrink-0" />
+                  <span>Login-PIN (empfohlen)</span>
                 </button>
                 <button
                   type="button"
@@ -363,14 +363,14 @@ function RegisterForm() {
                     setInfo(null);
                   }}
                   className={cn(
-                    "flex items-center justify-center gap-1.5 rounded-lg py-2 transition-all cursor-pointer",
+                    "flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-center leading-tight transition-all cursor-pointer",
                     method === "password"
                       ? "bg-card text-foreground shadow-xs"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <KeyRound className="h-3.5 w-3.5" />
-                  Mit Passwort
+                  <KeyRound className="h-3.5 w-3.5 shrink-0" />
+                  <span>Mit Passwort</span>
                 </button>
               </div>
 

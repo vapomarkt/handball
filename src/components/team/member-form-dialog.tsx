@@ -573,7 +573,7 @@ export function MemberFormDialog({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-wrap justify-end gap-2 pt-2">
             <Button
               type="button"
               variant="outline"

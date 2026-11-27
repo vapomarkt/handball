@@ -393,7 +393,7 @@ function InviteClaimContent() {
       <div className="mx-auto w-full max-w-md space-y-4">
         {/* Schritt-Anzeige sobald die Einladung gültig ist */}
         {preview?.isValid && (
-          <div className="flex items-center justify-center gap-2 text-xs font-semibold text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 text-xs font-semibold text-muted-foreground">
             <span
               className={cn(
                 "rounded-full px-2.5 py-0.5",
@@ -604,14 +604,14 @@ function InviteClaimContent() {
                                 setInfo(null);
                               }}
                               className={cn(
-                                "flex items-center justify-center gap-1.5 rounded-lg py-2 transition-all cursor-pointer",
+                                "flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-center leading-tight transition-all cursor-pointer",
                                 authMode === "otp"
                                   ? "bg-card text-foreground shadow-xs"
                                   : "text-muted-foreground"
                               )}
                             >
-                              <Mail className="h-3.5 w-3.5" />
-                              Login-PIN (einfach)
+                              <Mail className="h-3.5 w-3.5 shrink-0" />
+                              <span>Login-PIN (einfach)</span>
                             </button>
                             <button
                               type="button"
@@ -622,14 +622,14 @@ function InviteClaimContent() {
                                 setInfo(null);
                               }}
                               className={cn(
-                                "flex items-center justify-center gap-1.5 rounded-lg py-2 transition-all cursor-pointer",
+                                "flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-center leading-tight transition-all cursor-pointer",
                                 authMode !== "otp"
                                   ? "bg-card text-foreground shadow-xs"
                                   : "text-muted-foreground"
                               )}
                             >
-                              <KeyRound className="h-3.5 w-3.5" />
-                              Mit Passwort
+                              <KeyRound className="h-3.5 w-3.5 shrink-0" />
+                              <span>Mit Passwort</span>
                             </button>
                           </div>
 
@@ -649,7 +649,7 @@ function InviteClaimContent() {
                                 </p>
 
                                 {preview.type !== "PROFILE_CLAIM" && (
-                                  <div className="grid grid-cols-2 gap-2.5">
+                                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                                     <div className="space-y-1">
                                       <Label htmlFor="inv-first">Vorname</Label>
                                       <Input

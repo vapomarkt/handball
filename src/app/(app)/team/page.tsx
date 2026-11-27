@@ -427,11 +427,11 @@ export default function TeamRosterPage() {
           {importNotice && (
             <div
               role="status"
-              className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+              className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/40 flex flex-col lg:flex-row lg:items-center justify-between gap-3"
             >
-              <div className="flex items-start gap-2.5 text-sm text-emerald-900 dark:text-emerald-200">
+              <div className="flex items-start gap-2.5 min-w-0 text-sm text-emerald-900 dark:text-emerald-200">
                 <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
-                <div>
+                <div className="min-w-0">
                   <p className="font-semibold">
                     {importNotice.createdCount}{" "}
                     {importNotice.createdCount === 1 ? "Person" : "Personen"}{" "}
@@ -447,7 +447,7 @@ export default function TeamRosterPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
                 <Button size="sm" onClick={openTeamInvite}>
                   <Link2 className="h-3.5 w-3.5" />
                   Team-Link teilen
@@ -469,12 +469,12 @@ export default function TeamRosterPage() {
             !importNotice &&
             members.filter((m) => m.role === "PLAYER").length === 0 && (
               <Card className="border-primary/30 bg-primary/5">
-                <CardContent className="p-4 sm:p-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-start gap-3">
+                <CardContent className="p-4 sm:p-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex items-start gap-3 min-w-0">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
                       <Sparkles className="h-4 w-4" />
                     </div>
-                    <div className="space-y-0.5">
+                    <div className="space-y-0.5 min-w-0">
                       <p className="text-sm font-bold text-foreground">
                         Kader in Sekunden statt einzeln anlegen
                       </p>
@@ -485,7 +485,7 @@ export default function TeamRosterPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 shrink-0">
+                  <div className="flex flex-wrap gap-2 lg:shrink-0">
                     <Button
                       size="sm"
                       onClick={() => setNuligaImportOpen(true)}

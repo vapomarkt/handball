@@ -200,7 +200,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex items-center gap-3.5">
+        <div className="flex items-center gap-3.5 min-w-0">
           {activeTeam.clubLogoUrl && (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
@@ -209,14 +209,14 @@ export default function DashboardPage() {
               className="h-14 w-14 shrink-0 rounded-full object-contain bg-white p-1 border border-border shadow-sm"
             />
           )}
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary break-words">
               {activeTeam.clubName} · Saison {activeTeam.seasonName}
             </p>
-            <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
+            <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl break-words">
               {activeTeam.teamName}
             </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
+            <p className="text-sm text-muted-foreground mt-0.5 break-words">
               Angemeldet als{" "}
               <span className="font-medium text-foreground">{me.user.name}</span>{" "}
               ({MEMBER_ROLE_LABELS[activeTeam.role]})
@@ -404,7 +404,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Nächster Termin mit 1-Klick-RSVP & Nächstes Spiel mit Harz-Hinweis */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {nextEvent && (
           <Card interactive>
             <CardHeader className="pb-3">
@@ -557,7 +557,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Rollen-spezifische Karten */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {isStaff && (
           <Card interactive>
             <CardHeader>
@@ -616,13 +616,13 @@ export default function DashboardPage() {
                 <Link
                   key={link.id}
                   href="/team"
-                  className="group flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3 transition-colors hover:border-primary/50 hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                  className="group flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 p-3 transition-colors hover:border-primary/50 hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                 >
-                  <div>
-                    <p className="font-semibold text-sm transition-colors group-hover:text-primary">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm truncate transition-colors group-hover:text-primary">
                       {link.childFirstName} {link.childLastName}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground truncate">
                       {link.teamName} · {link.relationship}
                     </p>
                   </div>
@@ -662,18 +662,18 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-secondary text-secondary-foreground font-mono text-lg font-bold">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-secondary text-secondary-foreground font-mono text-lg font-bold">
                     {myMembership.jerseyNumber
                       ? `#${myMembership.jerseyNumber}`
                       : "–"}
                   </div>
-                  <div>
-                    <p className="font-bold">
+                  <div className="min-w-0">
+                    <p className="font-bold truncate">
                       {myMembership.firstName} {myMembership.lastName}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground truncate">
                       {myMembership.primaryPosition
                         ? `${myMembership.primaryPosition} · ${HANDBALL_POSITION_LABELS[myMembership.primaryPosition].full}`
                         : "Position noch offen"}
@@ -688,6 +688,7 @@ export default function DashboardPage() {
                         ? "injured"
                         : "unavailable"
                   }
+                  className="shrink-0"
                 >
                   {AVAILABILITY_STATUS_LABELS[myMembership.availabilityStatus]}
                 </Badge>
@@ -716,17 +717,17 @@ export default function DashboardPage() {
                   onClick={() => setActiveTeamId(team.teamId)}
                   aria-pressed={isCurrent}
                   className={cn(
-                    "group flex w-full items-center justify-between rounded-lg border p-3 text-left text-sm transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                    "group flex w-full items-center justify-between gap-2 rounded-lg border p-3 text-left text-sm transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                     isCurrent
                       ? "border-primary/50 bg-primary/5"
                       : "border-border hover:border-primary/40 hover:bg-muted/40"
                   )}
                 >
-                  <div>
-                    <p className="font-semibold transition-colors group-hover:text-primary">
+                  <div className="min-w-0">
+                    <p className="font-semibold truncate transition-colors group-hover:text-primary">
                       {team.teamName}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground truncate">
                       {team.clubName}
                       {team.leagueName ? ` · ${team.leagueName}` : ""}
                     </p>

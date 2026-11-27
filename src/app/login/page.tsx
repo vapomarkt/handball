@@ -348,14 +348,14 @@ function LoginForm() {
                     setInfo(null);
                   }}
                   className={cn(
-                    "flex items-center justify-center gap-1.5 rounded-lg py-2 transition-all cursor-pointer",
+                    "flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-center leading-tight transition-all cursor-pointer",
                     mode === "password"
                       ? "bg-card text-foreground shadow-xs"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <KeyRound className="h-3.5 w-3.5" />
-                  Passwort
+                  <KeyRound className="h-3.5 w-3.5 shrink-0" />
+                  <span>Passwort</span>
                 </button>
                 <button
                   type="button"
@@ -369,14 +369,14 @@ function LoginForm() {
                     setInfo(null);
                   }}
                   className={cn(
-                    "flex items-center justify-center gap-1.5 rounded-lg py-2 transition-all cursor-pointer",
+                    "flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-center leading-tight transition-all cursor-pointer",
                     mode === "otp"
                       ? "bg-card text-foreground shadow-xs"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Mail className="h-3.5 w-3.5" />
-                  Login-PIN (ohne Passwort)
+                  <Mail className="h-3.5 w-3.5 shrink-0" />
+                  <span>Login-PIN</span>
                 </button>
               </div>
             )}
@@ -662,14 +662,17 @@ function LoginForm() {
           </button>
           {showCodeBox && (
             <CardContent className="border-t border-border pt-3.5 pb-4">
-              <form onSubmit={handleJoinInvite} className="flex gap-2">
+              <form
+                onSubmit={handleJoinInvite}
+                className="flex flex-col sm:flex-row gap-2"
+              >
                 <Input
                   placeholder="z. B. H7K-4P9 oder Link"
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value)}
-                  className="font-mono uppercase"
+                  className="font-mono uppercase flex-1"
                 />
-                <Button type="submit" variant="secondary">
+                <Button type="submit" variant="secondary" className="shrink-0">
                   Weiter
                 </Button>
               </form>
@@ -680,14 +683,14 @@ function LoginForm() {
         {/* Demo-Zugänge für TuS Jahn Hollenstedt */}
         <Card className="bg-muted/40">
           <CardContent className="p-4 space-y-2.5">
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/clubs/tus-jahn-hollenstedt.png"
                 alt="Vereinslogo TuS Jahn Hollenstedt"
                 className="h-8 w-8 shrink-0 rounded-full object-contain bg-white p-0.5 border border-border"
               />
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Demo-Zugänge · TuS Jahn Hollenstedt
                 </p>
@@ -697,13 +700,13 @@ function LoginForm() {
                 </p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {DEMO_ACCOUNTS.map((acc) => (
                 <button
                   key={acc.email}
                   type="button"
                   onClick={() => fillDemo(acc.email)}
-                  className="rounded-lg border border-border bg-card px-2.5 py-2 text-left text-xs font-medium text-foreground hover:border-primary/60 hover:bg-muted transition-colors cursor-pointer"
+                  className="rounded-lg border border-border bg-card px-2.5 py-2 text-left text-xs font-medium text-foreground hover:border-primary/60 hover:bg-muted transition-colors cursor-pointer break-words"
                 >
                   {acc.label}
                 </button>

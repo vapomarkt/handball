@@ -299,16 +299,16 @@ export default function ProfilePage() {
     <div className="space-y-6 max-w-3xl">
       {/* Header */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/12 text-primary">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary">
             <UserCircle2 className="h-7 w-7" />
           </div>
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-foreground">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-extrabold tracking-tight text-foreground break-words">
               Mein Profil &amp; Sicherheit
             </h1>
-            <p className="text-sm text-muted-foreground">
-              {me.user.email} ·{" "}
+            <p className="text-sm text-muted-foreground break-words">
+              <span className="break-all">{me.user.email}</span> ·{" "}
               <strong className="text-foreground">
                 {MEMBER_ROLE_LABELS[activeTeam.role]}
               </strong>{" "}
@@ -318,7 +318,7 @@ export default function ProfilePage() {
         </div>
         <Badge
           variant={completeness.isComplete ? "secondary" : "outline"}
-          className="w-fit"
+          className="w-fit shrink-0"
         >
           Profil {completeness.percentage} % vollständig
         </Badge>
@@ -468,13 +468,13 @@ export default function ProfilePage() {
           {/* Login-PIN Status */}
           <div className="rounded-xl border border-border bg-muted/30 p-3.5 flex items-start gap-3">
             <Mail className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-            <div className="space-y-0.5">
+            <div className="space-y-0.5 min-w-0">
               <p className="text-sm font-semibold text-foreground">
                 6-stellige Login-PIN per E-Mail · Immer aktiv
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground break-words">
                 Du kannst dir auf der Anmeldeseite jederzeit eine 6-stellige PIN
-                an <strong>{me.user.email}</strong> schicken lassen.
+                an <strong className="break-all">{me.user.email}</strong> schicken lassen.
               </p>
             </div>
           </div>
@@ -482,8 +482,8 @@ export default function ProfilePage() {
           {/* Passkeys */}
           <div className="space-y-3 pt-1">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Fingerprint className="h-4 w-4 text-primary" />
+              <div className="flex items-center gap-2 min-w-0">
+                <Fingerprint className="h-4 w-4 text-primary shrink-0" />
                 <h3 className="text-sm font-bold text-foreground">
                   Passkeys (Fingerabdruck / Face ID)
                 </h3>
@@ -521,11 +521,11 @@ export default function ProfilePage() {
                     key={pk.id}
                     className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-sm"
                   >
-                    <div>
-                      <p className="font-semibold text-foreground">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-foreground truncate">
                         {pk.name || "Gespeicherter Passkey"}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground truncate">
                         {pk.deviceType ? `${pk.deviceType}` : "WebAuthn"}
                         {pk.createdAt
                           ? ` · Eingerichtet am ${new Date(pk.createdAt).toLocaleDateString("de-DE")}`
@@ -536,6 +536,7 @@ export default function ProfilePage() {
                       type="button"
                       size="icon"
                       variant="ghost"
+                      className="shrink-0"
                       onClick={() => void handleDeletePasskey(pk.id)}
                       disabled={deletingPasskeyId === pk.id}
                       aria-label="Passkey entfernen"

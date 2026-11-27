@@ -699,13 +699,17 @@ export default function OnboardingPage() {
           </button>
           {showInviteBox && (
             <CardContent className="border-t border-border pt-4">
-              <form onSubmit={handleJoinInvite} className="flex gap-2">
+              <form
+                onSubmit={handleJoinInvite}
+                className="flex flex-col sm:flex-row gap-2"
+              >
                 <Input
                   placeholder="Einladungscode oder vollständigen Link einfügen"
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value)}
+                  className="flex-1"
                 />
-                <Button type="submit" variant="secondary">
+                <Button type="submit" variant="secondary" className="shrink-0">
                   Weiter
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -715,19 +719,19 @@ export default function OnboardingPage() {
         </Card>
 
         {/* Visueller 3-Schritte-Fortschrittsbalken */}
-        <nav aria-label="Registrierungsfortschritt" className="px-1">
-          <ol className="grid grid-cols-3 gap-2 sm:gap-3">
+        <nav aria-label="Registrierungsfortschritt" className="px-0.5 sm:px-1">
+          <ol className="grid grid-cols-3 gap-1.5 sm:gap-3">
             {WIZARD_STEPS.map((item) => {
               const Icon = item.icon;
               const isCompleted = step > item.step;
               const isCurrent = step === item.step;
               return (
-                <li key={item.step}>
+                <li key={item.step} className="min-w-0">
                   <button
                     type="button"
                     onClick={() => handleStepJump(item.step)}
                     className={cn(
-                      "flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-all",
+                      "flex w-full min-w-0 items-center gap-1.5 sm:gap-2.5 rounded-xl border px-2 py-2 sm:px-3 sm:py-2.5 text-left transition-all",
                       isCurrent
                         ? "border-primary bg-primary/10 text-foreground shadow-xs"
                         : isCompleted
@@ -738,7 +742,7 @@ export default function OnboardingPage() {
                   >
                     <span
                       className={cn(
-                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors",
+                        "flex h-6 w-6 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors",
                         isCompleted
                           ? "bg-primary text-primary-foreground"
                           : isCurrent
@@ -753,7 +757,7 @@ export default function OnboardingPage() {
                       )}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-[11px] font-medium text-muted-foreground">
+                      <p className="text-[10px] sm:text-[11px] font-medium text-muted-foreground truncate">
                         Schritt {item.step}
                       </p>
                       <p className="truncate text-xs font-semibold sm:text-sm">
@@ -1099,7 +1103,7 @@ export default function OnboardingPage() {
                     </label>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
                     <Button
                       type="button"
                       variant="outline"
@@ -1184,20 +1188,20 @@ export default function OnboardingPage() {
                       Zusammenfassung
                     </div>
                     <div className="grid gap-1.5 text-sm sm:grid-cols-2">
-                      <div>
+                      <div className="min-w-0 break-words">
                         <span className="text-muted-foreground">Verein: </span>
                         <span className="font-semibold text-foreground">
                           {clubName}
                           {city ? ` (${city})` : ""}
                         </span>
                       </div>
-                      <div>
+                      <div className="min-w-0 break-words">
                         <span className="text-muted-foreground">Saison: </span>
                         <span className="font-semibold text-foreground">
                           {selectedSeason?.name ?? "Noch nicht ausgewählt"}
                         </span>
                       </div>
-                      <div>
+                      <div className="min-w-0 break-words">
                         <span className="text-muted-foreground">
                           Mannschaft:{" "}
                         </span>
@@ -1208,7 +1212,7 @@ export default function OnboardingPage() {
                           {getAgeGroupPrefix(ageGroup, gender)}
                         </Badge>
                       </div>
-                      <div>
+                      <div className="min-w-0 break-words">
                         <span className="text-muted-foreground">Liga: </span>
                         <span className="font-semibold text-foreground">
                           {selectedHvnbTeam
@@ -1221,7 +1225,7 @@ export default function OnboardingPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between gap-3 pt-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 pt-1">
                     <Button
                       type="button"
                       variant="outline"
@@ -1238,7 +1242,7 @@ export default function OnboardingPage() {
                       disabled={
                         submitting || (!selectedLeague && !selectedHvnbTeam)
                       }
-                      className="min-w-[200px]"
+                      className="flex-1 sm:flex-initial sm:min-w-[200px]"
                     >
                       {submitting && (
                         <Loader2 className="h-4 w-4 animate-spin" />

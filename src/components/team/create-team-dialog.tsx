@@ -588,7 +588,7 @@ export function CreateTeamDialog({
                 </span>
               </label>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"
@@ -659,9 +659,9 @@ export function CreateTeamDialog({
               )}
 
               <div className="rounded-xl border border-border bg-muted/30 p-3 flex flex-wrap items-center justify-between gap-2 text-xs">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
                   <Trophy className="h-4 w-4 text-primary shrink-0" />
-                  <span className="font-semibold text-foreground">
+                  <span className="font-semibold text-foreground break-words">
                     {teamName}
                   </span>
                   <Badge variant="outline" className="text-[11px]">
@@ -671,7 +671,7 @@ export function CreateTeamDialog({
                     · Saison {selectedSeason?.name ?? defaultSeasonName}
                   </span>
                 </div>
-                <span className="text-muted-foreground">
+                <span className="text-muted-foreground break-words">
                   {selectedHvnbTeam
                     ? selectedHvnbTeam.group.name
                     : selectedLeague
@@ -680,7 +680,7 @@ export function CreateTeamDialog({
                 </span>
               </div>
 
-              <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"

@@ -303,10 +303,10 @@ export function PhoneInput({
     .join(" ");
 
   return (
-    <div ref={containerRef} className={cn("relative", className)}>
+    <div ref={containerRef} className={cn("relative w-full min-w-0", className)}>
       <div
         className={cn(
-          "flex h-11 w-full items-stretch rounded-lg border bg-background shadow-2xs transition-colors focus-within:ring-2 focus-within:ring-ring",
+          "flex h-11 w-full min-w-0 items-stretch rounded-lg border bg-background shadow-2xs transition-colors focus-within:ring-2 focus-within:ring-ring",
           showInlineError
             ? "border-red-500 focus-within:ring-red-500/40"
             : "border-border",
@@ -320,7 +320,7 @@ export function PhoneInput({
           aria-label={`Landesvorwahl wählen (${selectedOption.name} ${selectedOption.dialCode})`}
           aria-expanded={open}
           aria-haspopup="listbox"
-          className="flex shrink-0 items-center gap-1.5 rounded-l-lg border-r border-border bg-muted/40 px-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none cursor-pointer disabled:cursor-not-allowed"
+          className="flex shrink-0 items-center gap-1 sm:gap-1.5 rounded-l-lg border-r border-border bg-muted/40 px-2 sm:px-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none cursor-pointer disabled:cursor-not-allowed"
           title={`${selectedOption.name} (${selectedOption.dialCode})`}
         >
           <span aria-hidden="true" className="text-base leading-none">
@@ -352,7 +352,7 @@ export function PhoneInput({
           onBlur={handleBlur}
           aria-invalid={showInlineError || undefined}
           aria-describedby={combinedDescribedBy || undefined}
-          className="h-full min-w-0 flex-1 rounded-r-lg bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed"
+          className="h-full min-w-0 flex-1 rounded-r-lg bg-transparent px-2.5 sm:px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed"
         />
       </div>
 
@@ -360,7 +360,7 @@ export function PhoneInput({
         <div
           onKeyDown={handleDropdownKeyDown}
           className={cn(
-            "absolute left-0 z-50 w-full min-w-[260px] max-w-sm rounded-xl border border-border bg-card text-card-foreground shadow-lg",
+            "absolute left-0 right-0 z-50 w-full max-w-sm rounded-xl border border-border bg-card text-card-foreground shadow-lg",
             openUpward ? "bottom-full mb-1.5" : "top-full mt-1.5"
           )}
         >

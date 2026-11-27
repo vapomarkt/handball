@@ -578,11 +578,11 @@ export default function DiensteUndTrainingPage() {
                 key={m.memberId}
                 className="space-y-1.5 rounded-lg border border-border p-3"
               >
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-semibold">
+                <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-sm">
+                  <span className="font-semibold break-words">
                     {m.firstName} {m.lastName}
                   </span>
-                  <span className="font-mono font-bold text-primary">
+                  <span className="font-mono font-bold text-primary shrink-0">
                     {m.completedHours} / {m.targetHours} Std. (
                     {m.fulfillmentPercent}%)
                   </span>

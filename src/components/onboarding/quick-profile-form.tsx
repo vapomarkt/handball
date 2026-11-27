@@ -123,7 +123,7 @@ export function QuickProfileForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4 min-w-0">
       {error && (
         <div
           role="alert"
@@ -133,8 +133,8 @@ export function QuickProfileForm({
         </div>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5 min-w-0">
           <Label htmlFor="qp-first">Vorname *</Label>
           <Input
             id="qp-first"
@@ -144,7 +144,7 @@ export function QuickProfileForm({
             onChange={(e) => setFirstName(e.target.value)}
           />
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 min-w-0">
           <Label htmlFor="qp-last">Nachname *</Label>
           <Input
             id="qp-last"
@@ -193,7 +193,7 @@ export function QuickProfileForm({
 
           <div className="space-y-2">
             <Label>Wurfhand (optional)</Label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
               {THROWING_HANDS.map((hand) => {
                 const active = throwingHand === hand;
                 return (
@@ -202,14 +202,14 @@ export function QuickProfileForm({
                     type="button"
                     onClick={() => setThrowingHand(active ? null : hand)}
                     className={cn(
-                      "flex h-10 items-center justify-center gap-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer",
+                      "flex min-h-10 min-w-0 items-center justify-center gap-1 rounded-xl border px-1.5 text-xs font-semibold transition-all cursor-pointer",
                       active
                         ? "border-primary bg-primary/12 text-primary"
                         : "border-border bg-card text-foreground hover:border-primary/40"
                     )}
                   >
-                    {active && <Check className="h-3.5 w-3.5" />}
-                    {THROWING_HAND_LABELS[hand]}
+                    {active && <Check className="h-3.5 w-3.5 shrink-0" />}
+                    <span className="truncate">{THROWING_HAND_LABELS[hand]}</span>
                   </button>
                 );
               })}

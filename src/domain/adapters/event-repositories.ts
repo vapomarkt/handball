@@ -87,6 +87,6 @@ export interface EventRepository {
   }): Promise<EventAttendanceEntity>;
   upsertMatchDetails(
     eventId: string,
-    input: UpdateMatchDetailsInput
+    input: UpdateMatchDetailsInput & { scoreManuallyEdited?: boolean }
   ): Promise<MatchDetailsDTO>;
 }

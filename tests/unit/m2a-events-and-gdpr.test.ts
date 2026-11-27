@@ -305,6 +305,11 @@ describe("EventService & VenueService RBAC, RSVP-Regeln & Statistik", () => {
         awayScoreHalf: null,
         homeScoreFull: null,
         awayScoreFull: null,
+        scoreManuallyEdited: false,
+        officialHomeScoreHalf: null,
+        officialAwayScoreHalf: null,
+        officialHomeScoreFull: null,
+        officialAwayScoreFull: null,
       }),
     };
 

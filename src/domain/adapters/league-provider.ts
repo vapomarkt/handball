@@ -23,6 +23,17 @@ export interface MatchScoresSnapshot {
   awayScoreHalf: number | null;
 }
 
+export interface ScoreSyncUpdate {
+  /** Offiziell gemeldetes Liga-Ergebnis (wird immer in official* gespeichert). */
+  officialScores: MatchScoresSnapshot;
+  /** Wenn true, wird das offizielle Ergebnis auch auf den angezeigten Spielstand übernommen. */
+  applyToDisplayed: boolean;
+  /** Wenn true, wird scoreManuallyEdited auf false gesetzt (Ergebnis entspricht offizieller Meldung). */
+  clearManualFlag?: boolean;
+  /** true, wenn das lokal angezeigte Ergebnis vom offiziell gemeldeten abweicht. */
+  discrepancyDetected?: boolean;
+}
+
 export interface NormalizedLeagueMatch {
   externalId: string;
   title: string;
@@ -62,6 +73,11 @@ export interface ExistingSyncedMatch {
   awayScoreHalf?: number | null;
   homeScoreFull?: number | null;
   awayScoreFull?: number | null;
+  scoreManuallyEdited?: boolean;
+  officialHomeScoreHalf?: number | null;
+  officialAwayScoreHalf?: number | null;
+  officialHomeScoreFull?: number | null;
+  officialAwayScoreFull?: number | null;
 }
 
 export interface ExistingUnscoredMatch {
@@ -75,6 +91,11 @@ export interface ExistingUnscoredMatch {
   awayScoreHalf: number | null;
   homeScoreFull: number | null;
   awayScoreFull: number | null;
+  scoreManuallyEdited?: boolean;
+  officialHomeScoreHalf?: number | null;
+  officialAwayScoreHalf?: number | null;
+  officialHomeScoreFull?: number | null;
+  officialAwayScoreFull?: number | null;
 }
 
 export interface LeagueSyncRepository {
@@ -100,7 +121,7 @@ export interface LeagueSyncRepository {
   ): Promise<ExistingUnscoredMatch[]>;
   backfillMatchScores?(
     eventId: string,
-    scores: MatchScoresSnapshot
+    update: ScoreSyncUpdate
   ): Promise<void>;
   findOrCreateVenueByNamePreservingResin(
     clubId: string,
@@ -126,8 +147,8 @@ export interface LeagueSyncRepository {
    * Aktualisiert AUSSCHLIESSLICH externe Liga-Felder.
    * Lokale Anreicherungen (meetingAt, description, jerseyColor, nominatedMemberIds,
    * refereeNote, carpools, venue.resinPolicy) sowie bereits manuell gepflegte
-   * Endstände bleiben 100% unberührt; fehlende Ergebnisse können gezielt
-   * über `backfillScores` nachgetragen werden.
+   * Endstände bleiben 100% unberührt; offizielle Liga-Ergebnisse werden über
+   * `scoreSyncUpdate` nachgetragen bzw. separat zum Abweichungsvergleich gespeichert.
    */
   updateSyncedMatchSchedulePreservingLocal(input: {
     eventId: string;
@@ -138,7 +159,7 @@ export interface LeagueSyncRepository {
     isCancelled: boolean;
     opponentName: string;
     isHome: boolean;
-    backfillScores?: MatchScoresSnapshot | null;
+    scoreSyncUpdate?: ScoreSyncUpdate | null;
   }): Promise<void>;
 
   createChangeLog(input: {

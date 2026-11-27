@@ -246,6 +246,11 @@ describe("JerseySetService (Verwaltung, Zustand & Pflegehinweise)", () => {
           awayScoreHalf: null,
           homeScoreFull: null,
           awayScoreFull: null,
+          scoreManuallyEdited: false,
+          officialHomeScoreHalf: null,
+          officialAwayScoreHalf: null,
+          officialHomeScoreFull: null,
+          officialAwayScoreFull: null,
         };
         return {
           id: "ev-1",

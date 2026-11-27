@@ -1,9 +1,19 @@
-import { Bus, CircleX, Equal, Home, Trophy } from "lucide-react";
+import {
+  AlertTriangle,
+  Bus,
+  CircleX,
+  Equal,
+  Home,
+  Pencil,
+  Trophy,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   EVENT_TYPE_LABELS,
   formatMatchScore,
+  formatOfficialMatchScore,
   getMatchOutcome,
+  hasOfficialScoreDiscrepancy,
   MATCH_OUTCOME_LABELS,
   type EventType,
   type MatchDetailsDTO,
@@ -129,5 +139,69 @@ export function MatchResultBadge({
       </span>
       <span className="font-mono font-bold">{scoreText}</span>
     </Badge>
+  );
+}
+
+export function MatchScoreStatusBadges({
+  matchDetails,
+}: {
+  matchDetails: Pick<
+    MatchDetailsDTO,
+    | "homeScoreFull"
+    | "awayScoreFull"
+    | "homeScoreHalf"
+    | "awayScoreHalf"
+    | "scoreManuallyEdited"
+    | "officialHomeScoreFull"
+    | "officialAwayScoreFull"
+    | "officialHomeScoreHalf"
+    | "officialAwayScoreHalf"
+  >;
+}) {
+  const hasScore =
+    matchDetails.homeScoreFull !== null && matchDetails.awayScoreFull !== null;
+  if (!hasScore) return null;
+
+  const discrepancy = hasOfficialScoreDiscrepancy(matchDetails);
+  const officialFull = formatOfficialMatchScore(matchDetails);
+  const officialShort =
+    matchDetails.officialHomeScoreFull !== null &&
+    matchDetails.officialAwayScoreFull !== null
+      ? `${matchDetails.officialHomeScoreFull}:${matchDetails.officialAwayScoreFull}`
+      : null;
+
+  if (!matchDetails.scoreManuallyEdited && !discrepancy) {
+    return null;
+  }
+
+  return (
+    <>
+      {matchDetails.scoreManuallyEdited && (
+        <Badge
+          variant="outline"
+          data-score-manually-edited="true"
+          title="Dieser Spielstand wurde manuell eingetragen bzw. korrigiert."
+          className="gap-1 border-sky-300 bg-sky-50 font-medium text-sky-900 dark:border-sky-800 dark:bg-sky-950/60 dark:text-sky-200"
+        >
+          <Pencil className="h-3 w-3 shrink-0" aria-hidden="true" />
+          Manuell korrigiert
+        </Badge>
+      )}
+      {discrepancy && officialShort && (
+        <Badge
+          variant="outline"
+          data-score-discrepancy="true"
+          title={`Abweichung zum offiziell gemeldeten Liga-Ergebnis: ${officialFull ?? officialShort}`}
+          className="gap-1.5 border-amber-400 bg-amber-100 font-bold text-amber-950 ring-1 ring-amber-400/50 dark:border-amber-500/80 dark:bg-amber-950/90 dark:text-amber-200 dark:ring-amber-500/40"
+        >
+          <AlertTriangle
+            className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400"
+            aria-hidden="true"
+          />
+          <span>Abweichung · Offiziell</span>
+          <span className="font-mono">{officialShort}</span>
+        </Badge>
+      )}
+    </>
   );
 }

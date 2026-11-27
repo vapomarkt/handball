@@ -17,7 +17,11 @@ import {
 } from "../schemas/league";
 import { CsvLeagueProviderAdapter } from "./csv-parser";
 import { IcalLeagueProviderAdapter } from "./ical-parser";
-import { computeLeagueMergePlan, formatScoreSummary } from "./league-merge";
+import {
+  computeLeagueMergePlan,
+  formatScoreSummary,
+  resolveScoreSyncUpdate,
+} from "./league-merge";
 import {
   fetchNuligaMatchResults,
   findMatchingNuligaResult,
@@ -326,24 +330,43 @@ export class LeagueSyncService {
       });
       if (!found) continue;
 
-      const scores = {
+      const scoreSyncUpdate = resolveScoreSyncUpdate(match, {
         homeScoreFull: found.homeScoreFull,
         awayScoreFull: found.awayScoreFull,
         homeScoreHalf: found.homeScoreHalf,
         awayScoreHalf: found.awayScoreHalf,
-      };
+      });
+      if (!scoreSyncUpdate) continue;
 
-      await this.leagueSync.backfillMatchScores(match.eventId, scores);
+      await this.leagueSync.backfillMatchScores(match.eventId, scoreSyncUpdate);
+
+      let summaryText: string;
+      if (scoreSyncUpdate.discrepancyDetected && match.homeScoreFull !== null && match.awayScoreFull !== null) {
+        const localSummary = formatScoreSummary({
+          homeScoreFull: match.homeScoreFull,
+          awayScoreFull: match.awayScoreFull,
+          homeScoreHalf: match.homeScoreHalf,
+          awayScoreHalf: match.awayScoreHalf,
+        });
+        summaryText = `Abweichung zum offiziellen Ergebnis (${match.title}): Lokal ${localSummary} vs. Offiziell ${formatScoreSummary(scoreSyncUpdate.officialScores)}`;
+      } else if (scoreSyncUpdate.applyToDisplayed) {
+        summaryText = `Ergebnis nachgetragen (${match.title}): ${formatScoreSummary(scoreSyncUpdate.officialScores)}`;
+      } else {
+        summaryText = `Offizielles Ergebnis bestätigt (${match.title}): ${formatScoreSummary(scoreSyncUpdate.officialScores)}`;
+      }
+
       const log = await this.leagueSync.createChangeLog({
         sourceId: source.id,
         teamId: source.teamId,
         eventId: match.eventId,
         externalId: match.externalId ?? `event-${match.eventId}`,
         changeType: "UPDATED",
-        summary: `Ergebnis nachgetragen (${match.title}): ${formatScoreSummary(scores)}`,
+        summary: summaryText,
       });
       changes.push(log);
-      count += 1;
+      if (scoreSyncUpdate.applyToDisplayed) {
+        count += 1;
+      }
     }
 
     return { count, changes };
@@ -399,7 +422,7 @@ export class LeagueSyncService {
 
       const finalSummary: SyncRunSummaryDTO = {
         ...summary,
-        updatedCount: summary.updatedCount + backfilled.count,
+        updatedCount: summary.updatedCount + backfilled.changes.length,
         resultsUpdatedCount:
           (summary.resultsUpdatedCount ?? 0) + backfilled.count,
         changes: [...summary.changes, ...backfilled.changes],
@@ -444,6 +467,7 @@ export class LeagueSyncService {
 
     for (const action of plan) {
       if (action.kind === "UNCHANGED") {
+        if (action.existing) touchedEventIds.add(action.existing.eventId);
         unchangedCount += 1;
         continue;
       }
@@ -507,7 +531,7 @@ export class LeagueSyncService {
           isCancelled: action.incoming.isCancelled,
           opponentName: action.incoming.opponentName,
           isHome: action.incoming.isHome,
-          backfillScores: action.backfillScores ?? null,
+          scoreSyncUpdate: action.scoreSyncUpdate ?? null,
         });
         touchedEventIds.add(action.existing.eventId);
 
@@ -525,7 +549,7 @@ export class LeagueSyncService {
         });
         changes.push(log);
         updatedCount += 1;
-        if (action.backfillScores) resultsUpdatedCount += 1;
+        if (action.scoreSyncUpdate?.applyToDisplayed) resultsUpdatedCount += 1;
       }
     }
 

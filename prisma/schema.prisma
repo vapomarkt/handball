@@ -635,13 +635,18 @@ model MatchDetails {
   jerseySetId        String?
   jerseySet          JerseySet? @relation(fields: [jerseySetId], references: [id], onDelete: SetNull)
   refereeNote        String?
-  nominatedMemberIds String[]   @default([])
-  homeScoreHalf      Int?
-  awayScoreHalf      Int?
-  homeScoreFull      Int?
-  awayScoreFull      Int?
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
+  nominatedMemberIds    String[]   @default([])
+  homeScoreHalf         Int?
+  awayScoreHalf         Int?
+  homeScoreFull         Int?
+  awayScoreFull         Int?
+  scoreManuallyEdited   Boolean    @default(false)
+  officialHomeScoreHalf Int?
+  officialAwayScoreHalf Int?
+  officialHomeScoreFull Int?
+  officialAwayScoreFull Int?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
 
   @@index([jerseySetId])
   @@map("match_details")

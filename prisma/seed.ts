@@ -1133,6 +1133,11 @@ async function main() {
         awayScoreHalf: m.awayScoreHalf ?? null,
         homeScoreFull: m.homeScoreFull ?? null,
         awayScoreFull: m.awayScoreFull ?? null,
+        scoreManuallyEdited: false,
+        officialHomeScoreHalf: m.homeScoreHalf ?? null,
+        officialAwayScoreHalf: m.awayScoreHalf ?? null,
+        officialHomeScoreFull: m.homeScoreFull ?? null,
+        officialAwayScoreFull: m.awayScoreFull ?? null,
         nominatedMemberIds: lastMatchSquadIds,
       },
       create: {
@@ -1147,6 +1152,11 @@ async function main() {
         awayScoreHalf: m.awayScoreHalf ?? null,
         homeScoreFull: m.homeScoreFull ?? null,
         awayScoreFull: m.awayScoreFull ?? null,
+        scoreManuallyEdited: false,
+        officialHomeScoreHalf: m.homeScoreHalf ?? null,
+        officialAwayScoreHalf: m.awayScoreHalf ?? null,
+        officialHomeScoreFull: m.homeScoreFull ?? null,
+        officialAwayScoreFull: m.awayScoreFull ?? null,
         nominatedMemberIds: lastMatchSquadIds,
       },
     });

@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import {
+  AlertTriangle,
   Check,
   ExternalLink,
   Loader2,
   Lock,
   MapPin,
+  Pencil,
+  RotateCcw,
   Shirt,
   Trophy,
   Users,
@@ -25,6 +28,9 @@ import { Label } from "@/components/ui/label";
 import { SelectNative } from "@/components/ui/select-native";
 import {
   DECLINE_REASON_CATEGORY_LABELS,
+  formatMatchScore,
+  formatOfficialMatchScore,
+  hasOfficialScoreDiscrepancy,
   RSVP_STATUS_LABELS,
   type EventDTO,
 } from "@/domain/schemas/event";
@@ -38,6 +44,7 @@ import {
   EventTypeBadge,
   MatchLocationBadge,
   MatchResultBadge,
+  MatchScoreStatusBadges,
 } from "./match-badges";
 import { ResinBadge } from "./resin-badge";
 
@@ -158,6 +165,61 @@ export function EventDetailDialog({
     }
   }
 
+  async function handleAdoptOfficialScores() {
+    if (
+      !event ||
+      !md ||
+      md.officialHomeScoreFull === null ||
+      md.officialAwayScoreFull === null
+    ) {
+      return;
+    }
+    setSavingMatch(true);
+    setMatchError(null);
+    setMatchSavedMsg(null);
+    try {
+      const res = await fetch(
+        `/api/v1/teams/${encodeURIComponent(teamId)}/events/${encodeURIComponent(event.id)}/match`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            homeScoreFull: md.officialHomeScoreFull,
+            awayScoreFull: md.officialAwayScoreFull,
+            homeScoreHalf: md.officialHomeScoreHalf,
+            awayScoreHalf: md.officialAwayScoreHalf,
+          }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        setMatchError(
+          data?.error?.message ||
+            "Offizielles Ergebnis konnte nicht übernommen werden."
+        );
+        return;
+      }
+      setHomeScoreFull(String(md.officialHomeScoreFull));
+      setAwayScoreFull(String(md.officialAwayScoreFull));
+      setHomeScoreHalf(
+        md.officialHomeScoreHalf !== null ? String(md.officialHomeScoreHalf) : ""
+      );
+      setAwayScoreHalf(
+        md.officialAwayScoreHalf !== null ? String(md.officialAwayScoreHalf) : ""
+      );
+      setMatchSavedMsg("Offizielles Liga-Ergebnis übernommen.");
+      onUpdated();
+    } catch {
+      setMatchError("Netzwerkfehler beim Übernehmen.");
+    } finally {
+      setSavingMatch(false);
+    }
+  }
+
+  const scoreDiscrepancy = md ? hasOfficialScoreDiscrepancy(md) : false;
+  const officialScoreLabel = md ? formatOfficialMatchScore(md) : null;
+  const localScoreLabel = md ? formatMatchScore(md) : null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
@@ -230,8 +292,65 @@ export function EventDetailDialog({
                   Spieltag: {md.isHome ? "Heimspiel" : "Auswärtsspiel"} gegen{" "}
                   {md.opponentName}
                 </h3>
-                <MatchResultBadge matchDetails={md} />
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <MatchResultBadge matchDetails={md} />
+                  <MatchScoreStatusBadges matchDetails={md} />
+                </div>
               </div>
+
+              {scoreDiscrepancy && officialScoreLabel && localScoreLabel && (
+                <div
+                  role="alert"
+                  data-testid="official-score-discrepancy-alert"
+                  className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-xs text-amber-950 dark:border-amber-600/80 dark:bg-amber-950/60 dark:text-amber-100 space-y-2"
+                >
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-700 dark:text-amber-400" />
+                    <div className="space-y-1">
+                      <p className="font-bold">
+                        Abweichung zum offiziell gemeldeten Liga-Ergebnis
+                      </p>
+                      <p>
+                        Lokal (manuell korrigiert):{" "}
+                        <strong className="font-mono">{localScoreLabel}</strong>{" "}
+                        · Offiziell gemeldet (Liga):{" "}
+                        <strong className="font-mono">
+                          {officialScoreLabel}
+                        </strong>
+                      </p>
+                      <p className="text-[11px] opacity-85">
+                        Der manuell korrigierte Spielstand bleibt beim
+                        automatischen Sync geschützt.
+                      </p>
+                    </div>
+                  </div>
+                  {isStaff && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={savingMatch}
+                      onClick={handleAdoptOfficialScores}
+                      className="h-7 text-xs border-amber-400 bg-background hover:bg-amber-100 dark:border-amber-600 dark:hover:bg-amber-950"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      Offizielles Ergebnis ({officialScoreLabel}) übernehmen
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {!scoreDiscrepancy &&
+                md.scoreManuallyEdited &&
+                localScoreLabel && (
+                  <div className="flex items-center gap-2 rounded-lg border border-sky-200 bg-sky-50/80 px-3 py-2 text-xs text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-200">
+                    <Pencil className="h-3.5 w-3.5 shrink-0" />
+                    <span>
+                      Dieser Spielstand wurde manuell eingetragen bzw. korrigiert
+                      und wird beim automatischen Liga-Sync nicht überschrieben.
+                    </span>
+                  </div>
+                )}
 
               {!isStaff ? (
                 <div className="space-y-2 text-sm">

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  EventRepository,
+  VenueRepository,
+} from "@/domain/adapters/event-repositories";
+import {
   LeagueDirectoryGroupTeamRecord,
   LeagueDirectoryRepository,
 } from "@/domain/adapters/league-directory-repository";
@@ -7,21 +11,34 @@ import {
   ExistingSyncedMatch,
   ExistingUnscoredMatch,
   LeagueSyncRepository,
-  MatchScoresSnapshot,
+  ScoreSyncUpdate,
 } from "@/domain/adapters/league-provider";
-import { TeamRecord, TeamRepository } from "@/domain/adapters/repositories";
 import {
+  MemberRepository,
+  TeamRecord,
+  TeamRepository,
+} from "@/domain/adapters/repositories";
+import { ViewerContext } from "@/domain/policies/rbac";
+import {
+  EventEntity,
   formatMatchScore,
+  formatOfficialMatchScore,
   getMatchOutcome,
+  hasOfficialScoreDiscrepancy,
   MATCH_OUTCOME_LABELS,
+  MatchDetailsDTO,
 } from "@/domain/schemas/event";
 import {
   LeagueImportSourceDTO,
   LeagueSyncChangeLogDTO,
 } from "@/domain/schemas/league";
 import { CsvLeagueProviderAdapter } from "@/domain/services/csv-parser";
+import { EventService } from "@/domain/services/event-service";
 import { IcalLeagueProviderAdapter } from "@/domain/services/ical-parser";
-import { computeLeagueMergePlan } from "@/domain/services/league-merge";
+import {
+  computeLeagueMergePlan,
+  resolveScoreSyncUpdate,
+} from "@/domain/services/league-merge";
 import { LeagueSyncService } from "@/domain/services/league-sync-service";
 import {
   deriveNuligaGroupMeetingsUrl,
@@ -369,17 +386,58 @@ describe("Automatisches Nachtragen von Ergebnissen im Liga-Sync", () => {
     ]);
 
     expect(plan[0].kind).toBe("UPDATE");
-    expect(plan[0].backfillScores).toEqual({
-      homeScoreFull: 22,
-      awayScoreFull: 26,
-      homeScoreHalf: 9,
-      awayScoreHalf: 17,
+    expect(plan[0].scoreSyncUpdate).toEqual({
+      officialScores: {
+        homeScoreFull: 22,
+        awayScoreFull: 26,
+        homeScoreHalf: 9,
+        awayScoreHalf: 17,
+      },
+      applyToDisplayed: true,
+      clearManualFlag: true,
+      discrepancyDetected: false,
     });
     expect(plan[0].summary).toContain("Ergebnis nachgetragen");
     expect(plan[0].summary).toContain("22:26 (HZ 9:17)");
 
-    // Bereits manuell erfasstes Ergebnis bleibt 100% geschützt
-    expect(plan[1].kind).toBe("UNCHANGED");
+    // Bereits manuell erfasstes Ergebnis bleibt 100% geschützt, aber offizieller Wert wird zur Abweichungs-Markierung gespeichert
+    expect(plan[1].kind).toBe("UPDATE");
+    expect(plan[1].scoreSyncUpdate).toEqual({
+      officialScores: {
+        homeScoreFull: 17,
+        awayScoreFull: 23,
+        homeScoreHalf: 8,
+        awayScoreHalf: 12,
+      },
+      applyToDisplayed: false,
+      clearManualFlag: false,
+      discrepancyDetected: true,
+    });
+    expect(plan[1].summary).toContain("Abweichung zum offiziellen Ergebnis");
+    expect(plan[1].summary).toContain("18:24");
+    expect(plan[1].summary).toContain("17:23");
+
+    // Zweiter Sync mit demselben offiziellen Wert ist 100% idempotent (UNCHANGED)
+    const afterRecordingOfficial = resolveScoreSyncUpdate(
+      {
+        homeScoreFull: 18,
+        awayScoreFull: 24,
+        homeScoreHalf: 9,
+        awayScoreHalf: 13,
+        scoreManuallyEdited: true,
+        officialHomeScoreFull: 17,
+        officialAwayScoreFull: 23,
+        officialHomeScoreHalf: 8,
+        officialAwayScoreHalf: 12,
+      },
+      {
+        homeScoreFull: 17,
+        awayScoreFull: 23,
+        homeScoreHalf: 8,
+        awayScoreHalf: 12,
+      }
+    );
+    expect(afterRecordingOfficial).toBeNull();
   });
 
   it("reichert im LeagueSyncService iCal-Spiele mit nuLiga-Ergebnissen an und trägt auch nicht mehr im Feed enthaltene Altdaten nach", async () => {
@@ -445,7 +503,7 @@ describe("Automatisches Nachtragen von Ergebnissen im Liga-Sync", () => {
       },
     ];
 
-    const updatedScores = new Map<string, MatchScoresSnapshot>();
+    const updatedScores = new Map<string, ScoreSyncUpdate>();
 
     const syncRepo: LeagueSyncRepository = {
       listSourcesByTeam: async () => [source],
@@ -456,8 +514,8 @@ describe("Automatisches Nachtragen von Ergebnissen im Liga-Sync", () => {
       deleteSource: async () => {},
       findSyncedMatchesByTeam: async () => syncedExisting,
       findPastMatchesWithoutScoresByTeam: async () => unscoredPastInDb,
-      backfillMatchScores: async (eventId, scores) => {
-        updatedScores.set(eventId, scores);
+      backfillMatchScores: async (eventId, update) => {
+        updatedScores.set(eventId, update);
       },
       findOrCreateVenueByNamePreservingResin: async () => ({
         id: "v-1",
@@ -465,8 +523,8 @@ describe("Automatisches Nachtragen von Ergebnissen im Liga-Sync", () => {
       }),
       createSyncedMatchEvent: async () => ({ eventId: "ev-created" }),
       updateSyncedMatchSchedulePreservingLocal: async (input) => {
-        if (input.backfillScores) {
-          updatedScores.set(input.eventId, input.backfillScores);
+        if (input.scoreSyncUpdate) {
+          updatedScores.set(input.eventId, input.scoreSyncUpdate);
         }
       },
       createChangeLog: async (input) =>
@@ -563,17 +621,259 @@ describe("Automatisches Nachtragen von Ergebnissen im Liga-Sync", () => {
 
     expect(summary.updatedCount).toBe(2);
     expect(summary.resultsUpdatedCount).toBe(2);
-    expect(updatedScores.get("ev-in-feed")).toEqual({
+    expect(updatedScores.get("ev-in-feed")).toMatchObject({
+      applyToDisplayed: true,
+      officialScores: {
+        homeScoreFull: 22,
+        awayScoreFull: 26,
+        homeScoreHalf: 9,
+        awayScoreHalf: 17,
+      },
+    });
+    expect(updatedScores.get("ev-past-only-db")).toMatchObject({
+      applyToDisplayed: true,
+      officialScores: {
+        homeScoreFull: 17,
+        awayScoreFull: 23,
+        homeScoreHalf: 8,
+        awayScoreHalf: 12,
+      },
+    });
+  });
+});
+
+describe("Manuelle Spielstand-Korrektur & Abweichung zum offiziellen Ergebnis", () => {
+  it("erkennt Abweichungen im Endstand und Halbzeitstand und formatiert offizielle Stände", () => {
+    expect(
+      hasOfficialScoreDiscrepancy({
+        homeScoreFull: 23,
+        awayScoreFull: 26,
+        officialHomeScoreFull: 22,
+        officialAwayScoreFull: 26,
+      })
+    ).toBe(true);
+
+    expect(
+      hasOfficialScoreDiscrepancy({
+        homeScoreFull: 22,
+        awayScoreFull: 26,
+        homeScoreHalf: 10,
+        awayScoreHalf: 17,
+        officialHomeScoreFull: 22,
+        officialAwayScoreFull: 26,
+        officialHomeScoreHalf: 9,
+        officialAwayScoreHalf: 17,
+      })
+    ).toBe(true);
+
+    expect(
+      hasOfficialScoreDiscrepancy({
+        homeScoreFull: 22,
+        awayScoreFull: 26,
+        homeScoreHalf: 9,
+        awayScoreHalf: 17,
+        officialHomeScoreFull: 22,
+        officialAwayScoreFull: 26,
+        officialHomeScoreHalf: 9,
+        officialAwayScoreHalf: 17,
+      })
+    ).toBe(false);
+
+    // Ohne offizielles Ergebnis gibt es keine Abweichung
+    expect(
+      hasOfficialScoreDiscrepancy({
+        homeScoreFull: 25,
+        awayScoreFull: 20,
+        officialHomeScoreFull: null,
+        officialAwayScoreFull: null,
+      })
+    ).toBe(false);
+
+    expect(
+      formatOfficialMatchScore({
+        officialHomeScoreFull: 22,
+        officialAwayScoreFull: 26,
+        officialHomeScoreHalf: 9,
+        officialAwayScoreHalf: 17,
+      })
+    ).toBe("22:26 (9:17)");
+  });
+
+  it("setzt scoreManuallyEdited in EventService nur bei echter Spielstand-Änderung und löscht es bei Übernahme des offiziellen Ergebnisses", async () => {
+    const coach: ViewerContext = {
+      userId: "u-coach",
+      email: "coach@tsv.de",
+      name: "Coach",
+      memberships: [
+        { memberId: "m-coach", clubId: "club-1", teamId: "team-1", role: "COACH" },
+      ],
+      linkedChildMemberIds: [],
+      linkedChildTeamIds: [],
+    };
+
+    const currentMd: MatchDetailsDTO = {
+      id: "md-1",
+      eventId: "ev-1",
+      opponentName: "SG Luhdorf",
+      isHome: true,
+      throwOffAt: null,
+      jerseyColor: "Rot",
+      jerseySetId: null,
+      jerseySet: null,
+      refereeNote: null,
+      nominatedMemberIds: [],
+      homeScoreHalf: 9,
+      awayScoreHalf: 17,
+      homeScoreFull: 22,
+      awayScoreFull: 26,
+      scoreManuallyEdited: false,
+      officialHomeScoreHalf: 9,
+      officialAwayScoreHalf: 17,
+      officialHomeScoreFull: 22,
+      officialAwayScoreFull: 26,
+    };
+
+    const eventEntity: EventEntity = {
+      id: "ev-1",
+      clubId: "club-1",
+      teamId: "team-1",
+      recurrenceId: null,
+      venueId: null,
+      venue: null,
+      type: "MATCH",
+      title: "TuS vs. SG Luhdorf",
+      description: null,
+      startAt: new Date("2026-10-31T12:00:00.000Z"),
+      endAt: null,
+      meetingAt: null,
+      rsvpDeadlineAt: null,
+      requireDeclineReason: false,
+      isCancelled: false,
+      matchDetails: currentMd,
+      attendances: [],
+    };
+
+    let lastSavedManualFlag: boolean | undefined;
+    const eventRepo = {
+      findById: async () => eventEntity,
+      upsertMatchDetails: async (
+        _eventId: string,
+        input: {
+          homeScoreFull?: number | null;
+          awayScoreFull?: number | null;
+          homeScoreHalf?: number | null;
+          awayScoreHalf?: number | null;
+          jerseyColor?: string | null;
+          scoreManuallyEdited?: boolean;
+        }
+      ) => {
+        lastSavedManualFlag = input.scoreManuallyEdited;
+        if (input.homeScoreFull !== undefined)
+          currentMd.homeScoreFull = input.homeScoreFull;
+        if (input.awayScoreFull !== undefined)
+          currentMd.awayScoreFull = input.awayScoreFull;
+        if (input.homeScoreHalf !== undefined)
+          currentMd.homeScoreHalf = input.homeScoreHalf;
+        if (input.awayScoreHalf !== undefined)
+          currentMd.awayScoreHalf = input.awayScoreHalf;
+        if (input.scoreManuallyEdited !== undefined)
+          currentMd.scoreManuallyEdited = input.scoreManuallyEdited;
+        return { ...currentMd };
+      },
+    } as unknown as EventRepository;
+
+    const eventService = new EventService(
+      {} as TeamRepository,
+      { findByTeamId: async () => [] } as unknown as MemberRepository,
+      {} as VenueRepository,
+      eventRepo
+    );
+
+    // 1. Nur Trikotfarbe ändern -> scoreManuallyEdited bleibt unberührt (false)
+    await eventService.updateMatchDetails(coach, "team-1", "ev-1", {
+      jerseyColor: "Weiß",
       homeScoreFull: 22,
       awayScoreFull: 26,
       homeScoreHalf: 9,
       awayScoreHalf: 17,
     });
-    expect(updatedScores.get("ev-past-only-db")).toEqual({
-      homeScoreFull: 17,
-      awayScoreFull: 23,
-      homeScoreHalf: 8,
-      awayScoreHalf: 12,
+    expect(lastSavedManualFlag).toBeUndefined();
+    expect(currentMd.scoreManuallyEdited).toBe(false);
+
+    // 2. Endstand manuell korrigieren (22:26 -> 23:26) -> scoreManuallyEdited = true & Abweichung aktiv
+    await eventService.updateMatchDetails(coach, "team-1", "ev-1", {
+      homeScoreFull: 23,
+      awayScoreFull: 26,
+      homeScoreHalf: 9,
+      awayScoreHalf: 17,
+    });
+    expect(lastSavedManualFlag).toBe(true);
+    expect(currentMd.scoreManuallyEdited).toBe(true);
+    expect(hasOfficialScoreDiscrepancy(currentMd)).toBe(true);
+
+    // 3. Offizielles Ergebnis (22:26, 9:17) wieder übernehmen -> scoreManuallyEdited = false & keine Abweichung mehr
+    await eventService.updateMatchDetails(coach, "team-1", "ev-1", {
+      homeScoreFull: 22,
+      awayScoreFull: 26,
+      homeScoreHalf: 9,
+      awayScoreHalf: 17,
+    });
+    expect(lastSavedManualFlag).toBe(false);
+    expect(currentMd.scoreManuallyEdited).toBe(false);
+    expect(hasOfficialScoreDiscrepancy(currentMd)).toBe(false);
+  });
+
+  it("übernimmt eine nachträgliche offizielle Verbands-Änderung nur, wenn lokal nicht manuell korrigiert wurde", () => {
+    // Nicht manuell bearbeitet -> offizielle Änderung (z. B. Spielwertung 0:2) wird übernommen
+    const autoUpdate = resolveScoreSyncUpdate(
+      {
+        homeScoreFull: 22,
+        awayScoreFull: 26,
+        homeScoreHalf: 9,
+        awayScoreHalf: 17,
+        scoreManuallyEdited: false,
+        officialHomeScoreFull: 22,
+        officialAwayScoreFull: 26,
+        officialHomeScoreHalf: 9,
+        officialAwayScoreHalf: 17,
+      },
+      {
+        homeScoreFull: 0,
+        awayScoreFull: 2,
+        homeScoreHalf: null,
+        awayScoreHalf: null,
+      }
+    );
+    expect(autoUpdate).toMatchObject({
+      applyToDisplayed: true,
+      discrepancyDetected: false,
+      officialScores: { homeScoreFull: 0, awayScoreFull: 2 },
+    });
+
+    // Manuell korrigiert -> offizielle Änderung wird nur in official* vermerkt & als Abweichung markiert
+    const manualProtected = resolveScoreSyncUpdate(
+      {
+        homeScoreFull: 23,
+        awayScoreFull: 26,
+        homeScoreHalf: 9,
+        awayScoreHalf: 17,
+        scoreManuallyEdited: true,
+        officialHomeScoreFull: 22,
+        officialAwayScoreFull: 26,
+        officialHomeScoreHalf: 9,
+        officialAwayScoreHalf: 17,
+      },
+      {
+        homeScoreFull: 0,
+        awayScoreFull: 2,
+        homeScoreHalf: null,
+        awayScoreHalf: null,
+      }
+    );
+    expect(manualProtected).toMatchObject({
+      applyToDisplayed: false,
+      discrepancyDetected: true,
+      officialScores: { homeScoreFull: 0, awayScoreFull: 2 },
     });
   });
 });

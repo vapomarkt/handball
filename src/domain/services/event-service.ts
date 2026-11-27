@@ -24,6 +24,7 @@ import {
   MemberAttendanceStatDTO,
   SubmitRsvpSchema,
   UpdateEventSchema,
+  UpdateMatchDetailsInput,
   UpdateMatchDetailsSchema,
 } from "../schemas/event";
 import { expandRecurrenceDates } from "./recurrence";
@@ -440,7 +441,9 @@ export class EventService {
       }
     }
 
-    const updatePayload = { ...parsed.data };
+    const updatePayload: UpdateMatchDetailsInput & {
+      scoreManuallyEdited?: boolean;
+    } = { ...parsed.data };
     if (updatePayload.jerseySetId && this.jerseySets) {
       const jerseySet = await this.jerseySets.findById(
         updatePayload.jerseySetId
@@ -450,6 +453,66 @@ export class EventService {
       }
       if (!updatePayload.jerseyColor) {
         updatePayload.jerseyColor = jerseySet.colors;
+      }
+    }
+
+    const existingMd = event.matchDetails;
+    const scoreKeysProvided =
+      parsed.data.homeScoreFull !== undefined ||
+      parsed.data.awayScoreFull !== undefined ||
+      parsed.data.homeScoreHalf !== undefined ||
+      parsed.data.awayScoreHalf !== undefined;
+
+    if (scoreKeysProvided) {
+      const nextHomeFull =
+        parsed.data.homeScoreFull !== undefined
+          ? parsed.data.homeScoreFull
+          : (existingMd?.homeScoreFull ?? null);
+      const nextAwayFull =
+        parsed.data.awayScoreFull !== undefined
+          ? parsed.data.awayScoreFull
+          : (existingMd?.awayScoreFull ?? null);
+      const nextHomeHalf =
+        parsed.data.homeScoreHalf !== undefined
+          ? parsed.data.homeScoreHalf
+          : (existingMd?.homeScoreHalf ?? null);
+      const nextAwayHalf =
+        parsed.data.awayScoreHalf !== undefined
+          ? parsed.data.awayScoreHalf
+          : (existingMd?.awayScoreHalf ?? null);
+
+      const scoreChanged =
+        nextHomeFull !== (existingMd?.homeScoreFull ?? null) ||
+        nextAwayFull !== (existingMd?.awayScoreFull ?? null) ||
+        nextHomeHalf !== (existingMd?.homeScoreHalf ?? null) ||
+        nextAwayHalf !== (existingMd?.awayScoreHalf ?? null);
+
+      if (scoreChanged) {
+        if (nextHomeFull === null && nextAwayFull === null) {
+          // Endstand bewusst geleert -> Reset, nächster Sync darf wieder offiziell befüllen
+          updatePayload.scoreManuallyEdited = false;
+        } else {
+          const officialHomeFull = existingMd?.officialHomeScoreFull ?? null;
+          const officialAwayFull = existingMd?.officialAwayScoreFull ?? null;
+          const officialHomeHalf = existingMd?.officialHomeScoreHalf ?? null;
+          const officialAwayHalf = existingMd?.officialAwayScoreHalf ?? null;
+
+          const hasOfficial =
+            officialHomeFull !== null && officialAwayFull !== null;
+          const matchesOfficialFull =
+            hasOfficial &&
+            nextHomeFull === officialHomeFull &&
+            nextAwayFull === officialAwayFull;
+          const matchesOfficialHalf =
+            officialHomeHalf === null ||
+            officialAwayHalf === null ||
+            (nextHomeHalf === officialHomeHalf &&
+              nextAwayHalf === officialAwayHalf);
+
+          updatePayload.scoreManuallyEdited = !(
+            matchesOfficialFull && matchesOfficialHalf
+          );
+        }
       }
     }
 

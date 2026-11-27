@@ -1,7 +1,9 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   formatMatchScore,
+  formatOfficialMatchScore,
   getMatchOutcome,
+  hasOfficialScoreDiscrepancy,
   MATCH_OUTCOME_LABELS,
   type RsvpStatus,
 } from "@throwoff/shared";
@@ -70,8 +72,11 @@ export default function EventDetailScreen() {
   const event = eventQuery.data.event;
   const mine = event.attendances.find((a) => a.memberId === activeMemberId);
   const offline = rsvp.isPaused;
-  const outcome = event.matchDetails ? getMatchOutcome(event.matchDetails) : null;
-  const scoreText = event.matchDetails ? formatMatchScore(event.matchDetails) : null;
+  const md = event.matchDetails;
+  const outcome = md ? getMatchOutcome(md) : null;
+  const scoreText = md ? formatMatchScore(md) : null;
+  const discrepancy = md ? hasOfficialScoreDiscrepancy(md) : false;
+  const officialScoreText = md ? formatOfficialMatchScore(md) : null;
 
   return (
     <Screen>
@@ -92,11 +97,11 @@ export default function EventDetailScreen() {
           {event.venue?.resinPolicy === "RESIN_FORBIDDEN" ? (
             <Text style={{ color: colors.warning }}>Harzverbot in dieser Halle</Text>
           ) : null}
-          {event.matchDetails ? (
+          {md ? (
             <Body>
-              {event.matchDetails.isHome ? "🏠 Heimspiel" : "🚌 Auswärtsspiel"} gegen{" "}
-              {event.matchDetails.opponentName}
-              {event.matchDetails.jerseySet ? `\nTrikots: ${event.matchDetails.jerseySet.name}` : ""}
+              {md.isHome ? "🏠 Heimspiel" : "🚌 Auswärtsspiel"} gegen{" "}
+              {md.opponentName}
+              {md.jerseySet ? `\nTrikots: ${md.jerseySet.name}` : ""}
             </Body>
           ) : null}
           {outcome && scoreText ? (
@@ -113,6 +118,21 @@ export default function EventDetailScreen() {
             >
               {MATCH_OUTCOME_LABELS[outcome]} · {scoreText}
             </Text>
+          ) : null}
+          {md?.scoreManuallyEdited && scoreText ? (
+            <Text style={{ color: "#7dd3fc", fontSize: 12, fontWeight: "600" }}>
+              ✎ Spielstand wurde manuell korrigiert
+            </Text>
+          ) : null}
+          {discrepancy && officialScoreText ? (
+            <View style={styles.discrepancyBox}>
+              <Text style={styles.discrepancyTitle}>
+                ⚠ Abweichung zum offiziell gemeldeten Ergebnis
+              </Text>
+              <Text style={styles.discrepancyText}>
+                Lokal: {scoreText} · Offiziell (Liga): {officialScoreText}
+              </Text>
+            </View>
           ) : null}
           {event.description ? <Body>{event.description}</Body> : null}
         </Card>
@@ -195,4 +215,22 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   carpool: { gap: spacing(0.5) },
+  discrepancyBox: {
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.warning,
+    backgroundColor: "rgba(245, 158, 11, 0.16)",
+    padding: spacing(2.5),
+    gap: spacing(0.5),
+  },
+  discrepancyTitle: {
+    color: colors.warning,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  discrepancyText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "600",
+  },
 });

@@ -95,6 +95,88 @@ export function formatMatchScore(matchDetails: {
   return full;
 }
 
+export function hasOfficialMatchScore(matchDetails: {
+  officialHomeScoreFull?: number | null;
+  officialAwayScoreFull?: number | null;
+}): boolean {
+  return (
+    matchDetails.officialHomeScoreFull !== null &&
+    matchDetails.officialHomeScoreFull !== undefined &&
+    matchDetails.officialAwayScoreFull !== null &&
+    matchDetails.officialAwayScoreFull !== undefined
+  );
+}
+
+/**
+ * Formatiert das offiziell gemeldete Liga-Ergebnis als `Heim:Gast` (inkl. Halbzeitstand, falls vorhanden).
+ */
+export function formatOfficialMatchScore(matchDetails: {
+  officialHomeScoreFull?: number | null;
+  officialAwayScoreFull?: number | null;
+  officialHomeScoreHalf?: number | null;
+  officialAwayScoreHalf?: number | null;
+}): string | null {
+  if (!hasOfficialMatchScore(matchDetails)) return null;
+  return formatMatchScore({
+    homeScoreFull: matchDetails.officialHomeScoreFull!,
+    awayScoreFull: matchDetails.officialAwayScoreFull!,
+    homeScoreHalf: matchDetails.officialHomeScoreHalf ?? null,
+    awayScoreHalf: matchDetails.officialAwayScoreHalf ?? null,
+  });
+}
+
+/**
+ * Prüft, ob zwischen dem lokal angezeigten Spielstand und dem offiziell gemeldeten
+ * Liga-Ergebnis (nuLiga) eine Abweichung im Endstand oder Halbzeitstand besteht.
+ */
+export function hasOfficialScoreDiscrepancy(matchDetails: {
+  homeScoreFull: number | null;
+  awayScoreFull: number | null;
+  homeScoreHalf?: number | null;
+  awayScoreHalf?: number | null;
+  officialHomeScoreFull?: number | null;
+  officialAwayScoreFull?: number | null;
+  officialHomeScoreHalf?: number | null;
+  officialAwayScoreHalf?: number | null;
+}): boolean {
+  if (
+    !hasOfficialMatchScore(matchDetails) ||
+    matchDetails.homeScoreFull === null ||
+    matchDetails.awayScoreFull === null
+  ) {
+    return false;
+  }
+
+  if (
+    matchDetails.homeScoreFull !== matchDetails.officialHomeScoreFull ||
+    matchDetails.awayScoreFull !== matchDetails.officialAwayScoreFull
+  ) {
+    return true;
+  }
+
+  const localHasHalf =
+    matchDetails.homeScoreHalf !== null &&
+    matchDetails.homeScoreHalf !== undefined &&
+    matchDetails.awayScoreHalf !== null &&
+    matchDetails.awayScoreHalf !== undefined;
+  const officialHasHalf =
+    matchDetails.officialHomeScoreHalf !== null &&
+    matchDetails.officialHomeScoreHalf !== undefined &&
+    matchDetails.officialAwayScoreHalf !== null &&
+    matchDetails.officialAwayScoreHalf !== undefined;
+
+  if (
+    localHasHalf &&
+    officialHasHalf &&
+    (matchDetails.homeScoreHalf !== matchDetails.officialHomeScoreHalf ||
+      matchDetails.awayScoreHalf !== matchDetails.officialAwayScoreHalf)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export const DeclineReasonCategorySchema = z.enum([
   "WORK",
   "INJURY",
@@ -295,6 +377,11 @@ export interface MatchDetailsDTO {
   awayScoreHalf: number | null;
   homeScoreFull: number | null;
   awayScoreFull: number | null;
+  scoreManuallyEdited: boolean;
+  officialHomeScoreHalf: number | null;
+  officialAwayScoreHalf: number | null;
+  officialHomeScoreFull: number | null;
+  officialAwayScoreFull: number | null;
 }
 
 export interface EventAttendanceEntity {

@@ -22,6 +22,7 @@ import {
   EventTypeBadge,
   MatchLocationBadge,
   MatchResultBadge,
+  MatchScoreStatusBadges,
 } from "@/components/events/match-badges";
 import { ResinBadge } from "@/components/events/resin-badge";
 import { RsvpControls } from "@/components/events/rsvp-controls";
@@ -530,6 +531,11 @@ function TerminePageContent() {
                           {ev.matchDetails && (
                             <MatchResultBadge matchDetails={ev.matchDetails} />
                           )}
+                          {ev.matchDetails && (
+                            <MatchScoreStatusBadges
+                              matchDetails={ev.matchDetails}
+                            />
+                          )}
                           {ev.isCancelled && (
                             <Badge variant="injured">Abgesagt</Badge>
                           )}
@@ -827,7 +833,7 @@ function TerminePageContent() {
       )}
 
       <EventDetailDialog
-        key={`ev-detail-${selectedEvent?.id ?? "none"}-${selectedEvent?.matchDetails?.homeScoreFull ?? ""}-${selectedEvent?.matchDetails?.jerseySetId ?? ""}-${selectedEvent?.matchDetails?.nominatedMemberIds.length ?? 0}`}
+        key={`ev-detail-${selectedEvent?.id ?? "none"}-${selectedEvent?.matchDetails?.homeScoreFull ?? ""}:${selectedEvent?.matchDetails?.awayScoreFull ?? ""}-${selectedEvent?.matchDetails?.homeScoreHalf ?? ""}:${selectedEvent?.matchDetails?.awayScoreHalf ?? ""}-${selectedEvent?.matchDetails?.scoreManuallyEdited ?? false}-${selectedEvent?.matchDetails?.officialHomeScoreFull ?? ""}:${selectedEvent?.matchDetails?.officialAwayScoreFull ?? ""}-${selectedEvent?.matchDetails?.jerseySetId ?? ""}-${selectedEvent?.matchDetails?.nominatedMemberIds.length ?? 0}`}
         open={selectedEvent !== null}
         onOpenChange={(open) => {
           if (!open) {

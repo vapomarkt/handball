@@ -169,6 +169,11 @@ export class PrismaLeagueSyncRepository implements LeagueSyncRepository {
             awayScoreHalf: true,
             homeScoreFull: true,
             awayScoreFull: true,
+            scoreManuallyEdited: true,
+            officialHomeScoreHalf: true,
+            officialAwayScoreHalf: true,
+            officialHomeScoreFull: true,
+            officialAwayScoreFull: true,
           },
         },
       },
@@ -191,6 +196,11 @@ export class PrismaLeagueSyncRepository implements LeagueSyncRepository {
         awayScoreHalf: r.matchDetails?.awayScoreHalf ?? null,
         homeScoreFull: r.matchDetails?.homeScoreFull ?? null,
         awayScoreFull: r.matchDetails?.awayScoreFull ?? null,
+        scoreManuallyEdited: r.matchDetails?.scoreManuallyEdited ?? false,
+        officialHomeScoreHalf: r.matchDetails?.officialHomeScoreHalf ?? null,
+        officialAwayScoreHalf: r.matchDetails?.officialAwayScoreHalf ?? null,
+        officialHomeScoreFull: r.matchDetails?.officialHomeScoreFull ?? null,
+        officialAwayScoreFull: r.matchDetails?.officialAwayScoreFull ?? null,
       }));
   }
 
@@ -209,6 +219,11 @@ export class PrismaLeagueSyncRepository implements LeagueSyncRepository {
       awayScoreHalf: number | null;
       homeScoreFull: number | null;
       awayScoreFull: number | null;
+      scoreManuallyEdited: boolean;
+      officialHomeScoreHalf: number | null;
+      officialAwayScoreHalf: number | null;
+      officialHomeScoreFull: number | null;
+      officialAwayScoreFull: number | null;
     }>
   > {
     const rows = await prisma.event.findMany({
@@ -219,7 +234,13 @@ export class PrismaLeagueSyncRepository implements LeagueSyncRepository {
         startAt: { lt: before },
         matchDetails: {
           is: {
-            OR: [{ homeScoreFull: null }, { awayScoreFull: null }],
+            OR: [
+              { homeScoreFull: null },
+              { awayScoreFull: null },
+              { officialHomeScoreFull: null },
+              { officialAwayScoreFull: null },
+              { scoreManuallyEdited: true },
+            ],
           },
         },
       },
@@ -232,6 +253,11 @@ export class PrismaLeagueSyncRepository implements LeagueSyncRepository {
             awayScoreHalf: true,
             homeScoreFull: true,
             awayScoreFull: true,
+            scoreManuallyEdited: true,
+            officialHomeScoreHalf: true,
+            officialAwayScoreHalf: true,
+            officialHomeScoreFull: true,
+            officialAwayScoreFull: true,
           },
         },
       },
@@ -250,30 +276,66 @@ export class PrismaLeagueSyncRepository implements LeagueSyncRepository {
         awayScoreHalf: r.matchDetails!.awayScoreHalf,
         homeScoreFull: r.matchDetails!.homeScoreFull,
         awayScoreFull: r.matchDetails!.awayScoreFull,
+        scoreManuallyEdited: r.matchDetails!.scoreManuallyEdited,
+        officialHomeScoreHalf: r.matchDetails!.officialHomeScoreHalf,
+        officialAwayScoreHalf: r.matchDetails!.officialAwayScoreHalf,
+        officialHomeScoreFull: r.matchDetails!.officialHomeScoreFull,
+        officialAwayScoreFull: r.matchDetails!.officialAwayScoreFull,
       }));
   }
 
-  async backfillMatchScores(
-    eventId: string,
-    scores: {
+  private buildScoreSyncData(update: {
+    officialScores: {
       homeScoreFull: number;
       awayScoreFull: number;
       homeScoreHalf: number | null;
       awayScoreHalf: number | null;
+    };
+    applyToDisplayed: boolean;
+    clearManualFlag?: boolean;
+  }) {
+    const { officialScores, applyToDisplayed, clearManualFlag } = update;
+    return {
+      officialHomeScoreFull: officialScores.homeScoreFull,
+      officialAwayScoreFull: officialScores.awayScoreFull,
+      ...(officialScores.homeScoreHalf !== null
+        ? { officialHomeScoreHalf: officialScores.homeScoreHalf }
+        : {}),
+      ...(officialScores.awayScoreHalf !== null
+        ? { officialAwayScoreHalf: officialScores.awayScoreHalf }
+        : {}),
+      ...(applyToDisplayed
+        ? {
+            homeScoreFull: officialScores.homeScoreFull,
+            awayScoreFull: officialScores.awayScoreFull,
+            ...(officialScores.homeScoreHalf !== null
+              ? { homeScoreHalf: officialScores.homeScoreHalf }
+              : {}),
+            ...(officialScores.awayScoreHalf !== null
+              ? { awayScoreHalf: officialScores.awayScoreHalf }
+              : {}),
+          }
+        : {}),
+      ...(clearManualFlag ? { scoreManuallyEdited: false } : {}),
+    };
+  }
+
+  async backfillMatchScores(
+    eventId: string,
+    update: {
+      officialScores: {
+        homeScoreFull: number;
+        awayScoreFull: number;
+        homeScoreHalf: number | null;
+        awayScoreHalf: number | null;
+      };
+      applyToDisplayed: boolean;
+      clearManualFlag?: boolean;
     }
   ): Promise<void> {
     await prisma.matchDetails.update({
       where: { eventId },
-      data: {
-        homeScoreFull: scores.homeScoreFull,
-        awayScoreFull: scores.awayScoreFull,
-        ...(scores.homeScoreHalf !== null
-          ? { homeScoreHalf: scores.homeScoreHalf }
-          : {}),
-        ...(scores.awayScoreHalf !== null
-          ? { awayScoreHalf: scores.awayScoreHalf }
-          : {}),
-      },
+      data: this.buildScoreSyncData(update),
     });
   }
 
@@ -322,6 +384,12 @@ export class PrismaLeagueSyncRepository implements LeagueSyncRepository {
     homeScoreFull?: number | null;
     awayScoreFull?: number | null;
   }): Promise<{ eventId: string }> {
+    const hasInitialScore =
+      input.homeScoreFull !== null &&
+      input.homeScoreFull !== undefined &&
+      input.awayScoreFull !== null &&
+      input.awayScoreFull !== undefined;
+
     const created = await prisma.event.create({
       data: {
         clubId: input.clubId,
@@ -342,6 +410,19 @@ export class PrismaLeagueSyncRepository implements LeagueSyncRepository {
             awayScoreHalf: input.awayScoreHalf ?? null,
             homeScoreFull: input.homeScoreFull ?? null,
             awayScoreFull: input.awayScoreFull ?? null,
+            scoreManuallyEdited: false,
+            officialHomeScoreHalf: hasInitialScore
+              ? (input.homeScoreHalf ?? null)
+              : null,
+            officialAwayScoreHalf: hasInitialScore
+              ? (input.awayScoreHalf ?? null)
+              : null,
+            officialHomeScoreFull: hasInitialScore
+              ? input.homeScoreFull!
+              : null,
+            officialAwayScoreFull: hasInitialScore
+              ? input.awayScoreFull!
+              : null,
           },
         },
       },
@@ -359,28 +440,24 @@ export class PrismaLeagueSyncRepository implements LeagueSyncRepository {
     isCancelled: boolean;
     opponentName: string;
     isHome: boolean;
-    backfillScores?: {
-      homeScoreFull: number;
-      awayScoreFull: number;
-      homeScoreHalf: number | null;
-      awayScoreHalf: number | null;
+    scoreSyncUpdate?: {
+      officialScores: {
+        homeScoreFull: number;
+        awayScoreFull: number;
+        homeScoreHalf: number | null;
+        awayScoreHalf: number | null;
+      };
+      applyToDisplayed: boolean;
+      clearManualFlag?: boolean;
     } | null;
   }): Promise<void> {
     // VERBINDLICHER SCHUTZ LOKALER ANREICHERUNGEN:
     // Nur externe Terminfelder werden aktualisiert; meetingAt, description,
     // jerseyColor, nominatedMemberIds, refereeNote und carpools werden NICHT berührt!
-    // Ergebnisse werden nur nachgetragen, wenn explizit über `backfillScores` übergeben.
-    const scoreData = input.backfillScores
-      ? {
-          homeScoreFull: input.backfillScores.homeScoreFull,
-          awayScoreFull: input.backfillScores.awayScoreFull,
-          ...(input.backfillScores.homeScoreHalf !== null
-            ? { homeScoreHalf: input.backfillScores.homeScoreHalf }
-            : {}),
-          ...(input.backfillScores.awayScoreHalf !== null
-            ? { awayScoreHalf: input.backfillScores.awayScoreHalf }
-            : {}),
-        }
+    // Offizielle Ergebnisse werden über `scoreSyncUpdate` gespeichert, ohne manuell
+    // korrigierte Endstände zu überschreiben.
+    const scoreData = input.scoreSyncUpdate
+      ? this.buildScoreSyncData(input.scoreSyncUpdate)
       : {};
 
     await prisma.$transaction([

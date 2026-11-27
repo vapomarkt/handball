@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   formatMatchScore,
+  formatOfficialMatchScore,
   getMatchOutcome,
+  hasOfficialScoreDiscrepancy,
   MATCH_OUTCOME_LABELS,
   type EventDTO,
   type MatchOutcome,
@@ -101,6 +103,8 @@ export default function TermineScreen() {
           const md = item.matchDetails;
           const outcome = md ? getMatchOutcome(md) : null;
           const scoreText = md ? formatMatchScore(md) : null;
+          const discrepancy = md ? hasOfficialScoreDiscrepancy(md) : false;
+          const officialScore = md ? formatOfficialMatchScore(md) : null;
 
           return (
             <Pressable
@@ -139,6 +143,20 @@ export default function TermineScreen() {
                         ]}
                       >
                         {MATCH_OUTCOME_LABELS[outcome]} · {scoreText}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {md?.scoreManuallyEdited && scoreText ? (
+                    <View style={styles.manualBadge}>
+                      <Text style={styles.manualBadgeText}>
+                        ✎ Manuell korrigiert
+                      </Text>
+                    </View>
+                  ) : null}
+                  {discrepancy && officialScore ? (
+                    <View style={styles.discrepancyBadge}>
+                      <Text style={styles.discrepancyBadgeText}>
+                        ⚠ Abweichung · Offiziell {officialScore}
                       </Text>
                     </View>
                   ) : null}
@@ -229,6 +247,26 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   outcomeBadgeText: { fontSize: 11, fontWeight: "700" },
+  manualBadge: {
+    borderRadius: radius.sm,
+    backgroundColor: "rgba(56, 189, 248, 0.16)",
+    paddingHorizontal: spacing(2),
+    paddingVertical: 2,
+  },
+  manualBadgeText: { color: "#7dd3fc", fontSize: 11, fontWeight: "600" },
+  discrepancyBadge: {
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.warning,
+    backgroundColor: "rgba(245, 158, 11, 0.2)",
+    paddingHorizontal: spacing(2),
+    paddingVertical: 2,
+  },
+  discrepancyBadgeText: {
+    color: colors.warning,
+    fontSize: 11,
+    fontWeight: "700",
+  },
   type: { color: colors.primary, fontSize: 12, fontWeight: "700", textTransform: "uppercase" },
   typeSubtle: { color: colors.textMuted, fontSize: 11, fontWeight: "600" },
   title: { color: colors.text, fontSize: 16, fontWeight: "700" },

@@ -2,6 +2,7 @@ import {
   ExistingSyncedMatch,
   MatchScoresSnapshot,
   NormalizedLeagueMatch,
+  ScoreSyncUpdate,
 } from "../adapters/league-provider";
 import { SyncChangeType } from "../schemas/league";
 
@@ -11,7 +12,7 @@ export interface MatchMergeAction {
   existing?: ExistingSyncedMatch;
   changeType?: SyncChangeType;
   summary?: string;
-  backfillScores?: MatchScoresSnapshot | null;
+  scoreSyncUpdate?: ScoreSyncUpdate | null;
 }
 
 function formatDeDateTime(d: Date): string {
@@ -31,10 +32,35 @@ export function formatScoreSummary(scores: MatchScoresSnapshot): string {
   return full;
 }
 
-function resolveBackfillScores(
-  existing: ExistingSyncedMatch,
-  incoming: NormalizedLeagueMatch
-): MatchScoresSnapshot | null {
+export interface ScoreCompareState {
+  homeScoreFull?: number | null;
+  awayScoreFull?: number | null;
+  homeScoreHalf?: number | null;
+  awayScoreHalf?: number | null;
+  scoreManuallyEdited?: boolean;
+  officialHomeScoreFull?: number | null;
+  officialAwayScoreFull?: number | null;
+  officialHomeScoreHalf?: number | null;
+  officialAwayScoreHalf?: number | null;
+}
+
+/**
+ * Vergleicht ein eingehendes offizielles Liga-Ergebnis mit dem lokal gespeicherten Stand.
+ * - Fehlt lokal ein Endstand, wird das offizielle Ergebnis nachgetragen (`applyToDisplayed: true`).
+ * - Wurde lokal manuell korrigiert (oder existiert ein abweichender lokaler Stand ohne offiziellen Ursprung),
+ *   bleibt der angezeigte Spielstand 100% geschützt (`applyToDisplayed: false`), aber das offizielle Ergebnis
+ *   wird in `official*` gespeichert, damit Abweichungen markiert werden können (`discrepancyDetected: true`).
+ * - Idempotent: Gibt `null` zurück, sobald nichts mehr zu aktualisieren ist.
+ */
+export function resolveScoreSyncUpdate(
+  existing: ScoreCompareState,
+  incoming: {
+    homeScoreFull?: number | null;
+    awayScoreFull?: number | null;
+    homeScoreHalf?: number | null;
+    awayScoreHalf?: number | null;
+  }
+): ScoreSyncUpdate | null {
   if (
     incoming.homeScoreFull === null ||
     incoming.homeScoreFull === undefined ||
@@ -44,59 +70,104 @@ function resolveBackfillScores(
     return null;
   }
 
+  const officialScores: MatchScoresSnapshot = {
+    homeScoreFull: incoming.homeScoreFull,
+    awayScoreFull: incoming.awayScoreFull,
+    homeScoreHalf:
+      incoming.homeScoreHalf !== undefined ? incoming.homeScoreHalf : null,
+    awayScoreHalf:
+      incoming.awayScoreHalf !== undefined ? incoming.awayScoreHalf : null,
+  };
+
   const existingHasFull =
     existing.homeScoreFull !== null &&
     existing.homeScoreFull !== undefined &&
     existing.awayScoreFull !== null &&
     existing.awayScoreFull !== undefined;
-
-  if (!existingHasFull) {
-    return {
-      homeScoreFull: incoming.homeScoreFull,
-      awayScoreFull: incoming.awayScoreFull,
-      homeScoreHalf:
-        incoming.homeScoreHalf !== undefined ? incoming.homeScoreHalf : null,
-      awayScoreHalf:
-        incoming.awayScoreHalf !== undefined ? incoming.awayScoreHalf : null,
-    };
-  }
-
-  // Wenn Endstand übereinstimmt, aber der Halbzeitstand bisher fehlte, ergänzen wir nur den Halbzeitstand.
   const existingHasHalf =
     existing.homeScoreHalf !== null &&
     existing.homeScoreHalf !== undefined &&
     existing.awayScoreHalf !== null &&
     existing.awayScoreHalf !== undefined;
   const incomingHasHalf =
-    incoming.homeScoreHalf !== null &&
-    incoming.homeScoreHalf !== undefined &&
-    incoming.awayScoreHalf !== null &&
-    incoming.awayScoreHalf !== undefined;
+    officialScores.homeScoreHalf !== null &&
+    officialScores.awayScoreHalf !== null;
 
-  if (
-    !existingHasHalf &&
-    incomingHasHalf &&
-    existing.homeScoreFull === incoming.homeScoreFull &&
-    existing.awayScoreFull === incoming.awayScoreFull
-  ) {
+  const existingHadOfficial =
+    existing.officialHomeScoreFull !== null &&
+    existing.officialHomeScoreFull !== undefined &&
+    existing.officialAwayScoreFull !== null &&
+    existing.officialAwayScoreFull !== undefined;
+
+  const officialChanged =
+    existing.officialHomeScoreFull !== officialScores.homeScoreFull ||
+    existing.officialAwayScoreFull !== officialScores.awayScoreFull ||
+    (incomingHasHalf &&
+      (existing.officialHomeScoreHalf !== officialScores.homeScoreHalf ||
+        existing.officialAwayScoreHalf !== officialScores.awayScoreHalf));
+
+  // Fall 1: Lokal liegt noch kein Endstand vor -> automatisch nachtragen
+  if (!existingHasFull) {
     return {
-      homeScoreFull: existing.homeScoreFull!,
-      awayScoreFull: existing.awayScoreFull!,
-      homeScoreHalf: incoming.homeScoreHalf!,
-      awayScoreHalf: incoming.awayScoreHalf!,
+      officialScores,
+      applyToDisplayed: true,
+      clearManualFlag: true,
+      discrepancyDetected: false,
     };
   }
 
-  return null;
+  const fullMatches =
+    existing.homeScoreFull === officialScores.homeScoreFull &&
+    existing.awayScoreFull === officialScores.awayScoreFull;
+  const halfMatches =
+    !incomingHasHalf ||
+    !existingHasHalf ||
+    (existing.homeScoreHalf === officialScores.homeScoreHalf &&
+      existing.awayScoreHalf === officialScores.awayScoreHalf);
+
+  // Fall 2: Lokal und offiziell stimmen überein (ggf. fehlenden Halbzeitstand ergänzen / offizielle Werte speichern)
+  if (fullMatches && halfMatches) {
+    const needsHalfBackfill = !existingHasHalf && incomingHasHalf;
+    const needsClearManual = Boolean(existing.scoreManuallyEdited);
+    if (!needsHalfBackfill && !officialChanged && !needsClearManual) {
+      return null;
+    }
+    return {
+      officialScores,
+      applyToDisplayed: needsHalfBackfill,
+      clearManualFlag: needsClearManual,
+      discrepancyDetected: false,
+    };
+  }
+
+  // Fall 3: Spielstand stammte bereits offiziell aus der Liga und wurde NIE manuell korrigiert -> offizielle Korrektur übernehmen
+  if (existingHadOfficial && !existing.scoreManuallyEdited) {
+    if (!officialChanged) return null;
+    return {
+      officialScores,
+      applyToDisplayed: true,
+      clearManualFlag: true,
+      discrepancyDetected: false,
+    };
+  }
+
+  // Fall 4: Manuell korrigierter (oder lokal abweichend gepflegter) Spielstand -> lokal schützen, offiziellen Stand sichern & Abweichung markieren!
+  if (!officialChanged) {
+    return null;
+  }
+
+  return {
+    officialScores,
+    applyToDisplayed: false,
+    clearManualFlag: false,
+    discrepancyDetected: true,
+  };
 }
 
 /**
  * Vergleicht eingehende Liga-Spiele mit bestehenden synchronisierten Events über `externalId`.
- * Erkennt Neuanlagen, Spielverlegungen, Hallenwechsel, Spielabsagen sowie automatisch
- * nachgetragene Spielergebnisse.
- * Lokale Anreicherungen (Treffpunkt, Trikotfarbe, Kader-Nominierung, Fahrgemeinschaften,
- * manuelle Notizen, Harz-Regelung der Halle sowie bereits manuell erfasste Endstände)
- * werden beim Re-Sync niemals überschrieben.
+ * Erkennt Neuanlagen, Spielverlegungen, Hallenwechsel, Spielabsagen, automatisch nachgetragene
+ * Ergebnisse sowie Abweichungen zwischen manuell korrigierten und offiziell gemeldeten Ergebnissen.
  */
 export function computeLeagueMergePlan(
   existingMatches: ExistingSyncedMatch[],
@@ -140,9 +211,9 @@ export function computeLeagueMergePlan(
     const newVenue = (incoming.venueName ?? "").trim();
     const venueChanged = newVenue.length > 0 && oldVenue !== newVenue;
     const cancelledChanged = existing.isCancelled !== incoming.isCancelled;
-    const backfillScores = resolveBackfillScores(existing, incoming);
+    const scoreSyncUpdate = resolveScoreSyncUpdate(existing, incoming);
 
-    if (!timeChanged && !venueChanged && !cancelledChanged && !backfillScores) {
+    if (!timeChanged && !venueChanged && !cancelledChanged && !scoreSyncUpdate) {
       actions.push({
         kind: "UNCHANGED",
         incoming,
@@ -172,10 +243,26 @@ export function computeLeagueMergePlan(
       );
     }
 
-    if (backfillScores) {
-      parts.push(
-        `Ergebnis nachgetragen (${incoming.title}): ${formatScoreSummary(backfillScores)}`
-      );
+    if (scoreSyncUpdate) {
+      if (scoreSyncUpdate.discrepancyDetected) {
+        const localSummary = formatScoreSummary({
+          homeScoreFull: existing.homeScoreFull!,
+          awayScoreFull: existing.awayScoreFull!,
+          homeScoreHalf: existing.homeScoreHalf ?? null,
+          awayScoreHalf: existing.awayScoreHalf ?? null,
+        });
+        parts.push(
+          `Abweichung zum offiziellen Ergebnis (${incoming.title}): Lokal ${localSummary} vs. Offiziell ${formatScoreSummary(scoreSyncUpdate.officialScores)}`
+        );
+      } else if (scoreSyncUpdate.applyToDisplayed) {
+        parts.push(
+          `Ergebnis nachgetragen (${incoming.title}): ${formatScoreSummary(scoreSyncUpdate.officialScores)}`
+        );
+      } else {
+        parts.push(
+          `Offizielles Ergebnis bestätigt (${incoming.title}): ${formatScoreSummary(scoreSyncUpdate.officialScores)}`
+        );
+      }
     }
 
     if (parts.length === 0) {
@@ -188,7 +275,7 @@ export function computeLeagueMergePlan(
       existing,
       changeType,
       summary: parts.join(" · "),
-      backfillScores,
+      scoreSyncUpdate,
     });
   }
 

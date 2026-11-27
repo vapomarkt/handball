@@ -67,6 +67,11 @@ function mapMatchDetails(m: {
   awayScoreHalf: number | null;
   homeScoreFull: number | null;
   awayScoreFull: number | null;
+  scoreManuallyEdited: boolean;
+  officialHomeScoreHalf: number | null;
+  officialAwayScoreHalf: number | null;
+  officialHomeScoreFull: number | null;
+  officialAwayScoreFull: number | null;
 }): MatchDetailsDTO {
   return {
     id: m.id,
@@ -92,6 +97,11 @@ function mapMatchDetails(m: {
     awayScoreHalf: m.awayScoreHalf,
     homeScoreFull: m.homeScoreFull,
     awayScoreFull: m.awayScoreFull,
+    scoreManuallyEdited: m.scoreManuallyEdited,
+    officialHomeScoreHalf: m.officialHomeScoreHalf,
+    officialAwayScoreHalf: m.officialAwayScoreHalf,
+    officialHomeScoreFull: m.officialHomeScoreFull,
+    officialAwayScoreFull: m.officialAwayScoreFull,
   };
 }
 
@@ -455,7 +465,7 @@ export class PrismaEventRepository implements EventRepository {
 
   async upsertMatchDetails(
     eventId: string,
-    input: UpdateMatchDetailsInput
+    input: UpdateMatchDetailsInput & { scoreManuallyEdited?: boolean }
   ): Promise<MatchDetailsDTO> {
     const row = await prisma.matchDetails.upsert({
       where: { eventId },
@@ -493,6 +503,9 @@ export class PrismaEventRepository implements EventRepository {
         ...(input.awayScoreFull !== undefined
           ? { awayScoreFull: input.awayScoreFull }
           : {}),
+        ...(input.scoreManuallyEdited !== undefined
+          ? { scoreManuallyEdited: input.scoreManuallyEdited }
+          : {}),
       },
       create: {
         eventId,
@@ -507,6 +520,7 @@ export class PrismaEventRepository implements EventRepository {
         awayScoreHalf: input.awayScoreHalf ?? null,
         homeScoreFull: input.homeScoreFull ?? null,
         awayScoreFull: input.awayScoreFull ?? null,
+        scoreManuallyEdited: input.scoreManuallyEdited ?? false,
       },
       include: {
         jerseySet: { select: JERSEY_SET_SUMMARY_SELECT },

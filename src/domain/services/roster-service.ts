@@ -111,8 +111,17 @@ export class RosterService {
       );
     }
 
+    const wantsClubAdmin =
+      parsed.data.role === "CLUB_ADMIN" || Boolean(parsed.data.isClubAdmin);
+    if (wantsClubAdmin && !isClubAdmin(viewer, team.clubId)) {
+      throw DomainError.forbidden(
+        "Nur Vereins-Admins dürfen Vereins-Admin-Rechte vergeben."
+      );
+    }
+
     const created = await this.members.create(team.clubId, team.id, {
       ...parsed.data,
+      isClubAdmin: wantsClubAdmin,
       userId: null, // Entkoppeltes Profil bis zum Claim-Flow
     });
 
@@ -331,6 +340,7 @@ export class RosterService {
         firstName: item.firstName,
         lastName: item.lastName,
         role: item.role,
+        isClubAdmin: item.role === "CLUB_ADMIN",
         jerseyNumber: item.role === "PLAYER" ? (item.jerseyNumber ?? null) : null,
         primaryPosition: null,
         secondaryPosition: null,
@@ -385,7 +395,36 @@ export class RosterService {
           parsed.error.flatten().fieldErrors
         );
       }
-      const updated = await this.members.update(memberId, parsed.data);
+
+      const existingIsAdmin =
+        existing.role === "CLUB_ADMIN" || Boolean(existing.isClubAdmin);
+      const nextRole = parsed.data.role ?? existing.role;
+      const nextIsAdmin =
+        nextRole === "CLUB_ADMIN"
+          ? true
+          : parsed.data.isClubAdmin !== undefined
+            ? parsed.data.isClubAdmin
+            : existing.role === "CLUB_ADMIN"
+              ? false
+              : Boolean(existing.isClubAdmin);
+
+      if (
+        (nextIsAdmin !== existingIsAdmin ||
+          (parsed.data.role === "CLUB_ADMIN" &&
+            existing.role !== "CLUB_ADMIN")) &&
+        !isClubAdmin(viewer, existing.clubId)
+      ) {
+        throw DomainError.forbidden(
+          "Nur Vereins-Admins dürfen Vereins-Admin-Rechte vergeben oder entziehen."
+        );
+      }
+
+      const updatePayload =
+        parsed.data.role !== undefined || parsed.data.isClubAdmin !== undefined
+          ? { ...parsed.data, isClubAdmin: nextIsAdmin }
+          : parsed.data;
+
+      const updated = await this.members.update(memberId, updatePayload);
       return projectTeamMemberDTO(viewer, updated);
     }
 

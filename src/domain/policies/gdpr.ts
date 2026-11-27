@@ -47,6 +47,7 @@ export function projectTeamMemberDTO(
     teamId: member.teamId,
     isClaimed: member.userId !== null,
     role: member.role,
+    isClubAdmin: Boolean(member.isClubAdmin || member.role === "CLUB_ADMIN"),
     firstName: member.firstName,
     lastName: member.lastName,
     jerseyNumber: member.jerseyNumber,

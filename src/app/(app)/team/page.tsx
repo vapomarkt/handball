@@ -96,13 +96,16 @@ export default function TeamRosterPage() {
     useState<NuligaRosterImportResultDTO | null>(null);
 
   const isStaff =
+    activeTeam?.isClubAdmin ||
     activeTeam?.role === "CLUB_ADMIN" ||
     activeTeam?.role === "COACH" ||
     activeTeam?.role === "ASSISTANT_COACH" ||
     activeTeam?.role === "TEAM_MANAGER";
 
   const canDelete =
-    activeTeam?.role === "CLUB_ADMIN" || activeTeam?.role === "COACH";
+    activeTeam?.isClubAdmin ||
+    activeTeam?.role === "CLUB_ADMIN" ||
+    activeTeam?.role === "COACH";
 
   const linkedChildIds = useMemo(
     () => new Set(me?.guardianLinks.map((g) => g.childMemberId) ?? []),
@@ -614,6 +617,9 @@ export default function TeamRosterPage() {
                           <Badge variant="outline">
                             {MEMBER_ROLE_LABELS[member.role]}
                           </Badge>
+                          {member.isClubAdmin && member.role !== "CLUB_ADMIN" && (
+                            <Badge variant="secondary">Vereins-Admin</Badge>
+                          )}
                           <Badge
                             variant={
                               member.availabilityStatus === "FIT"
@@ -829,13 +835,18 @@ export default function TeamRosterPage() {
 
       {/* Dialoge */}
       <MemberFormDialog
+        key={`${memberDialogMode}-${selectedMember?.id ?? "new"}-${memberDialogOpen}`}
         open={memberDialogOpen}
         onOpenChange={setMemberDialogOpen}
         teamId={activeTeam.teamId}
         mode={memberDialogMode}
         member={selectedMember}
         usesResin={activeTeam.usesResin}
-        onSaved={loadRoster}
+        viewerIsClubAdmin={Boolean(activeTeam.isClubAdmin)}
+        onSaved={() => {
+          void loadRoster();
+          void refreshMe();
+        }}
       />
 
       {isStaff && (

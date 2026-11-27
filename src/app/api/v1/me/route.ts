@@ -93,11 +93,11 @@ export async function GET(request: Request) {
       }),
     ]);
 
-    // Falls der User CLUB_ADMIN in einem Verein ist, auch alle Teams dieses Vereins zurückgeben
+    // Falls der User CLUB_ADMIN (oder Personalunion isClubAdmin) in einem Verein ist, auch alle Teams dieses Vereins zurückgeben
     const adminClubIds = Array.from(
       new Set(
         memberships
-          .filter((m) => m.role === "CLUB_ADMIN")
+          .filter((m) => m.role === "CLUB_ADMIN" || m.isClubAdmin)
           .map((m) => m.clubId)
       )
     );
@@ -155,6 +155,7 @@ export async function GET(request: Request) {
       memberships: memberships.map((m) => ({
         memberId: m.id,
         role: m.role,
+        isClubAdmin: m.isClubAdmin || m.role === "CLUB_ADMIN",
         firstName: m.firstName,
         lastName: m.lastName,
         jerseyNumber: m.jerseyNumber,

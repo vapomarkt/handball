@@ -5,7 +5,7 @@ import {
   TeamRepository,
 } from "../adapters/repositories";
 import { DomainError } from "../errors";
-import { canManageInvites, ViewerContext } from "../policies/rbac";
+import { canManageInvites, isClubAdmin, ViewerContext } from "../policies/rbac";
 import {
   ClaimInviteSchema,
   CreateTeamInviteSchema,
@@ -209,6 +209,12 @@ export class InviteService {
         : input.type === "PROFILE_CLAIM" && targetMemberRole
           ? targetMemberRole
           : input.role;
+
+    if (effectiveRole === "CLUB_ADMIN" && !isClubAdmin(viewer, team.clubId)) {
+      throw DomainError.forbidden(
+        "Nur Vereins-Admins dürfen Einladungen mit der Rolle Vereins-Admin erstellen."
+      );
+    }
 
     const invite = await this.invites.create({
       clubId: team.clubId,
@@ -512,6 +518,7 @@ export class InviteService {
       firstName,
       lastName,
       role: invite.role,
+      isClubAdmin: invite.role === "CLUB_ADMIN",
       userId: viewer.userId,
       email: viewer.email,
       availabilityStatus: "FIT",

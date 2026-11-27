@@ -70,6 +70,7 @@ export default function TaktikUndScoutingPage() {
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
   const isStaff =
+    activeTeam?.isClubAdmin ||
     activeTeam?.role === "CLUB_ADMIN" ||
     activeTeam?.role === "COACH" ||
     activeTeam?.role === "ASSISTANT_COACH";

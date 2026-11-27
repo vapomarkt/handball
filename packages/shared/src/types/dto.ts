@@ -34,6 +34,7 @@ export interface TeamSummaryDTO {
 export interface MeMembershipDTO {
   memberId: string;
   role: MemberRole;
+  isClubAdmin?: boolean;
   firstName: string;
   lastName: string;
   jerseyNumber: number | null;
@@ -84,6 +85,11 @@ export interface SelectableTeamDTO {
 
 export function deriveSelectableTeams(me: MePayloadDTO): SelectableTeamDTO[] {
   const byTeamId = new Map<string, SelectableTeamDTO>();
+  const adminClubIds = new Set(
+    me.memberships
+      .filter((m) => m.role === "CLUB_ADMIN" || Boolean(m.isClubAdmin))
+      .map((m) => m.club.id)
+  );
 
   for (const m of me.memberships) {
     byTeamId.set(m.team.id, {
@@ -97,7 +103,7 @@ export function deriveSelectableTeams(me: MePayloadDTO): SelectableTeamDTO[] {
       clubName: m.club.name,
       clubLogoUrl: m.club.logoUrl,
       role: m.role,
-      isClubAdmin: m.role === "CLUB_ADMIN",
+      isClubAdmin: adminClubIds.has(m.club.id),
     });
   }
 

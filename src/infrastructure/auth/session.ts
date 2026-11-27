@@ -24,6 +24,7 @@ export async function getOptionalViewerContext(
         clubId: true,
         teamId: true,
         role: true,
+        isClubAdmin: true,
       },
     }),
     prisma.guardianLink.findMany({
@@ -46,6 +47,7 @@ export async function getOptionalViewerContext(
       clubId: m.clubId,
       teamId: m.teamId,
       role: m.role,
+      isClubAdmin: m.isClubAdmin || m.role === "CLUB_ADMIN",
     })),
     linkedChildMemberIds: guardianLinks.map((g) => g.childMemberId),
     linkedChildTeamIds: Array.from(

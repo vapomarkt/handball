@@ -107,6 +107,7 @@ async function upsertTeamMember(params: {
   teamId: string;
   userId?: string | null;
   role: MemberRole;
+  isClubAdmin?: boolean;
   firstName: string;
   lastName: string;
   email?: string | null;
@@ -122,11 +123,14 @@ async function upsertTeamMember(params: {
   injuryNote?: string | null;
   emergencyContact?: string | null;
 }) {
+  const isClubAdmin =
+    params.isClubAdmin ?? params.role === MemberRole.CLUB_ADMIN;
   return prisma.teamMember.upsert({
     where: { id: params.id },
     update: {
       userId: params.userId ?? null,
       role: params.role,
+      isClubAdmin,
       firstName: params.firstName,
       lastName: params.lastName,
       jerseyNumber: params.jerseyNumber ?? null,
@@ -148,6 +152,7 @@ async function upsertTeamMember(params: {
       teamId: params.teamId,
       userId: params.userId ?? null,
       role: params.role,
+      isClubAdmin,
       firstName: params.firstName,
       lastName: params.lastName,
       jerseyNumber: params.jerseyNumber ?? null,

@@ -6,6 +6,7 @@ export interface ViewerMembership {
   clubId: string;
   teamId: string;
   role: MemberRole;
+  isClubAdmin?: boolean;
 }
 
 export interface ViewerContext {
@@ -21,12 +22,15 @@ export interface ViewerContext {
 
 export function isClubAdmin(viewer: ViewerContext, clubId: string): boolean {
   return viewer.memberships.some(
-    (m) => m.clubId === clubId && m.role === "CLUB_ADMIN"
+    (m) =>
+      m.clubId === clubId && (m.role === "CLUB_ADMIN" || Boolean(m.isClubAdmin))
   );
 }
 
 export function isAnyClubAdmin(viewer: ViewerContext): boolean {
-  return viewer.memberships.some((m) => m.role === "CLUB_ADMIN");
+  return viewer.memberships.some(
+    (m) => m.role === "CLUB_ADMIN" || Boolean(m.isClubAdmin)
+  );
 }
 
 export function getTeamRolesForViewer(

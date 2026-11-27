@@ -87,8 +87,21 @@ export const OnboardingSchema = z.object({
   creatorFirstName: z.string().trim().min(1, "Vorname erforderlich.").max(60),
   creatorLastName: z.string().trim().min(1, "Nachname erforderlich.").max(60),
   creatorRole: z.enum(["CLUB_ADMIN", "COACH"]).default("COACH"),
+  creatorIsClubAdmin: z.boolean().optional(),
 });
 export type OnboardingInput = z.infer<typeof OnboardingSchema>;
+
+export const ImportNuligaClubLogoSchema = z.object({
+  searchName: z
+    .string()
+    .trim()
+    .min(2, "Bitte gib mindestens 2 Zeichen für die Vereinssuche ein.")
+    .max(100)
+    .optional(),
+});
+export type ImportNuligaClubLogoInput = z.infer<
+  typeof ImportNuligaClubLogoSchema
+>;
 
 export interface ClubDTO {
   id: string;

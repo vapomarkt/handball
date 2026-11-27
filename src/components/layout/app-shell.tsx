@@ -165,7 +165,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </SelectNative>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-0.5">
               <Shield className="h-3.5 w-3.5 shrink-0 text-primary" />
-              <span>{MEMBER_ROLE_LABELS[activeTeam.role]}</span>
+              <span className="shrink-0">
+                {MEMBER_ROLE_LABELS[activeTeam.role]}
+                {activeTeam.isClubAdmin && activeTeam.role !== "CLUB_ADMIN"
+                  ? " · Vereins-Admin"
+                  : ""}
+              </span>
               {activeTeam.leagueName && (
                 <>
                   <span>·</span>

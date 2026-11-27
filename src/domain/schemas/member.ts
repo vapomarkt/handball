@@ -24,6 +24,7 @@ export const CreateTeamMemberSchema = z.object({
   firstName: z.string().trim().min(1, "Vorname erforderlich.").max(60),
   lastName: z.string().trim().min(1, "Nachname erforderlich.").max(60),
   role: MemberRoleSchema.default("PLAYER"),
+  isClubAdmin: z.boolean().optional(),
   jerseyNumber: z.number().int().min(1).max(99).optional().nullable(),
   primaryPosition: HandballPositionSchema.optional().nullable(),
   secondaryPosition: HandballPositionSchema.optional().nullable(),
@@ -50,6 +51,7 @@ export const UpdateTeamMemberSchema = z.object({
   firstName: z.string().trim().min(1).max(60).optional(),
   lastName: z.string().trim().min(1).max(60).optional(),
   role: MemberRoleSchema.optional(),
+  isClubAdmin: z.boolean().optional(),
   jerseyNumber: z.number().int().min(1).max(99).optional().nullable(),
   primaryPosition: HandballPositionSchema.optional().nullable(),
   secondaryPosition: HandballPositionSchema.optional().nullable(),
@@ -104,6 +106,7 @@ export interface TeamMemberEntity {
   teamId: string;
   userId: string | null;
   role: MemberRole;
+  isClubAdmin?: boolean;
   firstName: string;
   lastName: string;
   email: string | null;
@@ -132,6 +135,7 @@ export interface TeamMemberPublicDTO {
   teamId: string;
   isClaimed: boolean;
   role: MemberRole;
+  isClubAdmin: boolean;
   firstName: string;
   lastName: string;
   jerseyNumber: number | null;

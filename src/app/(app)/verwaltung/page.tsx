@@ -1,19 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   CalendarRange,
   CheckCircle2,
+  Download,
   Eye,
   EyeOff,
+  Image as ImageIcon,
   Loader2,
   Lock,
   Pencil,
   Plus,
+  Shield,
   Star,
   Trash2,
+  Upload,
   Users,
 } from "lucide-react";
 import { useAppContext } from "@/components/providers/app-context";
@@ -36,7 +40,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { TeamDTO } from "@/domain/schemas/club";
+import type { ClubDTO, TeamDTO } from "@/domain/schemas/club";
 import type { SeasonCatalogDTO } from "@/domain/schemas/season-catalog";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +76,7 @@ export default function AdminSeasonsPage() {
   const clubId = activeTeam?.clubId ?? null;
 
   const [seasons, setSeasons] = useState<SeasonCatalogDTO[]>([]);
+  const [clubInfo, setClubInfo] = useState<ClubDTO | null>(null);
   const [clubTeams, setClubTeams] = useState<TeamDTO[]>([]);
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [createTeamOpen, setCreateTeamOpen] = useState(false);
@@ -79,6 +84,14 @@ export default function AdminSeasonsPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  // Vereinslogo-State
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
+  const [logoBusy, setLogoBusy] = useState<
+    "upload" | "nuliga" | "remove" | null
+  >(null);
+  const [nuligaSearchName, setNuligaSearchName] = useState("");
+  const [showNuligaSearch, setShowNuligaSearch] = useState(false);
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -115,6 +128,7 @@ export default function AdminSeasonsPage() {
       });
       if (res.ok) {
         const data = await res.json();
+        setClubInfo(data.club ?? null);
         setClubTeams(data.teams ?? []);
       }
     } finally {
@@ -177,7 +191,13 @@ export default function AdminSeasonsPage() {
         .then(async (res) => {
           if (!active || !res.ok) return;
           const data = await res.json();
-          if (active) setClubTeams(data.teams ?? []);
+          if (active) {
+            setClubInfo(data.club ?? null);
+            setClubTeams(data.teams ?? []);
+            if (data.club?.name) {
+              setNuligaSearchName((prev) => prev || data.club.name);
+            }
+          }
         })
         .finally(() => {
           if (active) setLoadingTeams(false);
@@ -188,6 +208,115 @@ export default function AdminSeasonsPage() {
       active = false;
     };
   }, [isAdmin, clubId]);
+
+  async function handleLogoFileChange(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !clubId) return;
+
+    setError(null);
+    setNotice(null);
+
+    if (file.size > 2 * 1024 * 1024) {
+      setError("Das Vereinslogo darf maximal 2 MB groß sein.");
+      return;
+    }
+
+    setLogoBusy("upload");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(
+        `/api/v1/clubs/${encodeURIComponent(clubId)}/logo`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        setError(
+          data?.error?.message || "Vereinslogo konnte nicht hochgeladen werden."
+        );
+        return;
+      }
+      setClubInfo(data.club ?? null);
+      setNotice("Vereinslogo wurde erfolgreich gespeichert.");
+      await refreshMe();
+    } catch {
+      setError("Netzwerkfehler beim Hochladen des Vereinslogos.");
+    } finally {
+      setLogoBusy(null);
+    }
+  }
+
+  async function handleImportLogoFromNuliga(customSearchName?: string) {
+    if (!clubId) return;
+    setError(null);
+    setNotice(null);
+    setLogoBusy("nuliga");
+    try {
+      const trimmed = customSearchName?.trim();
+      const res = await fetch(
+        `/api/v1/clubs/${encodeURIComponent(clubId)}/logo/nuliga`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(trimmed ? { searchName: trimmed } : {}),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        setError(
+          data?.error?.message ||
+            "Vereinslogo konnte nicht aus nuLiga geladen werden."
+        );
+        setShowNuligaSearch(true);
+        return;
+      }
+      setClubInfo(data.club ?? null);
+      setShowNuligaSearch(false);
+      setNotice(
+        data.matchedClubName
+          ? `Vereinslogo für „${data.matchedClubName}“ wurde aus nuLiga übernommen.`
+          : "Vereinslogo wurde aus nuLiga übernommen."
+      );
+      await refreshMe();
+    } catch {
+      setError("Netzwerkfehler beim nuLiga-Abruf.");
+    } finally {
+      setLogoBusy(null);
+    }
+  }
+
+  async function handleRemoveLogo() {
+    if (!clubId) return;
+    setError(null);
+    setNotice(null);
+    setLogoBusy("remove");
+    try {
+      const res = await fetch(
+        `/api/v1/clubs/${encodeURIComponent(clubId)}/logo`,
+        { method: "DELETE" }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        setError(
+          data?.error?.message || "Vereinslogo konnte nicht entfernt werden."
+        );
+        return;
+      }
+      setClubInfo(data.club ?? null);
+      setNotice("Vereinslogo wurde entfernt.");
+      await refreshMe();
+    } catch {
+      setError("Netzwerkfehler beim Entfernen des Vereinslogos.");
+    } finally {
+      setLogoBusy(null);
+    }
+  }
 
   function openCreateDialog() {
     setEditingSeason(null);
@@ -431,6 +560,143 @@ export default function AdminSeasonsPage() {
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           <span>{notice}</span>
         </div>
+      )}
+
+      {/* Vereinslogo (nur Vereins-Admins) */}
+      {activeTeam && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ImageIcon className="h-4 w-4 text-primary" />
+              Vereinslogo · {clubInfo?.name ?? activeTeam.clubName}
+            </CardTitle>
+            <CardDescription>
+              Das Vereinswappen erscheint im Dashboard, in der Navigation und auf
+              Einladungsseiten. Nur Vereins-Admins können das Logo ändern.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-border bg-white p-2 shadow-xs">
+                {(clubInfo?.logoUrl ?? activeTeam.clubLogoUrl) ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={clubInfo?.logoUrl ?? activeTeam.clubLogoUrl ?? ""}
+                    alt={`Vereinslogo ${clubInfo?.name ?? activeTeam.clubName}`}
+                    className="h-full w-full object-contain"
+                  />
+                ) : (
+                  <Shield className="h-9 w-9 text-muted-foreground/50" />
+                )}
+              </div>
+
+              <div className="flex-1 space-y-2.5">
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  className="hidden"
+                  aria-label="Vereinslogo hochladen"
+                  onChange={handleLogoFileChange}
+                />
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={logoBusy !== null}
+                    onClick={() => logoInputRef.current?.click()}
+                  >
+                    {logoBusy === "upload" ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Upload className="h-3.5 w-3.5" />
+                    )}
+                    Eigenes Logo hochladen
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={logoBusy !== null}
+                    onClick={() => void handleImportLogoFromNuliga()}
+                  >
+                    {logoBusy === "nuliga" ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5" />
+                    )}
+                    Aus nuLiga laden
+                  </Button>
+                  {(clubInfo?.logoUrl ?? activeTeam.clubLogoUrl) && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/50"
+                      disabled={logoBusy !== null}
+                      onClick={() => void handleRemoveLogo()}
+                    >
+                      {logoBusy === "remove" ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                      Entfernen
+                    </Button>
+                  )}
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  Unterstützt PNG, JPG, WebP oder GIF (max. 2 MB). Trainer
+                  können unter{" "}
+                  <button
+                    type="button"
+                    onClick={() => router.push("/team")}
+                    className="font-medium text-primary hover:underline"
+                  >
+                    Team → Kader
+                  </button>{" "}
+                  zusätzlich die Vereins-Admin-Rolle in Personalunion erhalten.
+                </p>
+              </div>
+            </div>
+
+            {showNuligaSearch && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void handleImportLogoFromNuliga(nuligaSearchName);
+                }}
+                className="flex flex-col gap-2 rounded-xl border border-border bg-muted/30 p-3 sm:flex-row sm:items-end"
+              >
+                <div className="flex-1 space-y-1">
+                  <Label htmlFor="nuliga-logo-search" className="text-xs">
+                    Abweichender Vereinsname bei nuLiga
+                  </Label>
+                  <Input
+                    id="nuliga-logo-search"
+                    value={nuligaSearchName}
+                    onChange={(e) => setNuligaSearchName(e.target.value)}
+                    placeholder="z. B. TuS Jahn Hollenstedt"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  size="sm"
+                  variant="outline"
+                  disabled={logoBusy !== null || nuligaSearchName.trim().length < 2}
+                >
+                  {logoBusy === "nuliga" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Download className="h-3.5 w-3.5" />
+                  )}
+                  Erneut suchen
+                </Button>
+              </form>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Mannschaften im Verein */}

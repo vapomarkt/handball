@@ -36,10 +36,21 @@ export interface TeamRecord {
   memberCount?: number;
 }
 
+export interface ClubLogoRecord {
+  data: Uint8Array;
+  mimeType: string;
+  updatedAt: Date;
+}
+
 export interface ClubRepository {
   findClubsForUser(userId: string): Promise<ClubDTO[]>;
   findByIdWithDetails(clubId: string): Promise<ClubWithDetails | null>;
   findBySlug(slug: string): Promise<ClubDTO | null>;
+  findLogoById?(clubId: string): Promise<ClubLogoRecord | null>;
+  updateLogo?(
+    clubId: string,
+    logo: { data: Uint8Array; mimeType: string; logoUrl: string } | null
+  ): Promise<ClubDTO>;
   createClubWithSeason(input: {
     name: string;
     shortName?: string | null;

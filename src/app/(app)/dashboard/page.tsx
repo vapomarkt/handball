@@ -150,6 +150,7 @@ export default function DashboardPage() {
   }
 
   const isStaff =
+    activeTeam.isClubAdmin ||
     activeTeam.role === "CLUB_ADMIN" ||
     activeTeam.role === "COACH" ||
     activeTeam.role === "ASSISTANT_COACH" ||

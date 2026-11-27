@@ -332,10 +332,12 @@ model Club {
   name      String
   shortName String?
   slug      String   @unique
-  city      String?
-  logoUrl   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  city         String?
+  logoUrl      String?
+  logoData     Bytes?
+  logoMimeType String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   seasons             Season[]
   teams               Team[]
@@ -435,6 +437,7 @@ model TeamMember {
   userId             String?
   user               User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
   role               MemberRole         @default(PLAYER)
+  isClubAdmin        Boolean            @default(false)
   firstName          String
   lastName           String
   email              String?

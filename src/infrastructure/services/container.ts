@@ -10,6 +10,11 @@ import { JerseySetService } from "@/domain/services/jersey-set-service";
 import { LeagueCatalogService } from "@/domain/services/league-catalog-service";
 import { LeagueDirectoryService } from "@/domain/services/league-directory-service";
 import { LeagueSyncService } from "@/domain/services/league-sync-service";
+import {
+  createDefaultNuligaSessionFetch,
+  NuligaClubLogoTarget,
+  resolveNuligaClubLogo,
+} from "@/domain/services/nuliga-club-logo";
 import { OnboardingService } from "@/domain/services/onboarding-service";
 import { RosterService } from "@/domain/services/roster-service";
 import { ScoutingService } from "@/domain/services/scouting-service";
@@ -82,6 +87,10 @@ async function fetchUrlText(url: string): Promise<string> {
   return res.text();
 }
 
+const nuligaSessionFetch = createDefaultNuligaSessionFetch();
+const fetchNuligaClubLogo = (target: NuligaClubLogoTarget) =>
+  resolveNuligaClubLogo(nuligaSessionFetch, target);
+
 const leagueSyncService = new LeagueSyncService(
   teamRepo,
   leagueSyncRepo,
@@ -89,14 +98,31 @@ const leagueSyncService = new LeagueSyncService(
   leagueDirectoryRepo
 );
 
+let clubServiceRef: ClubService | null = null;
+
 const leagueDirectoryService = new LeagueDirectoryService(
   leagueDirectoryRepo,
   teamRepo,
   leagueSyncRepo,
   leagueSyncService,
   scoutingRepo,
-  fetchUrlText
+  fetchUrlText,
+  (clubId, hints) =>
+    clubServiceRef
+      ? clubServiceRef.tryAutoImportClubLogoInternal(clubId, hints)
+      : Promise.resolve(null)
 );
+
+const clubService = new ClubService(
+  clubRepo,
+  teamRepo,
+  leagueCatalogRepo,
+  leagueDirectoryService,
+  memberRepo,
+  seasonCatalogRepo,
+  fetchNuligaClubLogo
+);
+clubServiceRef = clubService;
 
 export const services = {
   onboarding: new OnboardingService(
@@ -105,16 +131,10 @@ export const services = {
     memberRepo,
     leagueCatalogRepo,
     seasonCatalogRepo,
-    leagueDirectoryService
-  ),
-  club: new ClubService(
-    clubRepo,
-    teamRepo,
-    leagueCatalogRepo,
     leagueDirectoryService,
-    memberRepo,
-    seasonCatalogRepo
+    fetchNuligaClubLogo
   ),
+  club: clubService,
   leagueCatalog: new LeagueCatalogService(leagueCatalogRepo),
   seasonCatalog: new SeasonCatalogService(seasonCatalogRepo),
   leagueDirectory: leagueDirectoryService,

@@ -29,6 +29,7 @@ import { shouldAutoStartTour } from "@/domain/services/onboarding-state-service"
 export interface MeMembership {
   memberId: string;
   role: MemberRole;
+  isClubAdmin?: boolean;
   firstName: string;
   lastName: string;
   jerseyNumber: number | null;
@@ -210,7 +211,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const map = new Map<string, SelectableTeam>();
     const adminClubIds = new Set(
       me.memberships
-        .filter((m) => m.role === "CLUB_ADMIN")
+        .filter((m) => m.role === "CLUB_ADMIN" || Boolean(m.isClubAdmin))
         .map((m) => m.club.id)
     );
 

@@ -58,6 +58,7 @@ export default function DiensteUndTrainingPage() {
   const [dutyDialogOpen, setDutyDialogOpen] = useState(false);
 
   const isCoachingStaff =
+    activeTeam?.isClubAdmin ||
     activeTeam?.role === "CLUB_ADMIN" ||
     activeTeam?.role === "COACH" ||
     activeTeam?.role === "ASSISTANT_COACH";

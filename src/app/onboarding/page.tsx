@@ -107,6 +107,7 @@ export default function OnboardingPage() {
   const [completedSetup, setCompletedSetup] = useState<{
     clubId: string;
     clubName: string;
+    clubLogoUrl: string | null;
     teamId: string;
     teamName: string;
     seasonName: string;
@@ -134,9 +135,9 @@ export default function OnboardingPage() {
   const [creatorLastNameOverride, setCreatorLastNameOverride] = useState<
     string | null
   >(null);
-  const [creatorRole, setCreatorRole] = useState<"COACH" | "CLUB_ADMIN">(
-    "CLUB_ADMIN"
-  );
+  const [creatorRoleSelection, setCreatorRoleSelection] = useState<
+    "COACH_AND_ADMIN" | "CLUB_ADMIN" | "COACH"
+  >("COACH_AND_ADMIN");
 
   const sessionNameParts = (session?.user?.name?.trim() ?? "")
     .split(/\s+/)
@@ -372,7 +373,11 @@ export default function OnboardingPage() {
           seedGroupOpponents,
           creatorFirstName: creatorFirstName.trim(),
           creatorLastName: creatorLastName.trim(),
-          creatorRole,
+          creatorRole:
+            creatorRoleSelection === "CLUB_ADMIN" ? "CLUB_ADMIN" : "COACH",
+          creatorIsClubAdmin:
+            creatorRoleSelection === "COACH_AND_ADMIN" ||
+            creatorRoleSelection === "CLUB_ADMIN",
         }),
       });
 
@@ -394,6 +399,7 @@ export default function OnboardingPage() {
 
       const createdTeamId: string = data.team?.id ?? "";
       const createdClubId: string = data.club?.id ?? "";
+      const createdClubLogoUrl: string | null = data.club?.logoUrl ?? null;
       const hasLeagueLink = Boolean(
         selectedHvnbTeam || data.leagueLink?.leagueGroupTeamId
       );
@@ -404,6 +410,7 @@ export default function OnboardingPage() {
       setCompletedSetup({
         clubId: createdClubId,
         clubName: clubName.trim(),
+        clubLogoUrl: createdClubLogoUrl,
         teamId: createdTeamId,
         teamName: teamName.trim(),
         seasonName: selectedSeason.name,
@@ -468,13 +475,26 @@ export default function OnboardingPage() {
         <div className="mx-auto w-full max-w-lg space-y-5">
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
-                <CheckCircle2 className="h-4 w-4" />
-                Einrichtung abgeschlossen
+              <div className="flex items-center gap-3">
+                {completedSetup.clubLogoUrl && (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={completedSetup.clubLogoUrl}
+                    alt={`Vereinslogo ${completedSetup.clubName}`}
+                    className="h-12 w-12 shrink-0 rounded-full object-contain bg-white p-1 border border-border shadow-xs"
+                  />
+                )}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Einrichtung abgeschlossen
+                  </div>
+                  <CardTitle className="mt-0.5">
+                    {completedSetup.teamName} ({completedSetup.clubName}) ist
+                    bereit!
+                  </CardTitle>
+                </div>
               </div>
-              <CardTitle>
-                {completedSetup.teamName} ({completedSetup.clubName}) ist bereit!
-              </CardTitle>
               <CardDescription>
                 Du kannst jetzt direkt deinen Kader aus Spielberichten
                 übernehmen, dein Team einladen oder weitere Mannschaften anlegen.
@@ -870,17 +890,21 @@ export default function OnboardingPage() {
                       <Label htmlFor="ob-role">Deine Rolle</Label>
                       <SelectNative
                         id="ob-role"
-                        value={creatorRole}
+                        value={creatorRoleSelection}
                         onChange={(e) =>
-                          setCreatorRole(
-                            e.target.value as "COACH" | "CLUB_ADMIN"
+                          setCreatorRoleSelection(
+                            e.target.value as
+                              | "COACH_AND_ADMIN"
+                              | "CLUB_ADMIN"
+                              | "COACH"
                           )
                         }
                       >
-                        <option value="CLUB_ADMIN">
-                          Vereins-Admin & Trainer
+                        <option value="COACH_AND_ADMIN">
+                          Trainer &amp; Vereins-Admin
                         </option>
-                        <option value="COACH">Trainer</option>
+                        <option value="CLUB_ADMIN">Vereins-Admin</option>
+                        <option value="COACH">Nur Trainer</option>
                       </SelectNative>
                     </div>
                   </div>

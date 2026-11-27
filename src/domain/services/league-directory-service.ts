@@ -109,6 +109,15 @@ export function computeClubMatchScore(
   };
 }
 
+export type ClubLogoAutoImporter = (
+  clubId: string,
+  hints: {
+    clubName: string;
+    sourceUrl?: string | null;
+    federationCode?: string;
+  }
+) => Promise<unknown>;
+
 export class LeagueDirectoryService {
   constructor(
     private readonly directory: LeagueDirectoryRepository,
@@ -116,7 +125,8 @@ export class LeagueDirectoryService {
     private readonly leagueSyncRepo: LeagueSyncRepository,
     private readonly leagueSyncService: LeagueSyncService,
     private readonly scouting?: ScoutingRepository,
-    private readonly fetchText?: FetchTextFn
+    private readonly fetchText?: FetchTextFn,
+    private readonly clubLogoAutoImporter?: ClubLogoAutoImporter
   ) {}
 
   async search(rawQuery: unknown): Promise<LeagueDirectorySearchResponseDTO> {
@@ -358,6 +368,18 @@ export class LeagueDirectoryService {
         } catch {
           // Idempotenz-Schutz bei Parallelität (Unique Constraint [teamId, name])
         }
+      }
+    }
+
+    if (this.clubLogoAutoImporter) {
+      try {
+        await this.clubLogoAutoImporter(clubId, {
+          clubName: groupTeam.clubName,
+          sourceUrl: groupTeam.group.externalUrl,
+          federationCode: groupTeam.group.federationCode,
+        });
+      } catch {
+        // Best effort: Verknüpfung bleibt auch ohne Logo bestehen.
       }
     }
 

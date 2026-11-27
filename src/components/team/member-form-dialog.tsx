@@ -35,6 +35,7 @@ interface MemberFormDialogProps {
   mode: "create" | "edit-full" | "edit-self";
   member?: TeamMemberResponseDTO | null;
   usesResin?: boolean;
+  viewerIsClubAdmin?: boolean;
   onSaved: () => void;
 }
 
@@ -48,6 +49,7 @@ export function MemberFormDialog({
   mode,
   member,
   usesResin = true,
+  viewerIsClubAdmin = false,
   onSaved,
 }: MemberFormDialogProps) {
   const isCreate = mode === "create";
@@ -58,6 +60,9 @@ export function MemberFormDialog({
   const [firstName, setFirstName] = useState(initial?.firstName ?? "");
   const [lastName, setLastName] = useState(initial?.lastName ?? "");
   const [role, setRole] = useState<MemberRole>(initial?.role ?? "PLAYER");
+  const [isClubAdminFlag, setIsClubAdminFlag] = useState<boolean>(
+    Boolean(initial?.isClubAdmin || initial?.role === "CLUB_ADMIN")
+  );
   const [jerseyNumber, setJerseyNumber] = useState(
     initial && initial.jerseyNumber !== null ? String(initial.jerseyNumber) : ""
   );
@@ -121,6 +126,9 @@ export function MemberFormDialog({
             firstName,
             lastName,
             role,
+            ...(viewerIsClubAdmin
+              ? { isClubAdmin: role === "CLUB_ADMIN" ? true : isClubAdminFlag }
+              : {}),
             jerseyNumber: jerseyNumber ? Number(jerseyNumber) : null,
             primaryPosition: (primaryPosition || null) as HandballPosition | null,
             secondaryPosition: (secondaryPosition ||
@@ -236,9 +244,18 @@ export function MemberFormDialog({
                   <SelectNative
                     id="m-role"
                     value={role}
-                    onChange={(e) => setRole(e.target.value as MemberRole)}
+                    onChange={(e) => {
+                      const nextRole = e.target.value as MemberRole;
+                      setRole(nextRole);
+                      if (nextRole === "CLUB_ADMIN") {
+                        setIsClubAdminFlag(true);
+                      }
+                    }}
                   >
-                    {ROLES.map((r) => (
+                    {ROLES.filter(
+                      (r) =>
+                        viewerIsClubAdmin || r !== "CLUB_ADMIN" || r === role
+                    ).map((r) => (
                       <option key={r} value={r}>
                         {MEMBER_ROLE_LABELS[r]}
                       </option>
@@ -277,6 +294,29 @@ export function MemberFormDialog({
                   </SelectNative>
                 </div>
               </div>
+
+              {viewerIsClubAdmin && (
+                <label className="flex items-start gap-2.5 rounded-lg border border-border bg-muted/40 px-3 py-2.5 text-sm cursor-pointer">
+                  <input
+                    id="m-club-admin"
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 rounded border-input accent-primary"
+                    checked={role === "CLUB_ADMIN" ? true : isClubAdminFlag}
+                    disabled={role === "CLUB_ADMIN"}
+                    onChange={(e) => setIsClubAdminFlag(e.target.checked)}
+                  />
+                  <span className="space-y-0.5">
+                    <span className="block font-medium text-foreground">
+                      Zusätzlich Vereins-Admin (Personalunion)
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      {role === "CLUB_ADMIN"
+                        ? "Bei der Hauptrolle Vereins-Admin automatisch aktiv."
+                        : "Darf neben der Team-Rolle (z. B. Trainer) auch Vereinslogo, Saisons und alle Vereins-Mannschaften verwalten."}
+                    </span>
+                  </span>
+                </label>
+              )}
 
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="space-y-1.5">

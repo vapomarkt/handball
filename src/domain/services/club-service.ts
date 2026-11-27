@@ -1,5 +1,6 @@
 import { LeagueCatalogRepository } from "../adapters/league-catalog-repository";
 import {
+  ClubLogoRecord,
   ClubRepository,
   MemberRepository,
   TeamRepository,
@@ -16,13 +17,19 @@ import {
   ViewerContext,
 } from "../policies/rbac";
 import {
+  ClubDTO,
   CreateClubSchema,
   CreateSeasonSchema,
   CreateTeamSchema,
+  ImportNuligaClubLogoSchema,
   UpdateTeamSchema,
 } from "../schemas/club";
 import { resolveTeamUsesResin } from "../data/german-leagues";
 import { LeagueDirectoryService } from "./league-directory-service";
+import {
+  NuligaClubLogoFetcher,
+  validateClubLogoBinary,
+} from "./nuliga-club-logo";
 
 function slugify(value: string): string {
   return value
@@ -36,6 +43,10 @@ function slugify(value: string): string {
     .slice(0, 50);
 }
 
+export function buildClubLogoUrl(clubId: string, version = Date.now()): string {
+  return `/api/v1/clubs/${encodeURIComponent(clubId)}/logo?v=${version}`;
+}
+
 export class ClubService {
   constructor(
     private readonly clubs: ClubRepository,
@@ -43,7 +54,8 @@ export class ClubService {
     private readonly leagueCatalog?: LeagueCatalogRepository,
     private readonly leagueDirectory?: LeagueDirectoryService,
     private readonly members?: MemberRepository,
-    private readonly seasonCatalog?: SeasonCatalogRepository
+    private readonly seasonCatalog?: SeasonCatalogRepository,
+    private readonly fetchClubLogo?: NuligaClubLogoFetcher
   ) {}
 
   async listClubsForUser(viewer: ViewerContext) {
@@ -59,6 +71,143 @@ export class ClubService {
       throw DomainError.notFound("Verein nicht gefunden.");
     }
     return details;
+  }
+
+  async getClubLogoBinary(clubId: string): Promise<ClubLogoRecord | null> {
+    if (!this.clubs.findLogoById) return null;
+    return this.clubs.findLogoById(clubId);
+  }
+
+  async uploadClubLogo(
+    viewer: ViewerContext,
+    clubId: string,
+    rawBytes: Uint8Array
+  ): Promise<ClubDTO> {
+    if (!canManageClub(viewer, clubId)) {
+      throw DomainError.forbidden(
+        "Nur Vereins-Admins dürfen das Vereinslogo ändern."
+      );
+    }
+    if (!this.clubs.updateLogo) {
+      throw DomainError.conflict(
+        "Das Speichern von Vereinslogos wird in dieser Umgebung nicht unterstützt."
+      );
+    }
+
+    const details = await this.clubs.findByIdWithDetails(clubId);
+    if (!details) {
+      throw DomainError.notFound("Verein nicht gefunden.");
+    }
+
+    const validated = validateClubLogoBinary(rawBytes);
+    return this.clubs.updateLogo(clubId, {
+      data: validated.data,
+      mimeType: validated.mimeType,
+      logoUrl: buildClubLogoUrl(clubId),
+    });
+  }
+
+  async removeClubLogo(
+    viewer: ViewerContext,
+    clubId: string
+  ): Promise<ClubDTO> {
+    if (!canManageClub(viewer, clubId)) {
+      throw DomainError.forbidden(
+        "Nur Vereins-Admins dürfen das Vereinslogo entfernen."
+      );
+    }
+    if (!this.clubs.updateLogo) {
+      throw DomainError.conflict(
+        "Das Speichern von Vereinslogos wird in dieser Umgebung nicht unterstützt."
+      );
+    }
+
+    const details = await this.clubs.findByIdWithDetails(clubId);
+    if (!details) {
+      throw DomainError.notFound("Verein nicht gefunden.");
+    }
+
+    return this.clubs.updateLogo(clubId, null);
+  }
+
+  async importClubLogoFromNuliga(
+    viewer: ViewerContext,
+    clubId: string,
+    rawInput?: unknown
+  ): Promise<{ club: ClubDTO; matchedClubName: string }> {
+    if (!canManageClub(viewer, clubId)) {
+      throw DomainError.forbidden(
+        "Nur Vereins-Admins dürfen das Vereinslogo aus nuLiga importieren."
+      );
+    }
+    if (!this.clubs.updateLogo || !this.fetchClubLogo) {
+      throw DomainError.conflict(
+        "Der automatische nuLiga-Logo-Import ist in dieser Umgebung nicht konfiguriert."
+      );
+    }
+
+    const parsed = ImportNuligaClubLogoSchema.safeParse(rawInput ?? {});
+    if (!parsed.success) {
+      throw DomainError.validation(
+        "Ungültiger Suchbegriff für die nuLiga-Vereinssuche.",
+        parsed.error.flatten().fieldErrors
+      );
+    }
+
+    const details = await this.clubs.findByIdWithDetails(clubId);
+    if (!details) {
+      throw DomainError.notFound("Verein nicht gefunden.");
+    }
+
+    const searchName = parsed.data.searchName?.trim() || details.club.name;
+    const resolved = await this.fetchClubLogo({ clubName: searchName });
+    if (!resolved) {
+      throw DomainError.notFound(
+        `Für „${searchName}“ wurde kein Vereinslogo bei nuLiga gefunden. Du kannst stattdessen eine eigene Bilddatei hochladen.`
+      );
+    }
+
+    const club = await this.clubs.updateLogo(clubId, {
+      data: resolved.data,
+      mimeType: resolved.mimeType,
+      logoUrl: buildClubLogoUrl(clubId),
+    });
+
+    return { club, matchedClubName: resolved.matchedClubName };
+  }
+
+  /**
+   * Interner Best-Effort-Import beim Onboarding oder bei der HVNB-Verknüpfung:
+   * Lädt das Vereinslogo nur nach, wenn der Verein noch kein Logo hinterlegt hat.
+   */
+  async tryAutoImportClubLogoInternal(
+    clubId: string,
+    hints: {
+      clubName: string;
+      sourceUrl?: string | null;
+      federationCode?: string;
+    }
+  ): Promise<ClubDTO | null> {
+    if (!this.clubs.updateLogo || !this.fetchClubLogo) return null;
+    try {
+      const details = await this.clubs.findByIdWithDetails(clubId);
+      if (!details || details.club.logoUrl) return null;
+
+      const resolved = await this.fetchClubLogo({
+        clubName: hints.clubName || details.club.name,
+        sourceUrl: hints.sourceUrl,
+        federationCode: hints.federationCode,
+      });
+      if (!resolved) return null;
+
+      return await this.clubs.updateLogo(clubId, {
+        data: resolved.data,
+        mimeType: resolved.mimeType,
+        logoUrl: buildClubLogoUrl(clubId),
+      });
+    } catch {
+      return null;
+    }
   }
 
   async createClub(rawInput: unknown) {

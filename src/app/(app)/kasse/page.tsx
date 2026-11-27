@@ -92,6 +92,7 @@ export default function KasseUndNewsPage() {
   const [savingCat, setSavingCat] = useState(false);
 
   const isStaff =
+    activeTeam?.isClubAdmin ||
     activeTeam?.role === "CLUB_ADMIN" ||
     activeTeam?.role === "COACH" ||
     activeTeam?.role === "ASSISTANT_COACH" ||

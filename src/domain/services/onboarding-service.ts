@@ -11,6 +11,8 @@ import { OnboardingInput, OnboardingSchema } from "../schemas/club";
 import { TeamLeagueLinkResultDTO } from "../schemas/league-directory";
 import { resolveTeamUsesResin } from "../data/german-leagues";
 import { LeagueDirectoryService } from "./league-directory-service";
+import { buildClubLogoUrl } from "./club-service";
+import { NuligaClubLogoFetcher } from "./nuliga-club-logo";
 
 function slugify(value: string): string {
   return value
@@ -31,7 +33,8 @@ export class OnboardingService {
     private readonly members: MemberRepository,
     private readonly leagueCatalog?: LeagueCatalogRepository,
     private readonly seasonCatalog?: SeasonCatalogRepository,
-    private readonly leagueDirectory?: LeagueDirectoryService
+    private readonly leagueDirectory?: LeagueDirectoryService,
+    private readonly fetchClubLogo?: NuligaClubLogoFetcher
   ) {}
 
   /**
@@ -128,15 +131,17 @@ export class OnboardingService {
       ? `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`
       : baseSlug;
 
-    const { club, season } = await this.clubs.createClubWithSeason({
-      name: input.clubName,
-      shortName: input.clubShortName ?? null,
-      slug,
-      city: input.city ?? null,
-      seasonName: resolvedSeasonName,
-      seasonStartDate: resolvedSeasonStartDate,
-      seasonEndDate: resolvedSeasonEndDate,
-    });
+    const { club: createdClub, season } =
+      await this.clubs.createClubWithSeason({
+        name: input.clubName,
+        shortName: input.clubShortName ?? null,
+        slug,
+        city: input.city ?? null,
+        seasonName: resolvedSeasonName,
+        seasonStartDate: resolvedSeasonStartDate,
+        seasonEndDate: resolvedSeasonEndDate,
+      });
+    let club = createdClub;
 
     const team = await this.teams.create({
       clubId: club.id,
@@ -150,12 +155,15 @@ export class OnboardingService {
       leagueName: resolvedLeagueName,
     });
 
-    // Beim Einzelteam-Start erhält der Ersteller mindestens CLUB_ADMIN oder COACH
-    // (wenn er als Trainer startet, braucht er dennoch Vereinsrechte für Hallen/Saisons -> CLUB_ADMIN falls gewählt, sonst COACH)
+    // Personalunion möglich: Trainer (COACH) kann zusätzlich Vereins-Admin (isClubAdmin) sein
+    const creatorIsClubAdmin =
+      input.creatorRole === "CLUB_ADMIN" || Boolean(input.creatorIsClubAdmin);
+
     const member = await this.members.create(club.id, team.id, {
       firstName: input.creatorFirstName,
       lastName: input.creatorLastName,
       role: input.creatorRole,
+      isClubAdmin: creatorIsClubAdmin,
       availabilityStatus: "FIT",
       teamRoles: [],
       isMinor: false,
@@ -178,6 +186,29 @@ export class OnboardingService {
         autoImportSchedule: input.autoImportSchedule ?? true,
         seedGroupOpponents: input.seedGroupOpponents ?? true,
       });
+    }
+
+    // Best-Effort: Vereinslogo automatisch aus nuLiga laden, falls noch keins vorhanden
+    if (!club.logoUrl && this.fetchClubLogo && this.clubs.updateLogo) {
+      try {
+        const refreshed = await this.clubs.findByIdWithDetails(club.id);
+        if (refreshed?.club.logoUrl) {
+          club = refreshed.club;
+        } else {
+          const resolvedLogo = await this.fetchClubLogo({
+            clubName: input.clubName,
+          });
+          if (resolvedLogo) {
+            club = await this.clubs.updateLogo(club.id, {
+              data: resolvedLogo.data,
+              mimeType: resolvedLogo.mimeType,
+              logoUrl: buildClubLogoUrl(club.id),
+            });
+          }
+        }
+      } catch {
+        // Best effort: Onboarding niemals wegen Logo-Abruf abbrechen
+      }
     }
 
     return { club, season, team, member, leagueLink };

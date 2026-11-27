@@ -1,4 +1,5 @@
 import {
+  ClubLogoRecord,
   ClubRepository,
   ClubWithDetails,
   GuardianRepository,
@@ -19,6 +20,16 @@ import {
   UpdateTeamMemberInput,
 } from "@/domain/schemas/member";
 import { prisma } from "../db/prisma";
+
+const CLUB_BASE_SELECT = {
+  id: true,
+  name: true,
+  shortName: true,
+  slug: true,
+  city: true,
+  logoUrl: true,
+  createdAt: true,
+} as const;
 
 function mapClub(c: {
   id: string;
@@ -66,6 +77,7 @@ export class PrismaClubRepository implements ClubRepository {
           some: { userId },
         },
       },
+      select: CLUB_BASE_SELECT,
       orderBy: { name: "asc" },
     });
     return clubs.map(mapClub);
@@ -74,7 +86,8 @@ export class PrismaClubRepository implements ClubRepository {
   async findByIdWithDetails(clubId: string): Promise<ClubWithDetails | null> {
     const club = await prisma.club.findUnique({
       where: { id: clubId },
-      include: {
+      select: {
+        ...CLUB_BASE_SELECT,
         seasons: { orderBy: [{ isActive: "desc" }, { name: "desc" }] },
         teams: {
           include: {
@@ -119,8 +132,50 @@ export class PrismaClubRepository implements ClubRepository {
   }
 
   async findBySlug(slug: string): Promise<ClubDTO | null> {
-    const club = await prisma.club.findUnique({ where: { slug } });
+    const club = await prisma.club.findUnique({
+      where: { slug },
+      select: CLUB_BASE_SELECT,
+    });
     return club ? mapClub(club) : null;
+  }
+
+  async findLogoById(clubId: string): Promise<ClubLogoRecord | null> {
+    const club = await prisma.club.findUnique({
+      where: { id: clubId },
+      select: {
+        logoData: true,
+        logoMimeType: true,
+        updatedAt: true,
+      },
+    });
+    if (!club?.logoData || !club.logoMimeType) return null;
+    return {
+      data: new Uint8Array(club.logoData),
+      mimeType: club.logoMimeType,
+      updatedAt: club.updatedAt,
+    };
+  }
+
+  async updateLogo(
+    clubId: string,
+    logo: { data: Uint8Array; mimeType: string; logoUrl: string } | null
+  ): Promise<ClubDTO> {
+    const club = await prisma.club.update({
+      where: { id: clubId },
+      data: logo
+        ? {
+            logoData: Uint8Array.from(logo.data),
+            logoMimeType: logo.mimeType,
+            logoUrl: logo.logoUrl,
+          }
+        : {
+            logoData: null,
+            logoMimeType: null,
+            logoUrl: null,
+          },
+      select: CLUB_BASE_SELECT,
+    });
+    return mapClub(club);
   }
 
   async createClubWithSeason(input: {
@@ -140,6 +195,7 @@ export class PrismaClubRepository implements ClubRepository {
           slug: input.slug,
           city: input.city ?? null,
         },
+        select: CLUB_BASE_SELECT,
       });
       const season = await tx.season.create({
         data: {
@@ -370,6 +426,7 @@ export class PrismaMemberRepository implements MemberRepository {
         firstName: input.firstName,
         lastName: input.lastName,
         role: input.role,
+        isClubAdmin: Boolean(input.isClubAdmin || input.role === "CLUB_ADMIN"),
         jerseyNumber: input.jerseyNumber ?? null,
         primaryPosition: input.primaryPosition ?? null,
         secondaryPosition: input.secondaryPosition ?? null,

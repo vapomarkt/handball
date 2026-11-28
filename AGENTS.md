@@ -17,3 +17,6 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 - Nach jeder erfolgreich getesteten Änderung (Lint, Typecheck, Tests/Build) immer direkt ein sauberes `git commit` und `git push` durchführen.
 
+## Hosting & Deployment
+
+- Das Hosting läuft **nicht mehr bei Vercel**, sondern auf dem eigenen **Dedicated Server bei Hetzner** (Self-Hosted über Docker / `docker-compose.prod.yml`). Hinweise, Konfigurationen und Deploy-Abläufe entsprechend auf den Hetzner-Server ausrichten (inkl. `prisma migrate deploy` beim Deployment).

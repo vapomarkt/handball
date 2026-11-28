@@ -53,6 +53,7 @@ const OFFICIAL_ROLE_OPTIONS: Array<{ value: MemberRole; label: string }> = [
   { value: "COACH", label: "Trainer" },
   { value: "ASSISTANT_COACH", label: "Co-Trainer" },
   { value: "TEAM_MANAGER", label: "Betreuer" },
+  { value: "TREASURER", label: "Kassenwart" },
   { value: "HELPER", label: "Vereinshelfer" },
 ];
 

@@ -570,6 +570,67 @@ describe("RosterService & InviteService mit Mehrfachrollen", () => {
       { relationship: "Vater" }
     );
     expect(guardianClaimed.roles).toEqual(["COACH", "PARENT"]);
+
+    // GUARDIAN_LINK direkt mit zusätzlicher Rolle TREASURER (Elternteil + Kassenwart)
+    const guardianTreasurerInvite = await inviteService.createInvite(
+      coachViewer,
+      TEAM_ID,
+      {
+        type: "GUARDIAN_LINK",
+        targetMemberId: child.id,
+        roles: ["PARENT", "TREASURER"],
+      }
+    );
+    expect(guardianTreasurerInvite.roles).toEqual(["TREASURER", "PARENT"]);
+
+    const newParentViewer = makeViewer([], "user-parent-treasurer");
+    const newParentClaimed = await inviteService.claimInvite(
+      newParentViewer,
+      guardianTreasurerInvite.token,
+      { firstName: "Sabine", lastName: "Kasse", relationship: "Mutter" }
+    );
+    expect(newParentClaimed.roles).toEqual(["TREASURER", "PARENT"]);
+    const persistedParent = await memberRepo.findByTeamAndUser(
+      TEAM_ID,
+      "user-parent-treasurer"
+    );
+    expect(getEffectiveRoles(persistedParent)).toEqual(["TREASURER", "PARENT"]);
+
+    // PROFILE_CLAIM für Spieler mit zusätzlicher Rolle TREASURER
+    const unclaimedPlayer = await memberRepo.create(CLUB_ID, TEAM_ID, {
+      firstName: "Ben",
+      lastName: "Spieler",
+      role: "PLAYER",
+      roles: ["PLAYER"],
+      availabilityStatus: "FIT",
+      teamRoles: [],
+      isMinor: false,
+      userId: null,
+      phone: null,
+    });
+    const claimInvite = await inviteService.createInvite(coachViewer, TEAM_ID, {
+      type: "PROFILE_CLAIM",
+      targetMemberId: unclaimedPlayer.id,
+      roles: ["PLAYER", "TREASURER"],
+    });
+    expect(claimInvite.roles).toEqual(["TREASURER", "PLAYER"]);
+
+    const benViewer = makeViewer([], "user-ben");
+    const claimedBen = await inviteService.claimInvite(
+      benViewer,
+      claimInvite.token,
+      {}
+    );
+    expect(claimedBen.roles).toEqual(["TREASURER", "PLAYER"]);
+
+    // Nicht-Admin darf über PROFILE_CLAIM kein CLUB_ADMIN vergeben
+    await expect(
+      inviteService.createInvite(coachViewer, TEAM_ID, {
+        type: "PROFILE_CLAIM",
+        targetMemberId: child.id,
+        roles: ["PLAYER", "CLUB_ADMIN"],
+      })
+    ).rejects.toMatchObject({ code: "FORBIDDEN", httpStatus: 403 });
   });
 
   it("berücksichtigt Mehrfachrollen in Profil-Vollständigkeit, DTO-Projektion und deriveSelectableTeams", () => {

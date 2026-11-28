@@ -25,10 +25,12 @@ import { Label } from "@/components/ui/label";
 import { SelectNative } from "@/components/ui/select-native";
 import {
   formatMemberRoles,
+  getEffectiveRoles,
   getPrimaryMemberRole,
   INVITE_TYPE_LABELS,
   MEMBER_ROLE_LABELS,
   MEMBER_ROLE_ORDER,
+  normalizeMemberRoles,
   type InviteType,
   type MemberRole,
 } from "@/domain/schemas/handball";
@@ -40,13 +42,15 @@ import {
   formatTeamClubLabel,
 } from "@/domain/services/invite-service";
 
-const INVITABLE_TEAM_ROLES: MemberRole[] = [
+const INVITABLE_ROLES_BASE: MemberRole[] = [
   "PLAYER",
   "TREASURER",
   "TEAM_MANAGER",
   "ASSISTANT_COACH",
   "COACH",
+  "PARENT",
   "HELPER",
+  "CLUB_ADMIN",
 ];
 
 interface InviteDialogProps {
@@ -56,6 +60,7 @@ interface InviteDialogProps {
   teamName?: string;
   clubName?: string;
   members: TeamMemberResponseDTO[];
+  viewerIsClubAdmin?: boolean;
   initialTargetMemberId?: string | null;
   initialType?: InviteType;
 }
@@ -64,9 +69,9 @@ const INVITE_TYPE_HELP: Record<InviteType, string> = {
   TEAM_JOIN:
     "Ideal für die Team-WhatsApp-Gruppe oder als QR-Code in der Kabine (mehrfach nutzbar).",
   PROFILE_CLAIM:
-    "Persönlicher 1×-Link für ein bereits angelegtes Spielerprofil im Kader.",
+    "Persönlicher 1×-Link für ein bereits angelegtes Spielerprofil im Kader. Zusätzliche Rollen (z. B. Kassenwart) können direkt mit vergeben werden.",
   GUARDIAN_LINK:
-    "Für Eltern von Jugendspielern – verknüpft den Eltern-Account direkt mit dem Kind.",
+    "Für Eltern von Jugendspielern – verknüpft den Eltern-Account direkt mit dem Kind. Zusätzliche Rollen (z. B. Kassenwart) sind direkt kombinierbar.",
 };
 
 export function InviteDialog({
@@ -76,6 +81,7 @@ export function InviteDialog({
   teamName,
   clubName,
   members,
+  viewerIsClubAdmin = false,
   initialTargetMemberId = null,
   initialType = "TEAM_JOIN",
 }: InviteDialogProps) {
@@ -86,24 +92,55 @@ export function InviteDialog({
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const [typeOverride, setTypeOverride] = useState<InviteType | null>(null);
-  const [selectedRoles, setSelectedRoles] = useState<MemberRole[]>(["PLAYER"]);
+  const [rolesOverride, setRolesOverride] = useState<MemberRole[] | null>(null);
   const [targetOverride, setTargetOverride] = useState<string | null>(null);
 
   const type = typeOverride ?? initialType;
   const targetMemberId = targetOverride ?? initialTargetMemberId ?? "";
-  const setType = (next: InviteType) => setTypeOverride(next);
-  const setTargetMemberId = (next: string) => setTargetOverride(next);
+
+  const targetMember =
+    members.find((m) => m.id === targetMemberId) ?? null;
+
+  const defaultRolesForCurrentSelection: MemberRole[] =
+    type === "GUARDIAN_LINK"
+      ? ["PARENT"]
+      : type === "PROFILE_CLAIM" && targetMember
+        ? getEffectiveRoles(targetMember)
+        : ["PLAYER"];
+
+  const selectedRoles: MemberRole[] = normalizeMemberRoles({
+    roles:
+      type === "GUARDIAN_LINK"
+        ? [...(rolesOverride ?? defaultRolesForCurrentSelection), "PARENT"]
+        : (rolesOverride ?? defaultRolesForCurrentSelection),
+  });
+
+  const setType = (next: InviteType) => {
+    setTypeOverride(next);
+    setRolesOverride(null);
+  };
+  const setTargetMemberId = (next: string) => {
+    setTargetOverride(next);
+    if (type === "PROFILE_CLAIM") {
+      setRolesOverride(null);
+    }
+  };
 
   function toggleInviteRole(r: MemberRole) {
-    setSelectedRoles((prev) => {
-      if (prev.includes(r)) {
-        if (prev.length <= 1) return prev;
-        return prev.filter((item) => item !== r);
-      }
-      return MEMBER_ROLE_ORDER.filter(
-        (candidate) => candidate === r || prev.includes(candidate)
-      );
-    });
+    if (r === "CLUB_ADMIN" && !viewerIsClubAdmin) return;
+    if (r === "PARENT" && type === "GUARDIAN_LINK") return;
+
+    const current = selectedRoles;
+    if (current.includes(r)) {
+      if (current.length <= 1) return;
+      const next = current.filter((item) => item !== r);
+      setRolesOverride(next);
+      return;
+    }
+    const next = MEMBER_ROLE_ORDER.filter(
+      (candidate) => candidate === r || current.includes(candidate)
+    );
+    setRolesOverride(next);
   }
 
   // QR-Code-Vorschau-State
@@ -158,6 +195,7 @@ export function InviteDialog({
     if (!nextOpen) {
       setTypeOverride(null);
       setTargetOverride(null);
+      setRolesOverride(null);
       setError(null);
     }
     onOpenChange(nextOpen);
@@ -207,7 +245,9 @@ export function InviteDialog({
     setCreating(true);
     try {
       const rolesToSend: MemberRole[] =
-        type === "GUARDIAN_LINK" ? ["PARENT"] : selectedRoles;
+        type === "GUARDIAN_LINK"
+          ? normalizeMemberRoles({ roles: [...selectedRoles, "PARENT"] })
+          : selectedRoles;
       const res = await fetch(
         `/api/v1/teams/${encodeURIComponent(teamId)}/invites`,
         {
@@ -282,8 +322,8 @@ export function InviteDialog({
             )}
             <DialogTitle>Einladungen, Kurzcodes &amp; QR-Codes</DialogTitle>
             <DialogDescription>
-              Lade Spieler, Eltern, Betreuer oder Helfer mit einem Tipp per
-              WhatsApp, QR-Code oder 6-stelligem Code ein.
+              Lade Spieler, Kassenwarte, Eltern, Trainer, Betreuer oder Helfer
+              mit einem Tipp per WhatsApp, QR-Code oder 6-stelligem Code ein.
             </DialogDescription>
           </DialogHeader>
 
@@ -341,31 +381,64 @@ export function InviteDialog({
                 )}
               </div>
 
-              {type === "TEAM_JOIN" && (
-                <div className="space-y-1.5">
-                  <Label>Rollen (mehrere kombinierbar)</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {INVITABLE_TEAM_ROLES.map((r) => {
-                      const active = selectedRoles.includes(r);
-                      return (
-                        <button
-                          key={r}
-                          type="button"
-                          aria-pressed={active}
-                          onClick={() => toggleInviteRole(r)}
-                          className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer ${
-                            active
-                              ? "border-primary bg-primary/15 text-primary"
-                              : "border-border bg-background text-muted-foreground hover:bg-muted"
-                          }`}
-                        >
-                          {MEMBER_ROLE_LABELS[r]}
-                        </button>
-                      );
-                    })}
-                  </div>
+              <div className="space-y-1.5">
+                <Label>
+                  {type === "GUARDIAN_LINK"
+                    ? "Rollen für den Eltern-Zugang (kombinierbar)"
+                    : "Rollen (mehrere kombinierbar)"}
+                </Label>
+                <div
+                  className="flex flex-wrap gap-1.5"
+                  role="group"
+                  aria-label="Einladungsrollen auswählen"
+                >
+                  {INVITABLE_ROLES_BASE.filter(
+                    (r) =>
+                      viewerIsClubAdmin ||
+                      r !== "CLUB_ADMIN" ||
+                      selectedRoles.includes("CLUB_ADMIN")
+                  ).map((r) => {
+                    const active = selectedRoles.includes(r);
+                    const lockedParent =
+                      r === "PARENT" && type === "GUARDIAN_LINK";
+                    const lockedAdmin =
+                      r === "CLUB_ADMIN" && !viewerIsClubAdmin;
+                    const disabled = lockedParent || lockedAdmin;
+                    return (
+                      <button
+                        key={r}
+                        type="button"
+                        data-testid={`invite-role-toggle-${r}`}
+                        aria-pressed={active}
+                        disabled={disabled}
+                        onClick={() => toggleInviteRole(r)}
+                        title={
+                          lockedParent
+                            ? "Bei Eltern-Kind-Verknüpfung automatisch aktiv."
+                            : lockedAdmin
+                              ? "Nur Vereins-Admins dürfen diese Rolle vergeben."
+                              : undefined
+                        }
+                        className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                          disabled
+                            ? "cursor-not-allowed opacity-70"
+                            : "cursor-pointer"
+                        } ${
+                          active
+                            ? "border-primary bg-primary/15 text-primary"
+                            : "border-border bg-background text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {active && <Check className="h-3 w-3 shrink-0" />}
+                        {MEMBER_ROLE_LABELS[r]}
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
+                <p className="text-xs text-muted-foreground">
+                  Mehrere Rollen sind direkt kombinierbar (z. B. Spieler + Kassenwart oder Elternteil + Kassenwart).
+                </p>
+              </div>
             </div>
 
             <p className="text-xs text-muted-foreground">

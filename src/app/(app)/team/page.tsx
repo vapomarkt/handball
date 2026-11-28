@@ -823,6 +823,7 @@ export default function TeamRosterPage() {
           teamName={activeTeam.teamName}
           clubName={activeTeam.clubName}
           members={members}
+          viewerIsClubAdmin={Boolean(activeTeam.isClubAdmin)}
           initialTargetMemberId={inviteTargetId}
           initialType={inviteInitialType}
         />

@@ -10,7 +10,6 @@ import {
   formatMemberRoles,
   getEffectiveRoles,
   getPrimaryMemberRole,
-  hasMemberRole,
   InviteType,
   MemberRole,
   normalizeMemberRoles,
@@ -281,23 +280,37 @@ export class InviteService {
 
     const effectiveRoles: MemberRole[] =
       input.type === "GUARDIAN_LINK"
-        ? ["PARENT"]
+        ? normalizeMemberRoles({
+            roles: [...(input.roles ?? []), "PARENT"],
+          })
         : input.type === "PROFILE_CLAIM" && targetMemberRoles
-          ? targetMemberRoles
+          ? input.roles && input.roles.length > 0
+            ? normalizeMemberRoles({ roles: input.roles })
+            : targetMemberRoles
           : normalizeMemberRoles({ roles: input.roles, role: input.role });
 
-    if (
-      effectiveRoles.includes("CLUB_ADMIN") &&
-      !isClubAdmin(viewer, team.clubId)
-    ) {
+    const targetAlreadyClubAdmin = Boolean(
+      targetMemberRoles?.includes("CLUB_ADMIN")
+    );
+    const nextHasClubAdmin = effectiveRoles.includes("CLUB_ADMIN");
+    const clubAdminChanged =
+      input.type === "PROFILE_CLAIM"
+        ? nextHasClubAdmin !== targetAlreadyClubAdmin
+        : nextHasClubAdmin;
+
+    if (clubAdminChanged && !isClubAdmin(viewer, team.clubId)) {
       throw DomainError.forbidden(
-        "Nur Vereins-Admins dürfen Einladungen mit der Rolle Vereins-Admin erstellen."
+        "Nur Vereins-Admins dürfen Einladungen mit der Rolle Vereins-Admin erstellen oder ändern."
       );
     }
 
     const effectivePrimaryRole = getPrimaryMemberRole(
       effectiveRoles,
-      input.roles ? null : input.role
+      input.type === "GUARDIAN_LINK" && effectiveRoles.length === 1
+        ? "PARENT"
+        : input.roles
+          ? null
+          : input.role
     );
 
     const invite = await this.invites.create({
@@ -432,10 +445,25 @@ export class InviteService {
         );
       }
 
-      const claimed = await this.members.assignUser(
+      let claimed = await this.members.assignUser(
         targetMember.id,
         viewer.userId
       );
+      const existingClaimedRoles = getEffectiveRoles(claimed);
+      const mergedClaimRoles = normalizeMemberRoles({
+        roles: [...existingClaimedRoles, ...inviteRoles],
+      });
+      const rolesChanged =
+        mergedClaimRoles.length !== existingClaimedRoles.length ||
+        mergedClaimRoles.some((r, idx) => existingClaimedRoles[idx] !== r);
+      if (rolesChanged) {
+        claimed = await this.members.update(claimed.id, {
+          role: getPrimaryMemberRole(mergedClaimRoles, claimed.role),
+          roles: mergedClaimRoles,
+          isClubAdmin: mergedClaimRoles.includes("CLUB_ADMIN"),
+          phone: undefined,
+        });
+      }
       const claimedRoles = getEffectiveRoles(claimed);
       await this.invites.incrementUsedCount(invite.id);
       return {
@@ -472,7 +500,11 @@ export class InviteService {
         });
       }
 
-      // Falls das Elternteil noch kein Mitglied im Team ist, anlegen – sonst PARENT-Rolle ergänzen
+      const guardianRoles = normalizeMemberRoles({
+        roles: [...inviteRoles, "PARENT"],
+      });
+
+      // Falls das Elternteil noch kein Mitglied im Team ist, anlegen – sonst fehlende Rollen (z. B. PARENT, TREASURER) ergänzen
       let parentMember = await this.members.findByTeamAndUser(
         invite.teamId,
         viewer.userId
@@ -487,8 +519,9 @@ export class InviteService {
         parentMember = await this.members.create(invite.clubId, invite.teamId, {
           firstName,
           lastName: lastName || firstName,
-          role: "PARENT",
-          roles: ["PARENT"],
+          role: getPrimaryMemberRole(guardianRoles, "PARENT"),
+          roles: guardianRoles,
+          isClubAdmin: guardianRoles.includes("CLUB_ADMIN"),
           userId: viewer.userId,
           email: viewer.email,
           availabilityStatus: "FIT",
@@ -503,14 +536,22 @@ export class InviteService {
           emergencyContact: parsed.data.emergencyContact ?? null,
           phone: parsed.data.phone ?? null,
         });
-      } else if (!hasMemberRole(parentMember, "PARENT")) {
-        const nextRoles = normalizeMemberRoles({
-          roles: [...getEffectiveRoles(parentMember), "PARENT"],
-        });
-        parentMember = await this.members.update(parentMember.id, {
-          roles: nextRoles,
-          phone: undefined,
-        });
+      } else {
+        const existingParentRoles = getEffectiveRoles(parentMember);
+        const missingRoles = guardianRoles.filter(
+          (r) => !existingParentRoles.includes(r)
+        );
+        if (missingRoles.length > 0) {
+          const nextRoles = normalizeMemberRoles({
+            roles: [...existingParentRoles, ...missingRoles],
+          });
+          parentMember = await this.members.update(parentMember.id, {
+            role: getPrimaryMemberRole(nextRoles, parentMember.role),
+            roles: nextRoles,
+            isClubAdmin: nextRoles.includes("CLUB_ADMIN"),
+            phone: undefined,
+          });
+        }
       }
 
       await this.invites.incrementUsedCount(invite.id);

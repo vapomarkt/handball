@@ -7,6 +7,7 @@ import { DutyService } from "@/domain/services/duty-service";
 import { EventService } from "@/domain/services/event-service";
 import { GuardianService } from "@/domain/services/guardian-service";
 import { InviteService } from "@/domain/services/invite-service";
+import { Handball360ProviderAdapter } from "@/domain/services/handball360-provider-adapter";
 import { JerseySetService } from "@/domain/services/jersey-set-service";
 import { LeagueCatalogService } from "@/domain/services/league-catalog-service";
 import { LeagueDirectoryService } from "@/domain/services/league-directory-service";
@@ -24,6 +25,7 @@ import { SeasonCatalogService } from "@/domain/services/season-catalog-service";
 import { TacticService } from "@/domain/services/tactic-service";
 import { TrainingService } from "@/domain/services/training-service";
 import { VenueService } from "@/domain/services/venue-service";
+import { Handball360HttpClient } from "../leagues/handball360-http-client";
 import {
   PrismaEventRepository,
   PrismaVenueRepository,
@@ -95,6 +97,9 @@ const fetchNuligaClubLogo = (target: NuligaClubLogoTarget) =>
 
 const leagueProviderRegistry = new LeagueProviderRegistry();
 leagueProviderRegistry.register(new NuligaProviderAdapter(fetchUrlText));
+leagueProviderRegistry.register(
+  new Handball360ProviderAdapter(new Handball360HttpClient())
+);
 
 const leagueSyncService = new LeagueSyncService(
   teamRepo,

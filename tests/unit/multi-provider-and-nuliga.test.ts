@@ -71,8 +71,11 @@ describe("FederationRegistry & Europa-Vorbereitung", () => {
     expect(nuligaDe).toContain("HVNB");
     expect(nuligaDe).toContain("BHV");
     expect(nuligaDe).toContain("HHV");
-    expect(nuligaDe).toContain("HVS");
+    expect(nuligaDe).toContain("HVSA");
     expect(nuligaDe).toContain("THV");
+    expect(nuligaDe).toContain("HVBER");
+    expect(nuligaDe).toContain("HVBB");
+    expect(nuligaDe).toContain("HVMV");
 
     const h360Live = getHandball360Federations(true).map(
       (f) => f.federationCode
@@ -80,6 +83,7 @@ describe("FederationRegistry & Europa-Vorbereitung", () => {
     expect(h360Live).toContain("DHB");
     expect(h360Live).toContain("HVSH");
     expect(h360Live).toContain("HNR");
+    expect(h360Live).toContain("HVS");
 
     const hbw = getFederationConfig("HBW");
     expect(hbw?.primaryProvider).toBe("MANUAL_ONLY");
@@ -92,9 +96,15 @@ describe("FederationRegistry & Europa-Vorbereitung", () => {
   it("formatiert nuLiga-Saisonslugs und löst Basis-URLs / Hosts korrekt auf", () => {
     expect(formatNuligaSeasonSlug("2026/27", "YY/YY")).toBe("26/27");
     expect(formatNuligaSeasonSlug("2026/27", "YYYY/YY")).toBe("2026/27");
+    expect(formatNuligaSeasonSlug("2026/27", "YYYY / YYYY")).toBe(
+      "2026 / 2027"
+    );
     expect(renderChampionshipName("THV {season}", "2026/27", "YYYY/YY")).toBe(
       "THV 2026/27"
     );
+    expect(
+      renderChampionshipName("HVBrandenburg {season}", "2026/27", "YYYY / YYYY")
+    ).toBe("HVBrandenburg 2026 / 2027");
     expect(renderChampionshipName("ÖHB {season}", "2026/27", "YY/YY")).toBe(
       "ÖHB 26/27"
     );
@@ -125,24 +135,24 @@ describe("Multi-Verbands nuLiga-Crawler (DE + AT)", () => {
     const html = `
       <div>
         <h3>Untergeordnete Spielklassen</h3>
-        <a href="/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/leaguePage?championship=BHV+Oberbayern+26%2F27">Oberbayern</a>
-        <a href="/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/leaguePage?championship=BHV+Mittelfranken+26%2F27">Mittelfranken</a>
-        <a href="/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/leaguePage?championship=BHV+Pokal+26%2F27">Pokalmeisterschaft</a>
-        <a href="/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/leaguePage?championship=BHV+Quali+26%2F27">Jugend-Quali</a>
+        <a href="/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/leaguePage?championship=BHV+Oberbayern+2026%2F27">Oberbayern</a>
+        <a href="/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/leaguePage?championship=BHV+Mittelfranken+2026%2F27">Mittelfranken</a>
+        <a href="/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/leaguePage?championship=BHV+Pokal+2026%2F27">Pokalmeisterschaft</a>
+        <a href="/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/leaguePage?championship=BHV+Quali+2026%2F27">Jugend-Quali</a>
       </div>
       <table><tr><td>Ende</td></tr></table>
     `;
 
-    const subs = parseSubChampionshipLinks(html, "BHV 26/27");
+    const subs = parseSubChampionshipLinks(html, "BHV 2026/27");
     expect(subs).toHaveLength(2);
     expect(subs[0]).toEqual({
       code: "OBERBAYERN",
-      championship: "BHV Oberbayern 26/27",
+      championship: "BHV Oberbayern 2026/27",
       regionName: "Oberbayern",
     });
     expect(subs[1]).toEqual({
       code: "MITTELFRANKEN",
-      championship: "BHV Mittelfranken 26/27",
+      championship: "BHV Mittelfranken 2026/27",
       regionName: "Mittelfranken",
     });
   });
@@ -177,23 +187,23 @@ describe("Multi-Verbands nuLiga-Crawler (DE + AT)", () => {
 
   it("crawlt BHV und ÖHB inklusive automatischer Unterregionen-Discovery", async () => {
     const pages: Record<string, string> = {
-      "https://bhv-handball.liga.nu/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/leaguePage?championship=BHV%2026%2F27": `
+      "https://bhv-handball.liga.nu/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/leaguePage?championship=BHV%202026%2F27": `
         <div>Untergeordnete Spielklassen
-          <a href="/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/leaguePage?championship=BHV+Oberbayern+26%2F27">Oberbayern</a>
+          <a href="/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/leaguePage?championship=BHV+Oberbayern+2026%2F27">Oberbayern</a>
         </div>
         <table><tr><td>
-          <a href="/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/groupPage?championship=BHV+26%2F27&amp;group=7001">Regionalliga Männer</a>
+          <a href="/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/groupPage?championship=BHV+2026%2F27&amp;group=7001">Regionalliga Männer</a>
         </td></tr></table>
       `,
-      "https://bhv-handball.liga.nu/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/groupPage?championship=BHV%2026%2F27&group=7001": `
-        <a href="/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/teamPortrait?teamtable=9001&amp;championship=BHV+26%2F27&amp;group=7001">TSV Allach 09</a>
-        <a href="/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/teamPortrait?teamtable=9002&amp;championship=BHV+26%2F27&amp;group=7001">HT München</a>
+      "https://bhv-handball.liga.nu/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/groupPage?championship=BHV%202026%2F27&group=7001": `
+        <a href="/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/teamPortrait?teamtable=9001&amp;championship=BHV+2026%2F27&amp;group=7001">TSV Allach 09</a>
+        <a href="/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/teamPortrait?teamtable=9002&amp;championship=BHV+2026%2F27&amp;group=7001">HT München</a>
       `,
-      "https://bhv-handball.liga.nu/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/leaguePage?championship=BHV%20Oberbayern%2026%2F27": `
-        <a href="/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/groupPage?championship=BHV+Oberbayern+26%2F27&amp;group=7002">Bezirksoberliga Frauen</a>
+      "https://bhv-handball.liga.nu/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/leaguePage?championship=BHV%20Oberbayern%202026%2F27": `
+        <a href="/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/groupPage?championship=BHV+Oberbayern+2026%2F27&amp;group=7002">Bezirksoberliga Frauen</a>
       `,
-      "https://bhv-handball.liga.nu/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/groupPage?championship=BHV%20Oberbayern%2026%2F27&group=7002": `
-        <a href="/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/teamPortrait?teamtable=9010&amp;championship=BHV+Oberbayern+26%2F27&amp;group=7002">TSV Ismaning II</a>
+      "https://bhv-handball.liga.nu/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/groupPage?championship=BHV%20Oberbayern%202026%2F27&group=7002": `
+        <a href="/cgi-bin/WebObjects/nuLigaHBDE.woa/wa/teamPortrait?teamtable=9010&amp;championship=BHV+Oberbayern+2026%2F27&amp;group=7002">TSV Ismaning II</a>
       `,
     };
 

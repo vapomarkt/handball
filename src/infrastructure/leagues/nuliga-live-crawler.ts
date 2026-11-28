@@ -101,10 +101,11 @@ export function parseAgeGroupAndGender(name: string): {
     return { ageGroup: "SENIOR", gender };
   }
 
-  // Deutsche Jugend-Bezeichnungen (Jugend A–F, mJA, wJD, gJE)
-  const jugend = n.match(/jugend\s+([a-f])\b/);
+  // Deutsche Jugend-Bezeichnungen (Jugend A–F, A-Jugend–F-Jugend, mJA, wJD, gJE)
+  const jugendAfter = n.match(/jugend\s+([a-f])\b/);
+  const jugendBefore = n.match(/\b([a-f])\s*-\s*jugend\b/);
   const short = n.match(/\b([mwg])?j\s*([a-f])\b/);
-  const letter = (jugend?.[1] ?? short?.[2])?.toUpperCase();
+  const letter = (jugendAfter?.[1] ?? jugendBefore?.[1] ?? short?.[2])?.toUpperCase();
   if (letter) {
     return {
       ageGroup: (letter === "F"

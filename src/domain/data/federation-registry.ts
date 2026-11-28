@@ -6,7 +6,7 @@ export type DirectorySyncMode =
   | "HYBRID"
   | "NONE";
 
-export type NuligaSeasonSlugFormat = "YY/YY" | "YYYY/YY";
+export type NuligaSeasonSlugFormat = "YY/YY" | "YYYY/YY" | "YYYY / YYYY";
 
 export interface CountryRegistryEntry {
   /** ISO-3166-1 Alpha-2 Ländercode (z. B. "DE", "AT", "CH"). */
@@ -216,9 +216,9 @@ export const FEDERATION_REGISTRY: readonly FederationProviderConfig[] = [
       baseUrl: "https://bhv-handball.liga.nu",
       webObjectsApp: "nuLigaHBDE.woa",
       federationParam: "BHV",
-      seasonSlugFormat: "YY/YY",
+      seasonSlugFormat: "YYYY/YY",
       rootChampionshipTemplate: "BHV {season}",
-      altRootChampionshipTemplates: ["BHV 20{season}"],
+      altRootChampionshipTemplates: ["BHV 26/27"],
       rootRegionName: "BHV Verbandsebene",
       discoverSubChampionships: true,
     },
@@ -270,13 +270,9 @@ export const FEDERATION_REGISTRY: readonly FederationProviderConfig[] = [
     isNational: false,
     locale: "de-DE",
     timezone: "Europe/Berlin",
-    primaryProvider: "NULIGA",
+    primaryProvider: "HANDBALL360",
     fallbackProviders: ["ICAL_URL", "CSV_MANUAL"],
-    directorySyncMode: "NIGHTLY_CRAWL",
-    plannedMigration: {
-      targetProvider: "HANDBALL360",
-      targetSeason: "2027/28",
-    },
+    directorySyncMode: "ON_DEMAND_CACHE",
     nuliga: {
       baseUrl: "https://hvs-handball.liga.nu",
       webObjectsApp: "nuLigaHBDE.woa",
@@ -290,7 +286,7 @@ export const FEDERATION_REGISTRY: readonly FederationProviderConfig[] = [
       portalBaseUrl: DHB_H360_PORTAL,
       hubBaseUrl: DHB_H360_HUB,
       federationSlug: "hvs",
-      isLiveInSeason2627: false,
+      isLiveInSeason2627: true,
     },
   },
   {
@@ -379,8 +375,8 @@ export const FEDERATION_REGISTRY: readonly FederationProviderConfig[] = [
       webObjectsApp: "nuLigaHBDE.woa",
       federationParam: "HVBER",
       seasonSlugFormat: "YY/YY",
-      rootChampionshipTemplate: "HVB {season}",
-      altRootChampionshipTemplates: ["HV Berlin {season}", "HVB 20{season}"],
+      rootChampionshipTemplate: "HVBerlin {season}",
+      altRootChampionshipTemplates: ["HVB {season}"],
       rootRegionName: "HV Berlin Verbandsebene",
       discoverSubChampionships: true,
     },
@@ -411,9 +407,9 @@ export const FEDERATION_REGISTRY: readonly FederationProviderConfig[] = [
       baseUrl: "https://hvbrandenburg-handball.liga.nu",
       webObjectsApp: "nuLigaHBDE.woa",
       federationParam: "HVBB",
-      seasonSlugFormat: "YY/YY",
-      rootChampionshipTemplate: "HVBB {season}",
-      altRootChampionshipTemplates: ["HVB {season}"],
+      seasonSlugFormat: "YYYY / YYYY",
+      rootChampionshipTemplate: "HVBrandenburg {season}",
+      altRootChampionshipTemplates: ["HVBB 26/27"],
       rootRegionName: "HV Brandenburg Verbandsebene",
       discoverSubChampionships: true,
     },
@@ -749,8 +745,12 @@ export function formatNuligaSeasonSlug(
   const startRaw = match[1];
   const endRaw = match[2];
   const startFull = startRaw.length === 2 ? `20${startRaw}` : startRaw;
+  const endFull = endRaw.length === 2 ? `20${endRaw}` : endRaw;
   const startShort = startFull.slice(-2);
-  const endShort = endRaw.slice(-2);
+  const endShort = endFull.slice(-2);
+  if (format === "YYYY / YYYY") {
+    return `${startFull} / ${endFull}`;
+  }
   return format === "YYYY/YY"
     ? `${startFull}/${endShort}`
     : `${startShort}/${endShort}`;

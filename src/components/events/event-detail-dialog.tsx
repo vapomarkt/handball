@@ -36,6 +36,7 @@ import {
   shouldShowMatchScoreEditor,
   type EventDTO,
 } from "@/domain/schemas/event";
+import { hasMemberRole } from "@/domain/schemas/handball";
 import {
   JERSEY_CONDITION_LABELS,
   type JerseySetDTO,
@@ -120,7 +121,7 @@ export function EventDetailDialog({
 
   if (!event) return null;
 
-  const players = roster.filter((m) => m.role === "PLAYER");
+  const players = roster.filter((m) => hasMemberRole(m, "PLAYER"));
   const scoreRelevantByDefault = shouldShowMatchScoreEditor(event, openedAt);
   const showScoreFields = scoreRelevantByDefault || showScoreOverride;
 

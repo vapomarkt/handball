@@ -100,7 +100,7 @@ describe("M5 Mannschaftskasse – Cent-Arithmetik & Kassenwart-RBAC", () => {
     expect(formatCentsEur(-250)).toBe("-2,50 €");
   });
 
-  it("verweigert normalem PLAYER Schreibrechte, erlaubt aber Kassenwart (Team-Amt)", async () => {
+  it("erlaubt Schreibrechte an der Mannschaftskasse ausschließlich der Rolle TREASURER (auch in Mehrfachrollen)", async () => {
     const createEntry = vi.fn().mockResolvedValue({
       id: "e1",
       clubId: "club-1",
@@ -116,7 +116,6 @@ describe("M5 Mannschaftskasse – Cent-Arithmetik & Kassenwart-RBAC", () => {
       createdAt: "2026-11-24T10:00:00.000Z",
     });
 
-    const isUserTreasurerInTeam = vi.fn().mockResolvedValue(false);
     const cashRepo: CashboxRepository = {
       listEntriesByTeam: vi.fn().mockResolvedValue([]),
       findEntryById: vi.fn(),
@@ -126,12 +125,14 @@ describe("M5 Mannschaftskasse – Cent-Arithmetik & Kassenwart-RBAC", () => {
       listCatalogByTeam: vi.fn().mockResolvedValue([]),
       createCatalogItem: vi.fn(),
       deleteCatalogItem: vi.fn(),
-      isUserTreasurerInTeam,
+      isUserTreasurerInTeam: vi.fn().mockResolvedValue(false),
     };
 
     const service = new CashboxService(makeTeamRepo(), cashRepo);
 
-    // Normaler Spieler: 403 FORBIDDEN
+    // Normaler Spieler: 403 FORBIDDEN & canManage = false
+    const playerOverview = await service.getOverview(PLAYER_VIEWER, "team-h1");
+    expect(playerOverview.canManage).toBe(false);
     await expect(
       service.createEntry(PLAYER_VIEWER, "team-h1", {
         type: "FINE",
@@ -140,9 +141,37 @@ describe("M5 Mannschaftskasse – Cent-Arithmetik & Kassenwart-RBAC", () => {
       })
     ).rejects.toMatchObject({ code: "FORBIDDEN", httpStatus: 403 });
 
-    // Derselbe Spieler mit Team-Amt "Kassenwart": erlaubt!
-    isUserTreasurerInTeam.mockResolvedValueOnce(true);
-    const created = await service.createEntry(PLAYER_VIEWER, "team-h1", {
+    // Trainer OHNE Kassenwart-Rolle: darf lesen, aber 403 FORBIDDEN beim Schreiben
+    const coachOverview = await service.getOverview(COACH_VIEWER, "team-h1");
+    expect(coachOverview.canManage).toBe(false);
+    await expect(
+      service.createEntry(COACH_VIEWER, "team-h1", {
+        type: "FINE",
+        title: "Zu spät",
+        amountCents: 200,
+      })
+    ).rejects.toMatchObject({ code: "FORBIDDEN", httpStatus: 403 });
+
+    // Spieler MIT zusätzlicher Rolle TREASURER (Mehrfachrolle): erlaubt!
+    const playerTreasurerViewer: ViewerContext = {
+      ...PLAYER_VIEWER,
+      memberships: [
+        {
+          memberId: "tm-player",
+          teamId: "team-h1",
+          clubId: "club-1",
+          role: "PLAYER",
+          roles: ["PLAYER", "TREASURER"],
+        },
+      ],
+    };
+    const treasurerOverview = await service.getOverview(
+      playerTreasurerViewer,
+      "team-h1"
+    );
+    expect(treasurerOverview.canManage).toBe(true);
+
+    const created = await service.createEntry(playerTreasurerViewer, "team-h1", {
       type: "FINE",
       title: "Zu spät",
       amountCents: 200,

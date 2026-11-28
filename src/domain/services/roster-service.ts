@@ -14,6 +14,13 @@ import {
   isClubAdmin,
   ViewerContext,
 } from "../policies/rbac";
+import {
+  getEffectiveRoles,
+  getPrimaryMemberRole,
+  hasMemberRole,
+  normalizeMemberRoles,
+  type MemberRole,
+} from "../schemas/handball";
 import { LeagueAgeGroup } from "../schemas/league-catalog";
 import {
   CreateTeamMemberSchema,
@@ -111,16 +118,27 @@ export class RosterService {
       );
     }
 
-    const wantsClubAdmin =
-      parsed.data.role === "CLUB_ADMIN" || Boolean(parsed.data.isClubAdmin);
+    const resolvedRoles = normalizeMemberRoles({
+      roles: parsed.data.roles,
+      role: parsed.data.role,
+      isClubAdmin: parsed.data.isClubAdmin,
+    });
+    const wantsClubAdmin = resolvedRoles.includes("CLUB_ADMIN");
     if (wantsClubAdmin && !isClubAdmin(viewer, team.clubId)) {
       throw DomainError.forbidden(
         "Nur Vereins-Admins dürfen Vereins-Admin-Rechte vergeben."
       );
     }
 
+    const primaryRole = getPrimaryMemberRole(
+      resolvedRoles,
+      parsed.data.roles ? null : parsed.data.role
+    );
+
     const created = await this.members.create(team.clubId, team.id, {
       ...parsed.data,
+      role: primaryRole,
+      roles: resolvedRoles,
       isClubAdmin: wantsClubAdmin,
       userId: null, // Entkoppeltes Profil bis zum Claim-Flow
     });
@@ -340,6 +358,7 @@ export class RosterService {
         firstName: item.firstName,
         lastName: item.lastName,
         role: item.role,
+        roles: [item.role],
         isClubAdmin: item.role === "CLUB_ADMIN",
         jerseyNumber: item.role === "PLAYER" ? (item.jerseyNumber ?? null) : null,
         primaryPosition: null,
@@ -396,33 +415,79 @@ export class RosterService {
         );
       }
 
-      const existingIsAdmin =
-        existing.role === "CLUB_ADMIN" || Boolean(existing.isClubAdmin);
-      const nextRole = parsed.data.role ?? existing.role;
-      const nextIsAdmin =
-        nextRole === "CLUB_ADMIN"
-          ? true
-          : parsed.data.isClubAdmin !== undefined
-            ? parsed.data.isClubAdmin
-            : existing.role === "CLUB_ADMIN"
-              ? false
-              : Boolean(existing.isClubAdmin);
+      const existingRoles = getEffectiveRoles(existing);
+      const existingIsAdmin = existingRoles.includes("CLUB_ADMIN");
+      const hasRoleMutation =
+        parsed.data.roles !== undefined ||
+        parsed.data.role !== undefined ||
+        parsed.data.isClubAdmin !== undefined;
 
-      if (
-        (nextIsAdmin !== existingIsAdmin ||
-          (parsed.data.role === "CLUB_ADMIN" &&
-            existing.role !== "CLUB_ADMIN")) &&
-        !isClubAdmin(viewer, existing.clubId)
-      ) {
-        throw DomainError.forbidden(
-          "Nur Vereins-Admins dürfen Vereins-Admin-Rechte vergeben oder entziehen."
-        );
+      let updatePayload = parsed.data;
+
+      if (hasRoleMutation) {
+        let candidateRoles: MemberRole[];
+
+        if (parsed.data.roles !== undefined) {
+          candidateRoles = [...parsed.data.roles];
+          if (
+            parsed.data.isClubAdmin === true &&
+            !candidateRoles.includes("CLUB_ADMIN")
+          ) {
+            candidateRoles.push("CLUB_ADMIN");
+          } else if (parsed.data.isClubAdmin === false) {
+            candidateRoles = candidateRoles.filter((r) => r !== "CLUB_ADMIN");
+          }
+        } else if (parsed.data.role !== undefined) {
+          candidateRoles = [parsed.data.role];
+          const shouldKeepAdmin =
+            parsed.data.role === "CLUB_ADMIN"
+              ? true
+              : parsed.data.isClubAdmin !== undefined
+                ? parsed.data.isClubAdmin
+                : existing.role === "CLUB_ADMIN"
+                  ? false
+                  : existingIsAdmin;
+          if (shouldKeepAdmin && !candidateRoles.includes("CLUB_ADMIN")) {
+            candidateRoles.push("CLUB_ADMIN");
+          }
+        } else {
+          // Nur isClubAdmin wurde umgeschaltet -> übrige Rollen bleiben erhalten
+          candidateRoles = parsed.data.isClubAdmin
+            ? [...existingRoles, "CLUB_ADMIN"]
+            : existingRoles.filter((r) => r !== "CLUB_ADMIN");
+        }
+
+        if (candidateRoles.length === 0) {
+          throw DomainError.validation(
+            "Mindestens eine Rolle muss zugewiesen bleiben.",
+            { roles: ["Mindestens eine Rolle erforderlich."] }
+          );
+        }
+
+        const nextRoles = normalizeMemberRoles({ roles: candidateRoles });
+        const nextIsAdmin = nextRoles.includes("CLUB_ADMIN");
+
+        if (
+          nextIsAdmin !== existingIsAdmin &&
+          !isClubAdmin(viewer, existing.clubId)
+        ) {
+          throw DomainError.forbidden(
+            "Nur Vereins-Admins dürfen Vereins-Admin-Rechte vergeben oder entziehen."
+          );
+        }
+
+        const preferredRole =
+          parsed.data.role ??
+          (nextRoles.includes(existing.role) ? existing.role : null);
+        const nextPrimaryRole = getPrimaryMemberRole(nextRoles, preferredRole);
+
+        updatePayload = {
+          ...parsed.data,
+          role: nextPrimaryRole,
+          roles: nextRoles,
+          isClubAdmin: nextIsAdmin,
+        };
       }
-
-      const updatePayload =
-        parsed.data.role !== undefined || parsed.data.isClubAdmin !== undefined
-          ? { ...parsed.data, isClubAdmin: nextIsAdmin }
-          : parsed.data;
 
       const updated = await this.members.update(memberId, updatePayload);
       return projectTeamMemberDTO(viewer, updated);
@@ -436,14 +501,13 @@ export class RosterService {
         parsed.error.flatten().fieldErrors
       );
     }
-    const sanitized =
-      existing.role === "PLAYER"
-        ? parsed.data
-        : {
-            ...parsed.data,
-            primaryPosition: undefined,
-            secondaryPosition: undefined,
-          };
+    const sanitized = hasMemberRole(existing, "PLAYER")
+      ? parsed.data
+      : {
+          ...parsed.data,
+          primaryPosition: undefined,
+          secondaryPosition: undefined,
+        };
     const updated = await this.members.update(memberId, sanitized);
     return projectTeamMemberDTO(viewer, updated);
   }

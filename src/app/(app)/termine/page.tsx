@@ -60,7 +60,11 @@ import {
   type MemberAttendanceStatDTO,
   type VenueDTO,
 } from "@/domain/schemas/event";
-import type { RsvpStatus } from "@/domain/schemas/handball";
+import {
+  hasMemberRole,
+  isStaffMember,
+  type RsvpStatus,
+} from "@/domain/schemas/handball";
 import type { JerseySetDTO } from "@/domain/schemas/jersey-set";
 import type { LeagueImportSourceDTO } from "@/domain/schemas/league";
 import type { TeamMemberResponseDTO } from "@/domain/schemas/member";
@@ -130,13 +134,7 @@ function TerminePageContent() {
 
   const effectiveSelectedEventId = selectedEventId ?? eventIdFromUrl;
 
-  const isStaff = Boolean(
-    activeTeam?.isClubAdmin ||
-      activeTeam?.role === "CLUB_ADMIN" ||
-      activeTeam?.role === "COACH" ||
-      activeTeam?.role === "ASSISTANT_COACH" ||
-      activeTeam?.role === "TEAM_MANAGER"
-  );
+  const isStaff = isStaffMember(activeTeam);
 
   const effectiveTab: ActiveTab =
     !isStaff && (tab === "stats" || tab === "sync") ? "events" : tab;
@@ -161,7 +159,7 @@ function TerminePageContent() {
     if (!me || !activeTeam) return [];
     const targets: Array<{ memberId: string; label?: string }> = [];
     const own = me.memberships.find(
-      (m) => m.team.id === activeTeam.teamId && m.role === "PLAYER"
+      (m) => m.team.id === activeTeam.teamId && hasMemberRole(m, "PLAYER")
     );
     if (own) {
       targets.push({ memberId: own.memberId });

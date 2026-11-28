@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import {
   HANDBALL_POSITION_LABELS,
+  hasMemberRole,
   THROWING_HAND_LABELS,
   type HandballPosition,
   type MemberRole,
@@ -22,6 +23,7 @@ const THROWING_HANDS: ThrowingHand[] = ["RIGHT", "LEFT", "BOTH"];
 export interface QuickProfileInitialValues {
   teamId?: string;
   role: MemberRole;
+  roles?: MemberRole[];
   firstName?: string;
   lastName?: string;
   phone?: string | null;
@@ -48,11 +50,14 @@ export function QuickProfileForm({
   onSaved,
   onSkip,
 }: QuickProfileFormProps) {
+  const isPlayer = hasMemberRole(initial, "PLAYER");
+  const isParent = hasMemberRole(initial, "PARENT");
+
   const [firstName, setFirstName] = useState(initial.firstName ?? "");
   const [lastName, setLastName] = useState(initial.lastName ?? "");
   const [phone, setPhone] = useState(initial.phone ?? "");
   const [emergencyContact, setEmergencyContact] = useState(
-    initial.role === "PARENT" && initial.childMemberId
+    isParent && initial.childMemberId
       ? (initial.childEmergencyContact ?? initial.emergencyContact ?? "")
       : (initial.emergencyContact ?? "")
   );
@@ -64,9 +69,6 @@ export function QuickProfileForm({
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const isPlayer = initial.role === "PLAYER";
-  const isParent = initial.role === "PARENT";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

@@ -10,11 +10,13 @@ import React, {
   useState,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import type {
-  AvailabilityStatus,
-  HandballPosition,
-  MemberRole,
-  ThrowingHand,
+import {
+  getPrimaryMemberRole,
+  normalizeMemberRoles,
+  type AvailabilityStatus,
+  type HandballPosition,
+  type MemberRole,
+  type ThrowingHand,
 } from "@/domain/schemas/handball";
 import type { GuardianLinkDTO } from "@/domain/schemas/invite";
 import type { LeagueAgeGroup } from "@/domain/schemas/league-catalog";
@@ -29,6 +31,7 @@ import { shouldAutoStartTour } from "@/domain/services/onboarding-state-service"
 export interface MeMembership {
   memberId: string;
   role: MemberRole;
+  roles?: MemberRole[];
   isClubAdmin?: boolean;
   firstName: string;
   lastName: string;
@@ -81,6 +84,7 @@ export interface SelectableTeam {
   clubName: string;
   clubLogoUrl: string | null;
   role: MemberRole;
+  roles: MemberRole[];
   isClubAdmin: boolean;
 }
 
@@ -211,11 +215,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const map = new Map<string, SelectableTeam>();
     const adminClubIds = new Set(
       me.memberships
-        .filter((m) => m.role === "CLUB_ADMIN" || Boolean(m.isClubAdmin))
+        .filter((m) =>
+          normalizeMemberRoles({
+            roles: m.roles,
+            role: m.role,
+            isClubAdmin: m.isClubAdmin,
+          }).includes("CLUB_ADMIN")
+        )
         .map((m) => m.club.id)
     );
 
     for (const m of me.memberships) {
+      const isAdmin = adminClubIds.has(m.club.id);
+      const roles = normalizeMemberRoles({
+        roles: m.roles,
+        role: m.role,
+        isClubAdmin: isAdmin || m.isClubAdmin,
+      });
       map.set(m.team.id, {
         teamId: m.team.id,
         teamName: m.team.name,
@@ -228,8 +244,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         clubId: m.club.id,
         clubName: m.club.name,
         clubLogoUrl: m.club.logoUrl ?? null,
-        role: m.role,
-        isClubAdmin: adminClubIds.has(m.club.id),
+        role: getPrimaryMemberRole(roles, m.role),
+        roles,
+        isClubAdmin: isAdmin,
       });
     }
 
@@ -248,6 +265,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           clubName: t.club.name,
           clubLogoUrl: t.club.logoUrl ?? null,
           role: "CLUB_ADMIN",
+          roles: ["CLUB_ADMIN"],
           isClubAdmin: true,
         });
       }

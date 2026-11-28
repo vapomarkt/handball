@@ -42,6 +42,7 @@ import {
   type TeamWorkHoursSummaryDTO,
   type WorkDutyDTO,
 } from "@/domain/schemas/duty";
+import { isStaffMember } from "@/domain/schemas/handball";
 import {
   JERSEY_CONDITION_LABELS,
   type JerseySetDTO,
@@ -64,13 +65,7 @@ export default function DienstePage() {
   const [dutyDialogOpen, setDutyDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<WorkDutyDTO | null>(null);
 
-  const isStaff = Boolean(
-    activeTeam?.isClubAdmin ||
-      activeTeam?.role === "CLUB_ADMIN" ||
-      activeTeam?.role === "COACH" ||
-      activeTeam?.role === "ASSISTANT_COACH" ||
-      activeTeam?.role === "TEAM_MANAGER"
-  );
+  const isStaff = isStaffMember(activeTeam);
 
   const myMemberInTeam =
     me?.memberships.find((m) => m.team.id === activeTeam?.teamId) ??

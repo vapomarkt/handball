@@ -1,4 +1,4 @@
-import { MemberRole } from "../schemas/handball";
+import { getEffectiveRoles, MemberRole } from "../schemas/handball";
 import { TeamMemberEntity } from "../schemas/member";
 
 export interface ViewerMembership {
@@ -6,6 +6,7 @@ export interface ViewerMembership {
   clubId: string;
   teamId: string;
   role: MemberRole;
+  roles?: MemberRole[];
   isClubAdmin?: boolean;
 }
 
@@ -20,16 +21,20 @@ export interface ViewerContext {
   linkedChildTeamIds: string[];
 }
 
+export function getMembershipRoles(membership: ViewerMembership): MemberRole[] {
+  return getEffectiveRoles(membership);
+}
+
 export function isClubAdmin(viewer: ViewerContext, clubId: string): boolean {
   return viewer.memberships.some(
     (m) =>
-      m.clubId === clubId && (m.role === "CLUB_ADMIN" || Boolean(m.isClubAdmin))
+      m.clubId === clubId && getMembershipRoles(m).includes("CLUB_ADMIN")
   );
 }
 
 export function isAnyClubAdmin(viewer: ViewerContext): boolean {
-  return viewer.memberships.some(
-    (m) => m.role === "CLUB_ADMIN" || Boolean(m.isClubAdmin)
+  return viewer.memberships.some((m) =>
+    getMembershipRoles(m).includes("CLUB_ADMIN")
   );
 }
 
@@ -37,9 +42,15 @@ export function getTeamRolesForViewer(
   viewer: ViewerContext,
   teamId: string
 ): MemberRole[] {
-  return viewer.memberships
-    .filter((m) => m.teamId === teamId)
-    .map((m) => m.role);
+  const set = new Set<MemberRole>();
+  for (const m of viewer.memberships) {
+    if (m.teamId === teamId) {
+      for (const r of getMembershipRoles(m)) {
+        set.add(r);
+      }
+    }
+  }
+  return Array.from(set);
 }
 
 /**
@@ -58,7 +69,8 @@ export function isTeamCoachingStaff(
 
 /**
  * Team-Leitung & Organisation: CLUB_ADMIN, COACH, ASSISTANT_COACH und TEAM_MANAGER (Betreuer).
- * Berechtigt für Kaderpflege, Einladungen, Termine, Hallen, Dienste, Fahrgemeinschaften, Kasse & Notfallkontakte.
+ * Berechtigt für Kaderpflege, Einladungen, Termine, Hallen, Dienste, Fahrgemeinschaften & Notfallkontakte.
+ * Hinweis: Änderungen an der Mannschaftskasse erfordern explizit die Rolle TREASURER (Kassenwart).
  */
 export function isTeamStaff(
   viewer: ViewerContext,
@@ -68,6 +80,27 @@ export function isTeamStaff(
   if (isTeamCoachingStaff(viewer, teamId, clubId)) return true;
   const roles = getTeamRolesForViewer(viewer, teamId);
   return roles.includes("TEAM_MANAGER");
+}
+
+/**
+ * Prüft, ob der Nutzer im Team explizit die Rolle Kassenwart (TREASURER) besitzt.
+ */
+export function isTeamTreasurer(
+  viewer: ViewerContext,
+  teamId: string
+): boolean {
+  return getTeamRolesForViewer(viewer, teamId).includes("TREASURER");
+}
+
+/**
+ * Mannschaftskasse verwalten (Buchungen, Zahlungsstatus, Strafenkatalog):
+ * Ausschließlich Mitglieder mit expliziter Rolle TREASURER (Kassenwart) im jeweiligen Team.
+ */
+export function canManageCashbox(
+  viewer: ViewerContext,
+  teamId: string
+): boolean {
+  return isTeamTreasurer(viewer, teamId);
 }
 
 export function isTeamHeadCoachOrAdmin(
@@ -91,7 +124,7 @@ export function canManageClub(viewer: ViewerContext, clubId: string): boolean {
 export function canCreateTeam(viewer: ViewerContext, clubId: string): boolean {
   if (isClubAdmin(viewer, clubId)) return true;
   return viewer.memberships.some(
-    (m) => m.clubId === clubId && m.role === "COACH"
+    (m) => m.clubId === clubId && getMembershipRoles(m).includes("COACH")
   );
 }
 
@@ -166,13 +199,15 @@ export function getMemberEditScope(
 
 export function canManageVenues(viewer: ViewerContext, clubId: string): boolean {
   if (isClubAdmin(viewer, clubId)) return true;
-  return viewer.memberships.some(
-    (m) =>
-      m.clubId === clubId &&
-      (m.role === "COACH" ||
-        m.role === "ASSISTANT_COACH" ||
-        m.role === "TEAM_MANAGER")
-  );
+  return viewer.memberships.some((m) => {
+    if (m.clubId !== clubId) return false;
+    const roles = getMembershipRoles(m);
+    return (
+      roles.includes("COACH") ||
+      roles.includes("ASSISTANT_COACH") ||
+      roles.includes("TEAM_MANAGER")
+    );
+  });
 }
 
 export function canManageEvents(

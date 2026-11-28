@@ -38,6 +38,10 @@ import { SelectNative } from "@/components/ui/select-native";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import {
+  isCoachingStaffMember,
+  isStaffMember,
+} from "@/domain/schemas/handball";
+import {
   COURT_MODE_LABELS,
   TACTIC_CATEGORY_LABELS,
   type CourtMode,
@@ -78,16 +82,8 @@ export default function TaktikUndTrainingPage() {
   const [deletePlayTarget, setDeletePlayTarget] =
     useState<TacticPlayDTO | null>(null);
 
-  const isCoachingStaff = Boolean(
-    activeTeam?.isClubAdmin ||
-      activeTeam?.role === "CLUB_ADMIN" ||
-      activeTeam?.role === "COACH" ||
-      activeTeam?.role === "ASSISTANT_COACH"
-  );
-
-  const isTeamStaff = Boolean(
-    isCoachingStaff || activeTeam?.role === "TEAM_MANAGER"
-  );
+  const isCoachingStaff = isCoachingStaffMember(activeTeam);
+  const isTeamStaff = isStaffMember(activeTeam);
 
   const effectiveTab: ActiveTab =
     !isTeamStaff && (tab === "plans" || tab === "drills") ? "playbook" : tab;

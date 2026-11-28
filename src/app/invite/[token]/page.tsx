@@ -34,9 +34,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectNative } from "@/components/ui/select-native";
 import {
+  formatMemberRoles,
   INVITE_TYPE_LABELS,
   MEMBER_ROLE_DESCRIPTIONS,
-  MEMBER_ROLE_LABELS,
   type HandballPosition,
   type MemberRole,
   type ThrowingHand,
@@ -73,6 +73,7 @@ interface ClaimedMemberProfile {
 interface ClaimedContext {
   teamId: string;
   role: MemberRole;
+  roles?: MemberRole[];
   memberId?: string;
   childMemberId?: string;
   childEmergencyContact?: string | null;
@@ -191,6 +192,9 @@ function InviteClaimContent() {
         setClaimed({
           teamId: data.teamId,
           role: (data.role ?? preview?.role ?? "PLAYER") as MemberRole,
+          roles: Array.isArray(data.roles)
+            ? (data.roles as MemberRole[])
+            : preview?.roles,
           memberId: data.memberId,
           childMemberId: data.childMemberId,
           childEmergencyContact: data.childEmergencyContact ?? null,
@@ -470,7 +474,11 @@ function InviteClaimContent() {
                           {INVITE_TYPE_LABELS[preview.type]}
                         </Badge>
                         <Badge variant="outline">
-                          {MEMBER_ROLE_LABELS[preview.role]}
+                          {formatMemberRoles(
+                            preview.roles?.length
+                              ? preview.roles
+                              : [preview.role]
+                          )}
                         </Badge>
                       </div>
                       <div className="flex items-center gap-3">
@@ -492,7 +500,9 @@ function InviteClaimContent() {
                         </div>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {MEMBER_ROLE_DESCRIPTIONS[preview.role]}
+                        {(preview.roles?.length ? preview.roles : [preview.role])
+                          .map((r) => MEMBER_ROLE_DESCRIPTIONS[r])
+                          .join(" ")}
                       </p>
                       {preview.targetMemberFirstName && (
                         <div className="rounded-lg bg-primary/10 px-3 py-2 text-sm font-medium text-foreground">
@@ -954,6 +964,7 @@ function InviteClaimContent() {
                   initial={{
                     teamId: claimed.teamId,
                     role: claimed.role,
+                    roles: claimed.roles,
                     firstName:
                       claimed.memberProfile?.firstName ?? initialFirst,
                     lastName:

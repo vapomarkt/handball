@@ -24,8 +24,11 @@ import {
 import { Label } from "@/components/ui/label";
 import { SelectNative } from "@/components/ui/select-native";
 import {
+  formatMemberRoles,
+  getPrimaryMemberRole,
   INVITE_TYPE_LABELS,
   MEMBER_ROLE_LABELS,
+  MEMBER_ROLE_ORDER,
   type InviteType,
   type MemberRole,
 } from "@/domain/schemas/handball";
@@ -36,6 +39,15 @@ import {
   formatShortCode,
   formatTeamClubLabel,
 } from "@/domain/services/invite-service";
+
+const INVITABLE_TEAM_ROLES: MemberRole[] = [
+  "PLAYER",
+  "TREASURER",
+  "TEAM_MANAGER",
+  "ASSISTANT_COACH",
+  "COACH",
+  "HELPER",
+];
 
 interface InviteDialogProps {
   open: boolean;
@@ -74,13 +86,25 @@ export function InviteDialog({
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const [typeOverride, setTypeOverride] = useState<InviteType | null>(null);
-  const [role, setRole] = useState<MemberRole>("PLAYER");
+  const [selectedRoles, setSelectedRoles] = useState<MemberRole[]>(["PLAYER"]);
   const [targetOverride, setTargetOverride] = useState<string | null>(null);
 
   const type = typeOverride ?? initialType;
   const targetMemberId = targetOverride ?? initialTargetMemberId ?? "";
   const setType = (next: InviteType) => setTypeOverride(next);
   const setTargetMemberId = (next: string) => setTargetOverride(next);
+
+  function toggleInviteRole(r: MemberRole) {
+    setSelectedRoles((prev) => {
+      if (prev.includes(r)) {
+        if (prev.length <= 1) return prev;
+        return prev.filter((item) => item !== r);
+      }
+      return MEMBER_ROLE_ORDER.filter(
+        (candidate) => candidate === r || prev.includes(candidate)
+      );
+    });
+  }
 
   // QR-Code-Vorschau-State
   const [qrInvite, setQrInvite] = useState<TeamInviteDTO | null>(null);
@@ -164,6 +188,7 @@ export function InviteDialog({
     return buildInviteShareText({
       type: invite.type,
       role: invite.role,
+      roles: invite.roles,
       inviteUrl: getInviteUrl(invite.token),
       shortCode: invite.shortCode,
       targetMemberName: invite.targetMemberName,
@@ -181,6 +206,8 @@ export function InviteDialog({
     setError(null);
     setCreating(true);
     try {
+      const rolesToSend: MemberRole[] =
+        type === "GUARDIAN_LINK" ? ["PARENT"] : selectedRoles;
       const res = await fetch(
         `/api/v1/teams/${encodeURIComponent(teamId)}/invites`,
         {
@@ -188,7 +215,8 @@ export function InviteDialog({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type,
-            role: type === "GUARDIAN_LINK" ? "PARENT" : role,
+            role: getPrimaryMemberRole(rolesToSend),
+            roles: rolesToSend,
             targetMemberId:
               type === "TEAM_JOIN" ? null : targetMemberId || null,
             expiresInDays: 14,
@@ -272,57 +300,70 @@ export function InviteDialog({
               </div>
             )}
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="inv-type">Einladungstyp</Label>
-                <SelectNative
-                  id="inv-type"
-                  value={type}
-                  onChange={(e) => setType(e.target.value as InviteType)}
-                >
-                  <option value="TEAM_JOIN">Team-Einladung (Link &amp; Code)</option>
-                  <option value="PROFILE_CLAIM">
-                    Persönlicher Profil-Claim
-                  </option>
-                  <option value="GUARDIAN_LINK">Eltern-Kind-Verknüpfung</option>
-                </SelectNative>
-              </div>
-
-              {type === "TEAM_JOIN" ? (
+            <div className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="inv-role">Rolle</Label>
+                  <Label htmlFor="inv-type">Einladungstyp</Label>
                   <SelectNative
-                    id="inv-role"
-                    value={role}
-                    onChange={(e) => setRole(e.target.value as MemberRole)}
+                    id="inv-type"
+                    value={type}
+                    onChange={(e) => setType(e.target.value as InviteType)}
                   >
-                    <option value="PLAYER">Spieler</option>
-                    <option value="TEAM_MANAGER">Betreuer</option>
-                    <option value="ASSISTANT_COACH">Co-Trainer</option>
-                    <option value="COACH">Trainer</option>
-                    <option value="HELPER">Vereinshelfer</option>
+                    <option value="TEAM_JOIN">Team-Einladung (Link &amp; Code)</option>
+                    <option value="PROFILE_CLAIM">
+                      Persönlicher Profil-Claim
+                    </option>
+                    <option value="GUARDIAN_LINK">Eltern-Kind-Verknüpfung</option>
                   </SelectNative>
                 </div>
-              ) : (
+
+                {type !== "TEAM_JOIN" && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="inv-target">Kader-Profil auswählen *</Label>
+                    <SelectNative
+                      id="inv-target"
+                      required
+                      value={targetMemberId}
+                      onChange={(e) => setTargetMemberId(e.target.value)}
+                    >
+                      <option value="">Bitte wählen…</option>
+                      {(type === "PROFILE_CLAIM"
+                        ? unclaimedMembers
+                        : members
+                      ).map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.jerseyNumber ? `#${m.jerseyNumber} ` : ""}
+                          {m.firstName} {m.lastName}
+                        </option>
+                      ))}
+                    </SelectNative>
+                  </div>
+                )}
+              </div>
+
+              {type === "TEAM_JOIN" && (
                 <div className="space-y-1.5">
-                  <Label htmlFor="inv-target">Kader-Profil auswählen *</Label>
-                  <SelectNative
-                    id="inv-target"
-                    required
-                    value={targetMemberId}
-                    onChange={(e) => setTargetMemberId(e.target.value)}
-                  >
-                    <option value="">Bitte wählen…</option>
-                    {(type === "PROFILE_CLAIM"
-                      ? unclaimedMembers
-                      : members
-                    ).map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.jerseyNumber ? `#${m.jerseyNumber} ` : ""}
-                        {m.firstName} {m.lastName}
-                      </option>
-                    ))}
-                  </SelectNative>
+                  <Label>Rollen (mehrere kombinierbar)</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {INVITABLE_TEAM_ROLES.map((r) => {
+                      const active = selectedRoles.includes(r);
+                      return (
+                        <button
+                          key={r}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => toggleInviteRole(r)}
+                          className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer ${
+                            active
+                              ? "border-primary bg-primary/15 text-primary"
+                              : "border-border bg-background text-muted-foreground hover:bg-muted"
+                          }`}
+                        >
+                          {MEMBER_ROLE_LABELS[r]}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
@@ -367,7 +408,9 @@ export function InviteDialog({
                           {INVITE_TYPE_LABELS[inv.type]}
                         </Badge>
                         <Badge variant="outline">
-                          {MEMBER_ROLE_LABELS[inv.role]}
+                          {formatMemberRoles(
+                            inv.roles?.length ? inv.roles : [inv.role]
+                          )}
                         </Badge>
                         {inv.targetMemberName && (
                           <span className="text-xs font-semibold text-foreground">
@@ -506,7 +549,9 @@ export function InviteDialog({
 
               <div className="flex flex-wrap items-center justify-center gap-1.5">
                 <Badge variant="secondary">
-                  {MEMBER_ROLE_LABELS[qrInvite.role]}
+                  {formatMemberRoles(
+                    qrInvite.roles?.length ? qrInvite.roles : [qrInvite.role]
+                  )}
                 </Badge>
                 {qrInvite.targetMemberName && (
                   <Badge variant="outline">{qrInvite.targetMemberName}</Badge>

@@ -1,6 +1,6 @@
 import type { Metadata, ResolvingMetadata } from "next";
 import { BRANDING } from "@/config/branding";
-import { MEMBER_ROLE_LABELS } from "@/domain/schemas/handball";
+import { formatMemberRoles } from "@/domain/schemas/handball";
 import { formatTeamClubLabel } from "@/domain/services/invite-service";
 import { services } from "@/infrastructure/services/container";
 
@@ -30,7 +30,10 @@ export async function generateMetadata(
       };
     }
     const teamClub = formatTeamClubLabel(preview.teamName, preview.clubName);
-    const roleLabel = MEMBER_ROLE_LABELS[preview.role];
+    const roleLabel = formatMemberRoles(
+      preview.roles?.length ? preview.roles : [preview.role],
+      " / "
+    );
     const title = teamClub ? `Einladung: ${teamClub}` : "Team-Einladung";
     // DSGVO: Keine personenbezogenen Daten (wie targetMemberFirstName) in
     // öffentlichen Open-Graph-Vorschauen von Messengern ausgeben.

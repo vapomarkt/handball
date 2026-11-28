@@ -35,6 +35,7 @@ import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  formatMemberRoles,
   MEMBER_ROLE_DESCRIPTIONS,
   MEMBER_ROLE_LABELS,
 } from "@/domain/schemas/handball";
@@ -133,8 +134,12 @@ export default function ProfilePage() {
     (g) => g.teamId === activeTeam.teamId
   );
 
+  const myRoles = myMembership?.roles?.length
+    ? myMembership.roles
+    : activeTeam.roles;
+
   const completeness = calculateProfileCompleteness(
-    myMembership?.role ?? activeTeam.role,
+    myRoles,
     myMembership
       ? {
           firstName: myMembership.firstName,
@@ -313,7 +318,7 @@ export default function ProfilePage() {
           <>
             <span className="break-all">{me.user.email}</span> ·{" "}
             <strong className="text-foreground">
-              {MEMBER_ROLE_LABELS[activeTeam.role]}
+              {formatMemberRoles(activeTeam.roles)}
             </strong>{" "}
             ({activeTeam.teamName})
           </>
@@ -350,7 +355,9 @@ export default function ProfilePage() {
         <CardHeader>
           <CardTitle className="text-lg">Persönliche Daten</CardTitle>
           <CardDescription>
-            {MEMBER_ROLE_DESCRIPTIONS[activeTeam.role]}
+            {activeTeam.roles
+              .map((r) => MEMBER_ROLE_DESCRIPTIONS[r])
+              .join(" ")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -366,6 +373,7 @@ export default function ProfilePage() {
             initial={{
               teamId: activeTeam.teamId,
               role: myMembership?.role ?? activeTeam.role,
+              roles: myRoles,
               firstName: fallbackFirst,
               lastName: fallbackLast,
               phone: myMembership?.phone ?? null,

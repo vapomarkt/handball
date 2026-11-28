@@ -38,8 +38,11 @@ export function ProfileCompletionBanner() {
     (g) => g.teamId === activeTeam.teamId
   );
 
+  const myRoles =
+    myMembership.roles?.length ? myMembership.roles : [myMembership.role];
+
   const completeness = calculateProfileCompleteness(
-    myMembership.role,
+    myRoles,
     {
       firstName: myMembership.firstName,
       lastName: myMembership.lastName,
@@ -120,6 +123,7 @@ export function ProfileCompletionBanner() {
             initial={{
               teamId: activeTeam.teamId,
               role: myMembership.role,
+              roles: myRoles,
               firstName: myMembership.firstName,
               lastName: myMembership.lastName,
               phone: myMembership.phone,

@@ -39,8 +39,10 @@ import type { WorkDutyDTO } from "@/domain/schemas/duty";
 import type { EventDTO } from "@/domain/schemas/event";
 import {
   AVAILABILITY_STATUS_LABELS,
+  formatMemberRoles,
   HANDBALL_POSITION_LABELS,
-  MEMBER_ROLE_LABELS,
+  hasMemberRole,
+  isStaffMember,
   type RsvpStatus,
 } from "@/domain/schemas/handball";
 import type { TeamMemberResponseDTO } from "@/domain/schemas/member";
@@ -120,7 +122,7 @@ export default function DashboardPage() {
     if (!me || !activeTeam) return [];
     const targets: Array<{ memberId: string; label?: string }> = [];
     const own = me.memberships.find(
-      (m) => m.team.id === activeTeam.teamId && m.role === "PLAYER"
+      (m) => m.team.id === activeTeam.teamId && hasMemberRole(m, "PLAYER")
     );
     if (own) targets.push({ memberId: own.memberId });
     for (const g of me.guardianLinks.filter(
@@ -153,14 +155,9 @@ export default function DashboardPage() {
     return null;
   }
 
-  const isStaff =
-    activeTeam.isClubAdmin ||
-    activeTeam.role === "CLUB_ADMIN" ||
-    activeTeam.role === "COACH" ||
-    activeTeam.role === "ASSISTANT_COACH" ||
-    activeTeam.role === "TEAM_MANAGER";
+  const isStaff = isStaffMember(activeTeam);
 
-  const players = members.filter((m) => m.role === "PLAYER");
+  const players = members.filter((m) => hasMemberRole(m, "PLAYER"));
   const fitCount = players.filter((m) => m.availabilityStatus === "FIT").length;
   const injuredCount = players.filter(
     (m) => m.availabilityStatus === "INJURED"
@@ -219,7 +216,7 @@ export default function DashboardPage() {
           <>
             {activeTeam.clubName} ·{" "}
             <span className="font-medium text-foreground">{me.user.name}</span>{" "}
-            ({MEMBER_ROLE_LABELS[activeTeam.role]})
+            ({formatMemberRoles(activeTeam.roles)})
             {activeTeam.leagueName ? ` · ${activeTeam.leagueName}` : ""}
           </>
         }
@@ -560,7 +557,7 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {myMembership && activeTeam.role === "PLAYER" && (
+      {myMembership && hasMemberRole(activeTeam, "PLAYER") && (
         <Card interactive>
           <CardContent className="p-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">

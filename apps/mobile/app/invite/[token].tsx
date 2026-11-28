@@ -1,8 +1,8 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
+  formatMemberRoles,
   INVITE_TYPE_LABELS,
   MEMBER_ROLE_DESCRIPTIONS,
-  MEMBER_ROLE_LABELS,
 } from "@throwoff/shared";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
@@ -107,8 +107,13 @@ export default function InviteScreen() {
   if (!preview.data) return <ErrorState error={preview.error} />;
 
   const invite = preview.data.invite;
-  const roleLabel = MEMBER_ROLE_LABELS[invite.role] ?? invite.role;
-  const roleDescription = MEMBER_ROLE_DESCRIPTIONS[invite.role];
+  const inviteRoles =
+    invite.roles && invite.roles.length > 0 ? invite.roles : [invite.role];
+  const roleLabel = formatMemberRoles(inviteRoles);
+  const roleDescription = inviteRoles
+    .map((r) => MEMBER_ROLE_DESCRIPTIONS[r])
+    .filter(Boolean)
+    .join(" ");
   const typeLabel = INVITE_TYPE_LABELS[invite.type] ?? invite.type;
 
   return (
@@ -123,7 +128,7 @@ export default function InviteScreen() {
             {invite.clubName} · {invite.teamName}
           </Title>
           <Muted>
-            Saison {invite.seasonName} · Rolle: {roleLabel}
+            Saison {invite.seasonName} · {inviteRoles.length > 1 ? "Rollen" : "Rolle"}: {roleLabel}
           </Muted>
           {roleDescription ? <Body>{roleDescription}</Body> : null}
           {invite.targetMemberFirstName ? (

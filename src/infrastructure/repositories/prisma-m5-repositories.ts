@@ -408,11 +408,9 @@ export class PrismaCashboxRepository implements CashboxRepository {
   ): Promise<boolean> {
     const member = await prisma.teamMember.findFirst({
       where: { userId, teamId },
-      select: { teamRoles: true },
+      select: { role: true, roles: true },
     });
     if (!member) return false;
-    return member.teamRoles.some(
-      (r) => r.trim().toLowerCase() === "kassenwart"
-    );
+    return member.role === "TREASURER" || member.roles.includes("TREASURER");
   }
 }

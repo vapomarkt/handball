@@ -145,6 +145,7 @@ export interface InviteRepository {
     shortCode?: string | null;
     type: InviteType;
     role: MemberRole;
+    roles?: MemberRole[];
     targetMemberId: string | null;
     createdByUserId: string;
     maxUses: number | null;

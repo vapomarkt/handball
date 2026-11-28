@@ -6,6 +6,11 @@ export const CreateTeamInviteSchema = z
   .object({
     type: InviteTypeSchema,
     role: MemberRoleSchema.default("PLAYER"),
+    roles: z
+      .array(MemberRoleSchema)
+      .min(1, "Mindestens eine Rolle erforderlich.")
+      .max(8)
+      .optional(),
     targetMemberId: z.string().min(1).optional().nullable(),
     maxUses: z.number().int().min(1).max(200).optional().nullable(),
     expiresInDays: z.number().int().min(1).max(90).default(14),
@@ -55,6 +60,7 @@ export interface TeamInviteEntity {
   shortCode: string | null;
   type: InviteType;
   role: MemberRole;
+  roles?: MemberRole[];
   targetMemberId: string | null;
   createdByUserId: string;
   maxUses: number | null;
@@ -72,6 +78,7 @@ export interface TeamInviteDTO {
   shortCode: string | null;
   type: InviteType;
   role: MemberRole;
+  roles: MemberRole[];
   targetMemberId: string | null;
   targetMemberName?: string | null;
   maxUses: number | null;
@@ -86,6 +93,7 @@ export interface InvitePreviewDTO {
   shortCode: string | null;
   type: InviteType;
   role: MemberRole;
+  roles: MemberRole[];
   clubName: string;
   clubLogoUrl?: string | null;
   teamName: string;

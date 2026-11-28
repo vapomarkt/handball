@@ -242,10 +242,36 @@ export const ROLE_TOUR_STEPS: Record<MemberRole, TourStepDefinition[]> = {
     {
       id: "manager-dienste",
       targetId: "nav-dienste",
-      title: "Dienste & Mannschaftskasse",
+      title: "Dienste & Organisation",
       description:
-        "Organisiere Zeitnehmer, Trikotwäsche und behalte die Mannschaftskasse im Blick.",
+        "Organisiere Zeitnehmer, Trikotwäsche und Spieltagsdienste zuverlässig im Team.",
       routeHint: "/dienste",
+    },
+  ],
+  TREASURER: [
+    {
+      id: "treasurer-kasse",
+      targetId: "nav-kasse",
+      title: "Deine Mannschaftskasse",
+      description:
+        "Trage Strafen, Einzahlungen und Ausgaben ein, markiere bezahlte Posten und pflege den Strafenkatalog.",
+      routeHint: "/kasse",
+    },
+    {
+      id: "treasurer-dashboard",
+      targetId: "nav-dashboard",
+      title: "Überblick & nächste Termine",
+      description:
+        "Auf der Startseite siehst du jederzeit anstehende Spiele, Trainings und wichtige Team-Infos.",
+      routeHint: "/dashboard",
+    },
+    {
+      id: "treasurer-profil",
+      targetId: "nav-profil",
+      title: "Dein Profil & schneller Login",
+      description:
+        "Pflege deine Kontaktdaten oder aktiviere Face ID / Fingerabdruck für den schnellen Zugriff.",
+      routeHint: "/profil",
     },
   ],
   PLAYER: [

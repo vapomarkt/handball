@@ -8,6 +8,7 @@ import { SeasonCatalogRepository } from "../adapters/season-catalog-repository";
 import { DomainError } from "../errors";
 import { ViewerContext } from "../policies/rbac";
 import { OnboardingInput, OnboardingSchema } from "../schemas/club";
+import { normalizeMemberRoles } from "../schemas/handball";
 import { TeamLeagueLinkResultDTO } from "../schemas/league-directory";
 import { resolveTeamUsesResin } from "../data/german-leagues";
 import { LeagueDirectoryService } from "./league-directory-service";
@@ -158,11 +159,16 @@ export class OnboardingService {
     // Personalunion möglich: Trainer (COACH) kann zusätzlich Vereins-Admin (isClubAdmin) sein
     const creatorIsClubAdmin =
       input.creatorRole === "CLUB_ADMIN" || Boolean(input.creatorIsClubAdmin);
+    const creatorRoles = normalizeMemberRoles({
+      role: input.creatorRole,
+      isClubAdmin: creatorIsClubAdmin,
+    });
 
     const member = await this.members.create(club.id, team.id, {
       firstName: input.creatorFirstName,
       lastName: input.creatorLastName,
       role: input.creatorRole,
+      roles: creatorRoles,
       isClubAdmin: creatorIsClubAdmin,
       availabilityStatus: "FIT",
       teamRoles: [],

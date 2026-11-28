@@ -7,6 +7,11 @@ import {
 import { DomainError } from "../errors";
 import { canManageGuardians, ViewerContext } from "../policies/rbac";
 import {
+  getEffectiveRoles,
+  hasMemberRole,
+  normalizeMemberRoles,
+} from "../schemas/handball";
+import {
   CreateGuardianLinkSchema,
   GuardianLinkDTO,
 } from "../schemas/invite";
@@ -81,7 +86,7 @@ export class GuardianService {
       );
     }
 
-    // Sicherstellen, dass das Elternteil eine PARENT-Mitgliedschaft im Team hat
+    // Sicherstellen, dass das Elternteil eine PARENT-Rolle im Team hat
     const existingMember = await this.members.findByTeamAndUser(
       team.id,
       guardianUser.id
@@ -92,6 +97,7 @@ export class GuardianService {
         firstName: parts[0] ?? "Elternteil",
         lastName: parts.slice(1).join(" ") || "Eltern",
         role: "PARENT",
+        roles: ["PARENT"],
         userId: guardianUser.id,
         email: guardianUser.email,
         availabilityStatus: "FIT",
@@ -105,6 +111,14 @@ export class GuardianService {
         injuryNote: null,
         emergencyContact: null,
         phone: null,
+      });
+    } else if (!hasMemberRole(existingMember, "PARENT")) {
+      const nextRoles = normalizeMemberRoles({
+        roles: [...getEffectiveRoles(existingMember), "PARENT"],
+      });
+      await this.members.update(existingMember.id, {
+        roles: nextRoles,
+        phone: undefined,
       });
     }
 

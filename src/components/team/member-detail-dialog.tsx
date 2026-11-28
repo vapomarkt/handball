@@ -20,8 +20,9 @@ import {
 } from "@/components/ui/dialog";
 import {
   AVAILABILITY_STATUS_LABELS,
+  formatMemberRoles,
+  getEffectiveRoles,
   HANDBALL_POSITION_LABELS,
-  MEMBER_ROLE_LABELS,
   THROWING_HAND_LABELS,
   type InviteType,
 } from "@/domain/schemas/handball";
@@ -86,10 +87,7 @@ export function MemberDetailDialog({
                 {member.firstName} {member.lastName}
               </DialogTitle>
               <DialogDescription>
-                {MEMBER_ROLE_LABELS[member.role]}
-                {member.isClubAdmin && member.role !== "CLUB_ADMIN"
-                  ? " · Vereins-Admin"
-                  : ""}
+                {formatMemberRoles(getEffectiveRoles(member))}
                 {isLinkedChild ? " · Dein Kind" : ""}
               </DialogDescription>
             </div>

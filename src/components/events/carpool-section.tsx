@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectNative } from "@/components/ui/select-native";
 import type { CarpoolDTO } from "@/domain/schemas/carpool";
+import { getEffectiveRoles } from "@/domain/schemas/handball";
 
 interface CarpoolSectionProps {
   teamId: string;
@@ -38,8 +39,10 @@ export function CarpoolSection({
   const linkedChildrenInTeam =
     me?.guardianLinks.filter((g) => g.teamId === teamId) ?? [];
 
+  const myRoles = getEffectiveRoles(myTeamMember);
+  const isOnlyParent = myRoles.length === 1 && myRoles[0] === "PARENT";
   const bookableTargets: Array<{ memberId: string; label: string }> = [];
-  if (myTeamMember && myTeamMember.role !== "PARENT") {
+  if (myTeamMember && !isOnlyParent) {
     bookableTargets.push({
       memberId: myTeamMember.memberId,
       label: `${myTeamMember.firstName} ${myTeamMember.lastName} (Ich)`,

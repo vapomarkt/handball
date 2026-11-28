@@ -107,6 +107,7 @@ async function upsertTeamMember(params: {
   teamId: string;
   userId?: string | null;
   role: MemberRole;
+  roles?: MemberRole[];
   isClubAdmin?: boolean;
   firstName: string;
   lastName: string;
@@ -123,13 +124,20 @@ async function upsertTeamMember(params: {
   injuryNote?: string | null;
   emergencyContact?: string | null;
 }) {
-  const isClubAdmin =
-    params.isClubAdmin ?? params.role === MemberRole.CLUB_ADMIN;
+  const rolesSet = new Set<MemberRole>(
+    params.roles && params.roles.length > 0 ? params.roles : [params.role]
+  );
+  if (params.isClubAdmin) {
+    rolesSet.add(MemberRole.CLUB_ADMIN);
+  }
+  const roles = Array.from(rolesSet);
+  const isClubAdmin = roles.includes(MemberRole.CLUB_ADMIN);
   return prisma.teamMember.upsert({
     where: { id: params.id },
     update: {
       userId: params.userId ?? null,
       role: params.role,
+      roles,
       isClubAdmin,
       firstName: params.firstName,
       lastName: params.lastName,
@@ -152,6 +160,7 @@ async function upsertTeamMember(params: {
       teamId: params.teamId,
       userId: params.userId ?? null,
       role: params.role,
+      roles,
       isClubAdmin,
       firstName: params.firstName,
       lastName: params.lastName,
@@ -424,11 +433,12 @@ async function main() {
     teamId: mjdTeam.id,
     userId: managerUser.id,
     role: MemberRole.TEAM_MANAGER,
+    roles: [MemberRole.TEAM_MANAGER, MemberRole.TREASURER],
     firstName: "Petra",
     lastName: "Brandt",
     email: managerUser.email,
     phone: "+491705550199",
-    teamRoles: ["Mannschaftsbetreuerin", "Kassenwart"],
+    teamRoles: ["Mannschaftsbetreuerin"],
   });
 
   await upsertTeamMember({

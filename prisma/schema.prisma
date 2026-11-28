@@ -15,6 +15,7 @@ enum MemberRole {
   COACH
   ASSISTANT_COACH
   TEAM_MANAGER
+  TREASURER
   PLAYER
   PARENT
   HELPER
@@ -448,6 +449,7 @@ model TeamMember {
   userId             String?
   user               User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
   role               MemberRole         @default(PLAYER)
+  roles              MemberRole[]       @default([PLAYER])
   isClubAdmin        Boolean            @default(false)
   firstName          String
   lastName           String
@@ -508,7 +510,8 @@ model TeamInvite {
   token           String      @unique
   shortCode       String?     @unique
   type            InviteType
-  role            MemberRole  @default(PLAYER)
+  role            MemberRole   @default(PLAYER)
+  roles           MemberRole[] @default([])
   targetMemberId  String?
   targetMember    TeamMember? @relation("TargetMember", fields: [targetMemberId], references: [id], onDelete: Cascade)
   createdByUserId String

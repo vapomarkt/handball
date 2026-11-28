@@ -395,6 +395,7 @@ export class ClubService {
         firstName,
         lastName,
         role: "COACH",
+        roles: ["COACH"],
         availabilityStatus: "FIT",
         teamRoles: [],
         isMinor: false,

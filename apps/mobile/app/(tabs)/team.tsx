@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { MEMBER_ROLE_LABELS } from "@throwoff/shared";
+import { formatMemberRoles, getEffectiveRoles } from "@throwoff/shared";
 import React from "react";
 import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { EmptyState, ErrorState, Loading, Muted, Screen } from "../../src/components/ui";
@@ -41,34 +41,39 @@ export default function TeamScreen() {
           <RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} tintColor={colors.primary} />
         }
         ListEmptyComponent={<EmptyState text="Noch keine Kadermitglieder." />}
-        renderItem={({ item }) => (
-          <View style={styles.row}>
-            <Text style={styles.number}>{item.jerseyNumber ?? "–"}</Text>
-            <View style={styles.flex}>
-              <Text style={styles.name}>
-                {item.firstName} {item.lastName}
-              </Text>
-              <Muted>
-                {[
-                  item.role !== "PLAYER"
-                    ? (MEMBER_ROLE_LABELS[item.role] ?? item.role)
-                    : null,
-                  item.primaryPosition,
-                ]
-                  .filter(Boolean)
-                  .join(" · ") || "Spieler"}
-              </Muted>
+        renderItem={({ item }) => {
+          const specialRoles = getEffectiveRoles(item).filter(
+            (r) => r !== "PLAYER"
+          );
+          return (
+            <View style={styles.row}>
+              <Text style={styles.number}>{item.jerseyNumber ?? "–"}</Text>
+              <View style={styles.flex}>
+                <Text style={styles.name}>
+                  {item.firstName} {item.lastName}
+                </Text>
+                <Muted>
+                  {[
+                    specialRoles.length > 0
+                      ? formatMemberRoles(specialRoles)
+                      : null,
+                    item.primaryPosition,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || "Spieler"}
+                </Muted>
+              </View>
+              {item.availabilityStatus !== "FIT" ? (
+                <View
+                  style={[
+                    styles.dot,
+                    { backgroundColor: AVAILABILITY_COLOR[item.availabilityStatus] },
+                  ]}
+                />
+              ) : null}
             </View>
-            {item.availabilityStatus !== "FIT" ? (
-              <View
-                style={[
-                  styles.dot,
-                  { backgroundColor: AVAILABILITY_COLOR[item.availabilityStatus] },
-                ]}
-              />
-            ) : null}
-          </View>
-        )}
+          );
+        }}
       />
     </Screen>
   );

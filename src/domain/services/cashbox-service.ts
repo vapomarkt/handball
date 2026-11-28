@@ -2,7 +2,7 @@ import type { CashboxRepository } from "../adapters/m5-repositories";
 import type { TeamRepository } from "../adapters/repositories";
 import { DomainError } from "../errors";
 import {
-  canManageEvents,
+  canManageCashbox,
   canViewTeam,
   type ViewerContext,
 } from "../policies/rbac";
@@ -83,15 +83,6 @@ export class CashboxService {
     private readonly cashbox: CashboxRepository
   ) {}
 
-  private async canManageCashbox(
-    viewer: ViewerContext,
-    teamId: string,
-    clubId: string
-  ): Promise<boolean> {
-    if (canManageEvents(viewer, teamId, clubId)) return true;
-    return this.cashbox.isUserTreasurerInTeam(viewer.userId, teamId);
-  }
-
   async getOverview(
     viewer: ViewerContext,
     teamId: string
@@ -102,11 +93,11 @@ export class CashboxService {
       throw DomainError.forbidden("Kein Zugriff auf die Mannschaftskasse.");
     }
 
-    const [entries, catalog, canManage] = await Promise.all([
+    const [entries, catalog] = await Promise.all([
       this.cashbox.listEntriesByTeam(team.id),
       this.cashbox.listCatalogByTeam(team.id),
-      this.canManageCashbox(viewer, team.id, team.clubId),
     ]);
+    const canManage = canManageCashbox(viewer, team.id);
 
     const viewerMemberIds = [
       ...viewer.memberships
@@ -126,10 +117,9 @@ export class CashboxService {
   ): Promise<TeamCashEntryDTO> {
     const team = await this.teams.findById(teamId);
     if (!team) throw DomainError.notFound("Mannschaft nicht gefunden.");
-    const allowed = await this.canManageCashbox(viewer, team.id, team.clubId);
-    if (!allowed) {
+    if (!canManageCashbox(viewer, team.id)) {
       throw DomainError.forbidden(
-        "Nur Trainer, Vereins-Admins oder der Kassenwart dürfen Buchungen anlegen."
+        "Nur Mitglieder mit der Rolle Kassenwart dürfen Buchungen anlegen."
       );
     }
 
@@ -160,14 +150,9 @@ export class CashboxService {
     if (!existing || existing.teamId !== teamId) {
       throw DomainError.notFound("Kassenbuchung nicht gefunden.");
     }
-    const allowed = await this.canManageCashbox(
-      viewer,
-      existing.teamId,
-      existing.clubId
-    );
-    if (!allowed) {
+    if (!canManageCashbox(viewer, existing.teamId)) {
       throw DomainError.forbidden(
-        "Nur Trainer, Vereins-Admins oder der Kassenwart dürfen den Zahlungsstatus ändern."
+        "Nur Mitglieder mit der Rolle Kassenwart dürfen den Zahlungsstatus ändern."
       );
     }
 
@@ -191,13 +176,10 @@ export class CashboxService {
     if (!existing || existing.teamId !== teamId) {
       throw DomainError.notFound("Kassenbuchung nicht gefunden.");
     }
-    const allowed = await this.canManageCashbox(
-      viewer,
-      existing.teamId,
-      existing.clubId
-    );
-    if (!allowed) {
-      throw DomainError.forbidden("Keine Berechtigung zum Löschen.");
+    if (!canManageCashbox(viewer, existing.teamId)) {
+      throw DomainError.forbidden(
+        "Nur Mitglieder mit der Rolle Kassenwart dürfen Kassenbuchungen löschen."
+      );
     }
     await this.cashbox.deleteEntry(entryId);
   }
@@ -209,10 +191,9 @@ export class CashboxService {
   ): Promise<FineCatalogItemDTO> {
     const team = await this.teams.findById(teamId);
     if (!team) throw DomainError.notFound("Mannschaft nicht gefunden.");
-    const allowed = await this.canManageCashbox(viewer, team.id, team.clubId);
-    if (!allowed) {
+    if (!canManageCashbox(viewer, team.id)) {
       throw DomainError.forbidden(
-        "Nur Trainer, Vereins-Admins oder der Kassenwart dürfen den Strafenkatalog bearbeiten."
+        "Nur Mitglieder mit der Rolle Kassenwart dürfen den Strafenkatalog bearbeiten."
       );
     }
 
@@ -234,9 +215,10 @@ export class CashboxService {
   ): Promise<void> {
     const team = await this.teams.findById(teamId);
     if (!team) throw DomainError.notFound("Mannschaft nicht gefunden.");
-    const allowed = await this.canManageCashbox(viewer, team.id, team.clubId);
-    if (!allowed) {
-      throw DomainError.forbidden("Keine Berechtigung zum Löschen.");
+    if (!canManageCashbox(viewer, team.id)) {
+      throw DomainError.forbidden(
+        "Nur Mitglieder mit der Rolle Kassenwart dürfen Einträge im Strafenkatalog löschen."
+      );
     }
     const deleted = await this.cashbox.deleteCatalogItem(itemId, team.id);
     if (!deleted) {

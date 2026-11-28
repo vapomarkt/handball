@@ -1,8 +1,10 @@
-import type {
-  AvailabilityStatus,
-  HandballPosition,
-  MemberRole,
-  ThrowingHand,
+import {
+  getPrimaryMemberRole,
+  normalizeMemberRoles,
+  type AvailabilityStatus,
+  type HandballPosition,
+  type MemberRole,
+  type ThrowingHand,
 } from "../../../../src/domain/schemas/handball";
 import type { GuardianLinkDTO } from "../../../../src/domain/schemas/invite";
 import type { LeagueAgeGroup } from "../../../../src/domain/schemas/league-catalog";
@@ -34,6 +36,7 @@ export interface TeamSummaryDTO {
 export interface MeMembershipDTO {
   memberId: string;
   role: MemberRole;
+  roles?: MemberRole[];
   isClubAdmin?: boolean;
   firstName: string;
   lastName: string;
@@ -80,6 +83,7 @@ export interface SelectableTeamDTO {
   clubName: string;
   clubLogoUrl: string | null;
   role: MemberRole;
+  roles: MemberRole[];
   isClubAdmin: boolean;
 }
 
@@ -87,11 +91,23 @@ export function deriveSelectableTeams(me: MePayloadDTO): SelectableTeamDTO[] {
   const byTeamId = new Map<string, SelectableTeamDTO>();
   const adminClubIds = new Set(
     me.memberships
-      .filter((m) => m.role === "CLUB_ADMIN" || Boolean(m.isClubAdmin))
+      .filter((m) =>
+        normalizeMemberRoles({
+          roles: m.roles,
+          role: m.role,
+          isClubAdmin: m.isClubAdmin,
+        }).includes("CLUB_ADMIN")
+      )
       .map((m) => m.club.id)
   );
 
   for (const m of me.memberships) {
+    const isAdmin = adminClubIds.has(m.club.id);
+    const roles = normalizeMemberRoles({
+      roles: m.roles,
+      role: m.role,
+      isClubAdmin: isAdmin || m.isClubAdmin,
+    });
     byTeamId.set(m.team.id, {
       teamId: m.team.id,
       teamName: m.team.name,
@@ -102,8 +118,9 @@ export function deriveSelectableTeams(me: MePayloadDTO): SelectableTeamDTO[] {
       clubId: m.club.id,
       clubName: m.club.name,
       clubLogoUrl: m.club.logoUrl,
-      role: m.role,
-      isClubAdmin: adminClubIds.has(m.club.id),
+      role: getPrimaryMemberRole(roles, m.role),
+      roles,
+      isClubAdmin: isAdmin,
     });
   }
 
@@ -120,6 +137,7 @@ export function deriveSelectableTeams(me: MePayloadDTO): SelectableTeamDTO[] {
         clubName: t.club.name,
         clubLogoUrl: t.club.logoUrl,
         role: "CLUB_ADMIN",
+        roles: ["CLUB_ADMIN"],
         isClubAdmin: true,
       });
     }

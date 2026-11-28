@@ -43,7 +43,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MEMBER_ROLE_LABELS } from "@/domain/schemas/handball";
+import {
+  formatMemberRoles,
+  hasAnyMemberRole,
+  isStaffMember,
+} from "@/domain/schemas/handball";
 import { signOut } from "@/infrastructure/auth/auth-client";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
@@ -93,18 +97,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [createTeamOpen, setCreateTeamOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const isStaff = Boolean(
-    activeTeam &&
-      (activeTeam.isClubAdmin ||
-        activeTeam.role === "CLUB_ADMIN" ||
-        activeTeam.role === "COACH" ||
-        activeTeam.role === "ASSISTANT_COACH" ||
-        activeTeam.role === "TEAM_MANAGER")
-  );
-
-  const canAddTeam = Boolean(
-    activeTeam && (activeTeam.isClubAdmin || activeTeam.role === "COACH")
-  );
+  const isStaff = isStaffMember(activeTeam);
+  const canAddTeam = hasAnyMemberRole(activeTeam, ["CLUB_ADMIN", "COACH"]);
 
   const tacticsLabel = isStaff ? "Taktik & Training" : "Playbook";
   const isMoreActive = MORE_ROUTES.some(
@@ -169,7 +163,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       {activeTeam.teamName}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {activeTeam.clubName} · {MEMBER_ROLE_LABELS[activeTeam.role]}
+                      {activeTeam.clubName} · {formatMemberRoles(activeTeam.roles)}
                     </p>
                   </div>
                   <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -190,7 +184,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           {t.teamName}
                         </p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {t.clubName} · {MEMBER_ROLE_LABELS[t.role]}
+                          {t.clubName} · {formatMemberRoles(t.roles)}
                         </p>
                       </div>
                       {selected && (
@@ -397,7 +391,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         {t.teamName}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">
-                        {t.clubName} · {MEMBER_ROLE_LABELS[t.role]}
+                        {t.clubName} · {formatMemberRoles(t.roles)}
                       </p>
                     </div>
                     {selected && (
@@ -494,7 +488,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <DialogTitle>Weitere Bereiche</DialogTitle>
             {activeTeam && (
               <DialogDescription>
-                {activeTeam.teamName} · {MEMBER_ROLE_LABELS[activeTeam.role]}
+                {activeTeam.teamName} · {formatMemberRoles(activeTeam.roles)}
               </DialogDescription>
             )}
           </DialogHeader>

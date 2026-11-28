@@ -28,6 +28,7 @@ const ALL_ROLES: MemberRole[] = [
   "COACH",
   "ASSISTANT_COACH",
   "TEAM_MANAGER",
+  "TREASURER",
   "PLAYER",
   "PARENT",
   "HELPER",

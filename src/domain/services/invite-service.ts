@@ -7,9 +7,13 @@ import {
 import { DomainError } from "../errors";
 import { canManageInvites, isClubAdmin, ViewerContext } from "../policies/rbac";
 import {
+  formatMemberRoles,
+  getEffectiveRoles,
+  getPrimaryMemberRole,
+  hasMemberRole,
   InviteType,
-  MEMBER_ROLE_LABELS,
   MemberRole,
+  normalizeMemberRoles,
 } from "../schemas/handball";
 import {
   ClaimInviteSchema,
@@ -75,6 +79,7 @@ export function formatTeamClubLabel(
 export interface InviteShareTextParams {
   type: InviteType;
   role: MemberRole;
+  roles?: readonly MemberRole[];
   inviteUrl: string;
   shortCode?: string | null;
   targetMemberName?: string | null;
@@ -90,13 +95,17 @@ export function buildInviteShareText(params: InviteShareTextParams): string {
   const short = params.shortCode ? formatShortCode(params.shortCode) : null;
   const teamClub = formatTeamClubLabel(params.teamName, params.clubName);
   const teamLabel = teamClub ? ` (${teamClub})` : "";
+  const roleLabel = formatMemberRoles(
+    normalizeMemberRoles({ roles: params.roles, role: params.role }),
+    " / "
+  );
 
   const greeting =
     params.type === "GUARDIAN_LINK" && params.targetMemberName
       ? `Hallo! Hier ist euer Eltern-Zugang zu ThrowOff${teamLabel} für ${params.targetMemberName}:`
       : params.type === "PROFILE_CLAIM" && params.targetMemberName
         ? `Hi ${params.targetMemberName.split(" ")[0]}! Hier ist dein persönlicher Link zu ThrowOff${teamLabel}:`
-        : `Hallo! Tritt unserem Team${teamLabel} als ${MEMBER_ROLE_LABELS[params.role]} bei ThrowOff bei:`;
+        : `Hallo! Tritt unserem Team${teamLabel} als ${roleLabel} bei ThrowOff bei:`;
 
   const lines = [
     greeting,
@@ -150,10 +159,15 @@ function validateInviteUsable(
   return { valid: true };
 }
 
+function resolveInviteRoles(invite: Pick<TeamInviteEntity, "role" | "roles">): MemberRole[] {
+  return normalizeMemberRoles({ roles: invite.roles, role: invite.role });
+}
+
 function toInviteDTO(
   invite: TeamInviteEntity,
   targetMemberName?: string | null
 ): TeamInviteDTO {
+  const roles = resolveInviteRoles(invite);
   return {
     id: invite.id,
     clubId: invite.clubId,
@@ -161,7 +175,8 @@ function toInviteDTO(
     token: invite.token,
     shortCode: invite.shortCode ?? null,
     type: invite.type,
-    role: invite.role,
+    role: getPrimaryMemberRole(roles, invite.role),
+    roles,
     targetMemberId: invite.targetMemberId,
     targetMemberName: targetMemberName ?? null,
     maxUses: invite.maxUses,
@@ -237,7 +252,7 @@ export class InviteService {
 
     const input = parsed.data;
     let targetMemberName: string | null = null;
-    let targetMemberRole: TeamInviteEntity["role"] | null = null;
+    let targetMemberRoles: MemberRole[] | null = null;
 
     if (input.targetMemberId) {
       const target = await this.members.findById(input.targetMemberId);
@@ -250,7 +265,7 @@ export class InviteService {
         );
       }
       targetMemberName = `${target.firstName} ${target.lastName}`;
-      targetMemberRole = target.role;
+      targetMemberRoles = getEffectiveRoles(target);
     }
 
     const expiresAt = new Date(
@@ -264,18 +279,26 @@ export class InviteService {
 
     const shortCode = await this.allocateShortCode();
 
-    const effectiveRole =
+    const effectiveRoles: MemberRole[] =
       input.type === "GUARDIAN_LINK"
-        ? "PARENT"
-        : input.type === "PROFILE_CLAIM" && targetMemberRole
-          ? targetMemberRole
-          : input.role;
+        ? ["PARENT"]
+        : input.type === "PROFILE_CLAIM" && targetMemberRoles
+          ? targetMemberRoles
+          : normalizeMemberRoles({ roles: input.roles, role: input.role });
 
-    if (effectiveRole === "CLUB_ADMIN" && !isClubAdmin(viewer, team.clubId)) {
+    if (
+      effectiveRoles.includes("CLUB_ADMIN") &&
+      !isClubAdmin(viewer, team.clubId)
+    ) {
       throw DomainError.forbidden(
         "Nur Vereins-Admins dürfen Einladungen mit der Rolle Vereins-Admin erstellen."
       );
     }
+
+    const effectivePrimaryRole = getPrimaryMemberRole(
+      effectiveRoles,
+      input.roles ? null : input.role
+    );
 
     const invite = await this.invites.create({
       clubId: team.clubId,
@@ -283,7 +306,8 @@ export class InviteService {
       token: generateToken(),
       shortCode,
       type: input.type,
-      role: effectiveRole,
+      role: effectivePrimaryRole,
+      roles: effectiveRoles,
       targetMemberId: input.targetMemberId ?? null,
       createdByUserId: viewer.userId,
       maxUses,
@@ -337,11 +361,14 @@ export class InviteService {
       invalidReason = "Dieses Kader-Profil wurde bereits übernommen.";
     }
 
+    const roles = resolveInviteRoles(found.invite);
+
     return {
       token: found.invite.token,
       shortCode: found.invite.shortCode ?? null,
       type: found.invite.type,
-      role: found.invite.role,
+      role: getPrimaryMemberRole(roles, found.invite.role),
+      roles,
       clubName: found.clubName,
       clubLogoUrl: found.clubLogoUrl ?? null,
       teamName: found.teamName,
@@ -383,6 +410,7 @@ export class InviteService {
     }
 
     const { invite, targetMember } = found;
+    const inviteRoles = resolveInviteRoles(invite);
 
     if (invite.type === "PROFILE_CLAIM") {
       if (!targetMember) {
@@ -408,10 +436,12 @@ export class InviteService {
         targetMember.id,
         viewer.userId
       );
+      const claimedRoles = getEffectiveRoles(claimed);
       await this.invites.incrementUsedCount(invite.id);
       return {
         type: invite.type,
         role: claimed.role,
+        roles: claimedRoles,
         teamId: invite.teamId,
         memberId: claimed.id,
         memberProfile: {
@@ -442,7 +472,7 @@ export class InviteService {
         });
       }
 
-      // Falls das Elternteil noch kein PARENT-Mitglied im Team ist, anlegen
+      // Falls das Elternteil noch kein Mitglied im Team ist, anlegen – sonst PARENT-Rolle ergänzen
       let parentMember = await this.members.findByTeamAndUser(
         invite.teamId,
         viewer.userId
@@ -458,6 +488,7 @@ export class InviteService {
           firstName,
           lastName: lastName || firstName,
           role: "PARENT",
+          roles: ["PARENT"],
           userId: viewer.userId,
           email: viewer.email,
           availabilityStatus: "FIT",
@@ -472,12 +503,21 @@ export class InviteService {
           emergencyContact: parsed.data.emergencyContact ?? null,
           phone: parsed.data.phone ?? null,
         });
+      } else if (!hasMemberRole(parentMember, "PARENT")) {
+        const nextRoles = normalizeMemberRoles({
+          roles: [...getEffectiveRoles(parentMember), "PARENT"],
+        });
+        parentMember = await this.members.update(parentMember.id, {
+          roles: nextRoles,
+          phone: undefined,
+        });
       }
 
       await this.invites.incrementUsedCount(invite.id);
       return {
         type: invite.type,
         role: "PARENT" as const,
+        roles: getEffectiveRoles(parentMember),
         teamId: invite.teamId,
         memberId: parentMember.id,
         childMemberId: targetMember.id,
@@ -513,10 +553,17 @@ export class InviteService {
     const incomingNameKey = normalizePlayerNameKey(`${firstName} ${lastName}`);
     if (incomingNameKey) {
       const roster = await this.members.findByTeamId(invite.teamId);
-      const staffRoles = new Set(["COACH", "ASSISTANT_COACH", "TEAM_MANAGER"]);
-      const isRoleCompatible = (candidateRole: TeamInviteEntity["role"]) => {
-        if (candidateRole === invite.role) return true;
-        if (staffRoles.has(invite.role) && staffRoles.has(candidateRole)) {
+      const staffRoles = new Set<MemberRole>([
+        "COACH",
+        "ASSISTANT_COACH",
+        "TEAM_MANAGER",
+      ]);
+      const isRoleCompatible = (candidateRoles: MemberRole[]) => {
+        if (inviteRoles.some((r) => candidateRoles.includes(r))) return true;
+        if (
+          inviteRoles.some((r) => staffRoles.has(r)) &&
+          candidateRoles.some((r) => staffRoles.has(r))
+        ) {
           return true;
         }
         return false;
@@ -525,7 +572,7 @@ export class InviteService {
       const matchingUnclaimed = roster.filter(
         (m) =>
           m.userId === null &&
-          isRoleCompatible(m.role) &&
+          isRoleCompatible(getEffectiveRoles(m)) &&
           normalizePlayerNameKey(`${m.firstName} ${m.lastName}`) ===
             incomingNameKey
       );
@@ -538,6 +585,9 @@ export class InviteService {
           email?: string;
           phone: string | null | undefined;
           emergencyContact?: string | null;
+          roles?: MemberRole[];
+          role?: MemberRole;
+          isClubAdmin?: boolean;
         } = { phone: undefined };
         if (!claimed.email && viewer.email) {
           patch.email = viewer.email;
@@ -551,6 +601,20 @@ export class InviteService {
           patch.emergencyContact = parsed.data.emergencyContact;
           hasPatch = true;
         }
+        // Zusätzliche Rollen aus der Einladung (z. B. TREASURER) direkt übernehmen
+        const existingClaimedRoles = getEffectiveRoles(claimed);
+        const missingInviteRoles = inviteRoles.filter(
+          (r) => !existingClaimedRoles.includes(r)
+        );
+        if (missingInviteRoles.length > 0) {
+          const mergedRoles = normalizeMemberRoles({
+            roles: [...existingClaimedRoles, ...missingInviteRoles],
+          });
+          patch.roles = mergedRoles;
+          patch.role = getPrimaryMemberRole(mergedRoles, claimed.role);
+          patch.isClubAdmin = mergedRoles.includes("CLUB_ADMIN");
+          hasPatch = true;
+        }
         if (hasPatch) {
           claimed = await this.members.update(claimed.id, patch);
         }
@@ -559,6 +623,7 @@ export class InviteService {
         return {
           type: invite.type,
           role: claimed.role,
+          roles: getEffectiveRoles(claimed),
           teamId: invite.teamId,
           memberId: claimed.id,
           claimedExistingProfile: true,
@@ -575,11 +640,13 @@ export class InviteService {
       }
     }
 
+    const joinedPrimaryRole = getPrimaryMemberRole(inviteRoles, invite.role);
     const joined = await this.members.create(invite.clubId, invite.teamId, {
       firstName,
       lastName,
-      role: invite.role,
-      isClubAdmin: invite.role === "CLUB_ADMIN",
+      role: joinedPrimaryRole,
+      roles: inviteRoles,
+      isClubAdmin: inviteRoles.includes("CLUB_ADMIN"),
       userId: viewer.userId,
       email: viewer.email,
       availabilityStatus: "FIT",
@@ -599,6 +666,7 @@ export class InviteService {
     return {
       type: invite.type,
       role: joined.role,
+      roles: getEffectiveRoles(joined),
       teamId: invite.teamId,
       memberId: joined.id,
       claimedExistingProfile: false,

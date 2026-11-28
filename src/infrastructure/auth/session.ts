@@ -1,6 +1,10 @@
 import { headers } from "next/headers";
 import { DomainError } from "@/domain/errors";
 import { ViewerContext } from "@/domain/policies/rbac";
+import {
+  getPrimaryMemberRole,
+  normalizeMemberRoles,
+} from "@/domain/schemas/handball";
 import { prisma } from "../db/prisma";
 import { auth } from "./auth";
 
@@ -24,6 +28,7 @@ export async function getOptionalViewerContext(
         clubId: true,
         teamId: true,
         role: true,
+        roles: true,
         isClubAdmin: true,
       },
     }),
@@ -42,13 +47,21 @@ export async function getOptionalViewerContext(
     userId: session.user.id,
     email: session.user.email,
     name: session.user.name,
-    memberships: memberships.map((m) => ({
-      memberId: m.id,
-      clubId: m.clubId,
-      teamId: m.teamId,
-      role: m.role,
-      isClubAdmin: m.isClubAdmin || m.role === "CLUB_ADMIN",
-    })),
+    memberships: memberships.map((m) => {
+      const roles = normalizeMemberRoles({
+        roles: m.roles,
+        role: m.role,
+        isClubAdmin: m.isClubAdmin,
+      });
+      return {
+        memberId: m.id,
+        clubId: m.clubId,
+        teamId: m.teamId,
+        role: getPrimaryMemberRole(roles, m.role),
+        roles,
+        isClubAdmin: roles.includes("CLUB_ADMIN"),
+      };
+    }),
     linkedChildMemberIds: guardianLinks.map((g) => g.childMemberId),
     linkedChildTeamIds: Array.from(
       new Set(guardianLinks.map((g) => g.childMember.teamId))

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { MEMBER_ROLE_LABELS } from "@throwoff/shared";
+import { formatMemberRoles } from "@throwoff/shared";
 import { router } from "expo-router";
 import React from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -77,7 +77,7 @@ export default function DashboardScreen() {
       >
         <Muted>
           Hallo {me?.user.name} ·{" "}
-          {MEMBER_ROLE_LABELS[activeTeam.role] ?? activeTeam.role}
+          {formatMemberRoles(activeTeam.roles)}
         </Muted>
 
         {teams.length > 1 ? (

@@ -13,6 +13,7 @@ import {
   isTeamStaff,
   ViewerContext,
 } from "../policies/rbac";
+import { hasMemberRole } from "../schemas/handball";
 import {
   CreateEventSchema,
   CreateRecurringEventsSchema,
@@ -109,7 +110,7 @@ export class EventService {
       this.events.findByTeamId(teamId, options),
     ]);
 
-    const playerCount = roster.filter((m) => m.role === "PLAYER").length;
+    const playerCount = roster.filter((m) => hasMemberRole(m, "PLAYER")).length;
     return events.map((ev) => projectEventDTO(viewer, ev, playerCount));
   }
 
@@ -127,7 +128,7 @@ export class EventService {
     }
 
     const roster = await this.members.findByTeamId(teamId);
-    const playerCount = roster.filter((m) => m.role === "PLAYER").length;
+    const playerCount = roster.filter((m) => hasMemberRole(m, "PLAYER")).length;
     return projectEventDTO(viewer, event, playerCount);
   }
 
@@ -203,7 +204,7 @@ export class EventService {
     });
 
     const roster = await this.members.findByTeamId(teamId);
-    const playerCount = roster.filter((m) => m.role === "PLAYER").length;
+    const playerCount = roster.filter((m) => hasMemberRole(m, "PLAYER")).length;
     return projectEventDTO(viewer, created, playerCount);
   }
 
@@ -273,7 +274,7 @@ export class EventService {
     );
 
     const roster = await this.members.findByTeamId(teamId);
-    const playerCount = roster.filter((m) => m.role === "PLAYER").length;
+    const playerCount = roster.filter((m) => hasMemberRole(m, "PLAYER")).length;
     return {
       recurrenceId: result.recurrenceId,
       events: result.events.map((ev) =>
@@ -306,7 +307,7 @@ export class EventService {
 
     const updated = await this.events.update(eventId, parsed.data);
     const roster = await this.members.findByTeamId(teamId);
-    const playerCount = roster.filter((m) => m.role === "PLAYER").length;
+    const playerCount = roster.filter((m) => hasMemberRole(m, "PLAYER")).length;
     return projectEventDTO(viewer, updated, playerCount);
   }
 
@@ -540,7 +541,7 @@ export class EventService {
     ]);
 
     const activeEvents = events.filter((e) => !e.isCancelled);
-    const players = roster.filter((m) => m.role === "PLAYER");
+    const players = roster.filter((m) => hasMemberRole(m, "PLAYER"));
 
     return players.map((player) => {
       let accepted = 0;

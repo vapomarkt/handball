@@ -1,4 +1,8 @@
-import { MemberRoleSchema } from "@/domain/schemas/handball";
+import {
+  getPrimaryMemberRole,
+  MemberRoleSchema,
+  normalizeMemberRoles,
+} from "@/domain/schemas/handball";
 import {
   DEFAULT_ONBOARDING_STATE,
   UserOnboardingStateDTO,
@@ -97,7 +101,13 @@ export async function GET(request: Request) {
     const adminClubIds = Array.from(
       new Set(
         memberships
-          .filter((m) => m.role === "CLUB_ADMIN" || m.isClubAdmin)
+          .filter((m) =>
+            normalizeMemberRoles({
+              roles: m.roles,
+              role: m.role,
+              isClubAdmin: m.isClubAdmin,
+            }).includes("CLUB_ADMIN")
+          )
           .map((m) => m.clubId)
       )
     );
@@ -152,34 +162,42 @@ export async function GET(request: Request) {
         hasPassword: Boolean(credentialAccount),
         passkeyCount,
       },
-      memberships: memberships.map((m) => ({
-        memberId: m.id,
-        role: m.role,
-        isClubAdmin: m.isClubAdmin || m.role === "CLUB_ADMIN",
-        firstName: m.firstName,
-        lastName: m.lastName,
-        jerseyNumber: m.jerseyNumber,
-        primaryPosition: m.primaryPosition,
-        secondaryPosition: m.secondaryPosition,
-        throwingHand: m.throwingHand,
-        availabilityStatus: m.availabilityStatus,
-        phone: m.phone,
-        emergencyContact: m.emergencyContact,
-        injuryNote: m.injuryNote,
-        club: m.club,
-        team: {
-          id: m.team.id,
-          name: m.team.name,
-          category: m.team.category,
-          ageGroup: m.team.ageGroup,
-          gender: m.team.gender,
-          usesResin: m.team.usesResin,
-          leagueName: m.team.leagueName,
-          leagueGroupTeamId: m.team.leagueGroupTeamId ?? null,
-          seasonId: m.team.season.id,
-          seasonName: m.team.season.name,
-        },
-      })),
+      memberships: memberships.map((m) => {
+        const roles = normalizeMemberRoles({
+          roles: m.roles,
+          role: m.role,
+          isClubAdmin: m.isClubAdmin,
+        });
+        return {
+          memberId: m.id,
+          role: getPrimaryMemberRole(roles, m.role),
+          roles,
+          isClubAdmin: roles.includes("CLUB_ADMIN"),
+          firstName: m.firstName,
+          lastName: m.lastName,
+          jerseyNumber: m.jerseyNumber,
+          primaryPosition: m.primaryPosition,
+          secondaryPosition: m.secondaryPosition,
+          throwingHand: m.throwingHand,
+          availabilityStatus: m.availabilityStatus,
+          phone: m.phone,
+          emergencyContact: m.emergencyContact,
+          injuryNote: m.injuryNote,
+          club: m.club,
+          team: {
+            id: m.team.id,
+            name: m.team.name,
+            category: m.team.category,
+            ageGroup: m.team.ageGroup,
+            gender: m.team.gender,
+            usesResin: m.team.usesResin,
+            leagueName: m.team.leagueName,
+            leagueGroupTeamId: m.team.leagueGroupTeamId ?? null,
+            seasonId: m.team.season.id,
+            seasonName: m.team.season.name,
+          },
+        };
+      }),
       adminClubTeams: adminClubTeams.map((t) => ({
         id: t.id,
         name: t.name,

@@ -24,6 +24,11 @@ export const CreateTeamMemberSchema = z.object({
   firstName: z.string().trim().min(1, "Vorname erforderlich.").max(60),
   lastName: z.string().trim().min(1, "Nachname erforderlich.").max(60),
   role: MemberRoleSchema.default("PLAYER"),
+  roles: z
+    .array(MemberRoleSchema)
+    .min(1, "Mindestens eine Rolle erforderlich.")
+    .max(8)
+    .optional(),
   isClubAdmin: z.boolean().optional(),
   jerseyNumber: z.number().int().min(1).max(99).optional().nullable(),
   primaryPosition: HandballPositionSchema.optional().nullable(),
@@ -51,6 +56,11 @@ export const UpdateTeamMemberSchema = z.object({
   firstName: z.string().trim().min(1).max(60).optional(),
   lastName: z.string().trim().min(1).max(60).optional(),
   role: MemberRoleSchema.optional(),
+  roles: z
+    .array(MemberRoleSchema)
+    .min(1, "Mindestens eine Rolle erforderlich.")
+    .max(8)
+    .optional(),
   isClubAdmin: z.boolean().optional(),
   jerseyNumber: z.number().int().min(1).max(99).optional().nullable(),
   primaryPosition: HandballPositionSchema.optional().nullable(),
@@ -106,6 +116,7 @@ export interface TeamMemberEntity {
   teamId: string;
   userId: string | null;
   role: MemberRole;
+  roles?: MemberRole[];
   isClubAdmin?: boolean;
   firstName: string;
   lastName: string;
@@ -126,7 +137,7 @@ export interface TeamMemberEntity {
 }
 
 /**
- * DSGVO-sicheres sportliches Basisprofil für Mitspieler (PLAYER) & Helfer (HELPER).
+ * DSGVO-sicheres sportliches Basisprofil für Mitspieler (PLAYER), Kassenwarte (TREASURER) & Helfer (HELPER).
  * Enthält KEINE sensiblen Felder (kein emergencyContact, passNumber, injuryNote, phone, email).
  */
 export interface TeamMemberPublicDTO {
@@ -135,6 +146,7 @@ export interface TeamMemberPublicDTO {
   teamId: string;
   isClaimed: boolean;
   role: MemberRole;
+  roles: MemberRole[];
   isClubAdmin: boolean;
   firstName: string;
   lastName: string;

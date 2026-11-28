@@ -5,17 +5,60 @@ export const MemberRoleSchema = z.enum([
   "COACH",
   "ASSISTANT_COACH",
   "TEAM_MANAGER",
+  "TREASURER",
   "PLAYER",
   "PARENT",
   "HELPER",
 ]);
 export type MemberRole = z.infer<typeof MemberRoleSchema>;
 
+/** Kanonische Reihenfolge für die Anzeige mehrerer Rollen eines Mitglieds. */
+export const MEMBER_ROLE_ORDER: readonly MemberRole[] = [
+  "CLUB_ADMIN",
+  "COACH",
+  "ASSISTANT_COACH",
+  "TEAM_MANAGER",
+  "TREASURER",
+  "PLAYER",
+  "PARENT",
+  "HELPER",
+];
+
+/**
+ * Priorität für die primäre Team-Rolle (`role`-Feld).
+ * `CLUB_ADMIN` steht bewusst zuletzt, damit eine Personalunion wie
+ * Trainer + Vereins-Admin als primäre Team-Rolle `COACH` behält.
+ */
+const PRIMARY_TEAM_ROLE_PRIORITY: readonly MemberRole[] = [
+  "COACH",
+  "ASSISTANT_COACH",
+  "TEAM_MANAGER",
+  "TREASURER",
+  "PLAYER",
+  "PARENT",
+  "HELPER",
+  "CLUB_ADMIN",
+];
+
+export const COACHING_STAFF_ROLES: readonly MemberRole[] = [
+  "CLUB_ADMIN",
+  "COACH",
+  "ASSISTANT_COACH",
+];
+
+export const TEAM_STAFF_ROLES: readonly MemberRole[] = [
+  "CLUB_ADMIN",
+  "COACH",
+  "ASSISTANT_COACH",
+  "TEAM_MANAGER",
+];
+
 export const MEMBER_ROLE_LABELS: Record<MemberRole, string> = {
   CLUB_ADMIN: "Vereins-Admin",
   COACH: "Trainer",
   ASSISTANT_COACH: "Co-Trainer",
   TEAM_MANAGER: "Betreuer",
+  TREASURER: "Kassenwart",
   PLAYER: "Spieler",
   PARENT: "Elternteil",
   HELPER: "Vereinshelfer",
@@ -25,11 +68,116 @@ export const MEMBER_ROLE_DESCRIPTIONS: Record<MemberRole, string> = {
   CLUB_ADMIN: "Verwaltet Verein, Saisons, Hallen und alle Mannschaften.",
   COACH: "Leitet die Mannschaft, plant Training, Taktik, Termine und Kader.",
   ASSISTANT_COACH: "Unterstützt das Trainer-Team bei Kader, Terminen, Training und Taktik.",
-  TEAM_MANAGER: "Kümmert sich um Organisation, Kader, Termine, Dienste, Kasse und Notfallkontakte.",
+  TEAM_MANAGER: "Kümmert sich um Organisation, Kader, Termine, Dienste und Notfallkontakte.",
+  TREASURER: "Verwaltet die Mannschaftskasse, Buchungen, Zahlungsstatus und den Strafenkatalog.",
   PLAYER: "Sagt zu Terminen zu/ab, sieht Spielpläne, Fahrgemeinschaften und Dienste.",
   PARENT: "Verwaltet Zu-/Absagen, Fahrgemeinschaften und Notfallkontakte für verknüpfte Kinder.",
   HELPER: "Übernimmt Spieltags- und Vereinsdienste wie Zeitnehmer, Kiosk oder Hallenaufbau.",
 };
+
+export interface RoleBearingMember {
+  role: MemberRole;
+  roles?: readonly MemberRole[] | null;
+  isClubAdmin?: boolean;
+}
+
+/**
+ * Normalisiert Rollen aus `roles`, `role` und dem Legacy-Flag `isClubAdmin`
+ * zu einer eindeutigen, nicht-leeren, kanonisch sortierten Rollenliste.
+ */
+export function normalizeMemberRoles(input: {
+  roles?: readonly MemberRole[] | null;
+  role?: MemberRole | null;
+  isClubAdmin?: boolean;
+}): MemberRole[] {
+  const set = new Set<MemberRole>();
+  if (input.roles && input.roles.length > 0) {
+    for (const r of input.roles) {
+      set.add(r);
+    }
+  } else if (input.role) {
+    set.add(input.role);
+  }
+  if (input.isClubAdmin) {
+    set.add("CLUB_ADMIN");
+  }
+  if (set.size === 0) {
+    set.add("PLAYER");
+  }
+  return MEMBER_ROLE_ORDER.filter((r) => set.has(r));
+}
+
+/**
+ * Ermittelt die primäre Team-Rolle (z. B. für Kompatibilität, Sortierung & Tour).
+ */
+export function getPrimaryMemberRole(
+  roles: readonly MemberRole[],
+  preferred?: MemberRole | null
+): MemberRole {
+  if (preferred && roles.includes(preferred)) {
+    return preferred;
+  }
+  for (const candidate of PRIMARY_TEAM_ROLE_PRIORITY) {
+    if (roles.includes(candidate)) {
+      return candidate;
+    }
+  }
+  return roles[0] ?? "PLAYER";
+}
+
+export function getEffectiveRoles(
+  member: RoleBearingMember | null | undefined
+): MemberRole[] {
+  if (!member) return [];
+  return normalizeMemberRoles({
+    roles: member.roles,
+    role: member.role,
+    isClubAdmin: member.isClubAdmin,
+  });
+}
+
+export function hasMemberRole(
+  member: RoleBearingMember | null | undefined,
+  role: MemberRole
+): boolean {
+  if (!member) return false;
+  return getEffectiveRoles(member).includes(role);
+}
+
+export function hasAnyMemberRole(
+  member: RoleBearingMember | null | undefined,
+  targetRoles: readonly MemberRole[]
+): boolean {
+  if (!member) return false;
+  const effective = getEffectiveRoles(member);
+  return targetRoles.some((r) => effective.includes(r));
+}
+
+export function isStaffMember(
+  member: RoleBearingMember | null | undefined
+): boolean {
+  return hasAnyMemberRole(member, TEAM_STAFF_ROLES);
+}
+
+export function isCoachingStaffMember(
+  member: RoleBearingMember | null | undefined
+): boolean {
+  return hasAnyMemberRole(member, COACHING_STAFF_ROLES);
+}
+
+export function isTreasurerMember(
+  member: RoleBearingMember | null | undefined
+): boolean {
+  return hasMemberRole(member, "TREASURER");
+}
+
+export function formatMemberRoles(
+  roles: readonly MemberRole[],
+  separator = " · "
+): string {
+  const normalized = normalizeMemberRoles({ roles });
+  return normalized.map((r) => MEMBER_ROLE_LABELS[r]).join(separator);
+}
 
 export const HandballPositionSchema = z.enum([
   "TW",
@@ -110,7 +258,6 @@ export type RsvpStatus = z.infer<typeof RsvpStatusSchema>;
 export const COMMON_TEAM_ROLES = [
   "Kapitän",
   "Vize-Kapitän",
-  "Kassenwart",
   "Trikot-Verantwortlicher",
   "Harz- & Ballwart",
   "Mannschaftsrat",

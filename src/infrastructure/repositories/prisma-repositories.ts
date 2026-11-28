@@ -11,7 +11,13 @@ import {
   UserLookupRepository,
 } from "@/domain/adapters/repositories";
 import { ClubDTO, SeasonDTO } from "@/domain/schemas/club";
-import { InviteType, MemberRole, TeamGender } from "@/domain/schemas/handball";
+import {
+  getPrimaryMemberRole,
+  InviteType,
+  MemberRole,
+  normalizeMemberRoles,
+  TeamGender,
+} from "@/domain/schemas/handball";
 import { LeagueAgeGroup } from "@/domain/schemas/league-catalog";
 import { GuardianLinkDTO, TeamInviteEntity } from "@/domain/schemas/invite";
 import {
@@ -418,6 +424,15 @@ export class PrismaMemberRepository implements MemberRepository {
     teamId: string,
     input: CreateTeamMemberInput & { userId?: string | null }
   ): Promise<TeamMemberEntity> {
+    const roles = normalizeMemberRoles({
+      roles: input.roles,
+      role: input.role,
+      isClubAdmin: input.isClubAdmin,
+    });
+    const primaryRole = getPrimaryMemberRole(
+      roles,
+      input.roles ? null : input.role
+    );
     return prisma.teamMember.create({
       data: {
         clubId,
@@ -425,8 +440,9 @@ export class PrismaMemberRepository implements MemberRepository {
         userId: input.userId ?? null,
         firstName: input.firstName,
         lastName: input.lastName,
-        role: input.role,
-        isClubAdmin: Boolean(input.isClubAdmin || input.role === "CLUB_ADMIN"),
+        role: primaryRole,
+        roles,
+        isClubAdmin: roles.includes("CLUB_ADMIN"),
         jerseyNumber: input.jerseyNumber ?? null,
         primaryPosition: input.primaryPosition ?? null,
         secondaryPosition: input.secondaryPosition ?? null,
@@ -536,14 +552,17 @@ export class PrismaInviteRepository implements InviteRepository {
     shortCode?: string | null;
     type: InviteType;
     role: MemberRole;
+    roles?: MemberRole[];
     targetMemberId: string | null;
     createdByUserId: string;
     maxUses: number | null;
     expiresAt: Date;
   }): Promise<TeamInviteEntity> {
+    const roles = normalizeMemberRoles({ roles: input.roles, role: input.role });
     return prisma.teamInvite.create({
       data: {
         ...input,
+        roles,
         shortCode: input.shortCode ?? null,
       },
     });

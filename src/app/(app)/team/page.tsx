@@ -50,8 +50,12 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import {
   AVAILABILITY_STATUS_LABELS,
+  formatMemberRoles,
+  getEffectiveRoles,
   HANDBALL_POSITION_LABELS,
-  MEMBER_ROLE_LABELS,
+  hasAnyMemberRole,
+  hasMemberRole,
+  isStaffMember,
   THROWING_HAND_LABELS,
   type HandballPosition,
   type InviteType,
@@ -110,19 +114,8 @@ export default function TeamRosterPage() {
   const [importNotice, setImportNotice] =
     useState<NuligaRosterImportResultDTO | null>(null);
 
-  const isStaff = Boolean(
-    activeTeam?.isClubAdmin ||
-      activeTeam?.role === "CLUB_ADMIN" ||
-      activeTeam?.role === "COACH" ||
-      activeTeam?.role === "ASSISTANT_COACH" ||
-      activeTeam?.role === "TEAM_MANAGER"
-  );
-
-  const canDelete = Boolean(
-    activeTeam?.isClubAdmin ||
-      activeTeam?.role === "CLUB_ADMIN" ||
-      activeTeam?.role === "COACH"
-  );
+  const isStaff = isStaffMember(activeTeam);
+  const canDelete = hasAnyMemberRole(activeTeam, ["CLUB_ADMIN", "COACH"]);
 
   const linkedChildIds = useMemo(
     () => new Set(me?.guardianLinks.map((g) => g.childMemberId) ?? []),
@@ -467,7 +460,7 @@ export default function TeamRosterPage() {
           {isStaff &&
             !loading &&
             !importNotice &&
-            members.filter((m) => m.role === "PLAYER").length === 0 && (
+            members.filter((m) => hasMemberRole(m, "PLAYER")).length === 0 && (
               <Card className="border-primary/25 bg-primary/5">
                 <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-start gap-3 min-w-0">
@@ -574,7 +567,9 @@ export default function TeamRosterPage() {
                 }
 
                 // Max. 2–3 handlungsrelevante/abweichende Badges (kein 'Spieler'/'Fit'-Rauschen)
-                const showRoleBadge = member.role !== "PLAYER";
+                const memberRoles = getEffectiveRoles(member);
+                const specialRoles = memberRoles.filter((r) => r !== "PLAYER");
+                const showRoleBadge = specialRoles.length > 0;
                 const showAvailabilityBadge =
                   member.availabilityStatus !== "FIT";
 
@@ -613,7 +608,7 @@ export default function TeamRosterPage() {
 
                               {showRoleBadge && (
                                 <Badge variant="outline">
-                                  {MEMBER_ROLE_LABELS[member.role]}
+                                  {formatMemberRoles(specialRoles)}
                                 </Badge>
                               )}
                               {showAvailabilityBadge && (
@@ -644,10 +639,7 @@ export default function TeamRosterPage() {
                             <p className="truncate text-xs text-muted-foreground">
                               {metaParts.length > 0
                                 ? metaParts.join(" · ")
-                                : member.isClubAdmin &&
-                                    member.role !== "CLUB_ADMIN"
-                                  ? "Vereins-Admin"
-                                  : MEMBER_ROLE_LABELS[member.role]}
+                                : formatMemberRoles(memberRoles)}
                             </p>
                           </div>
                         </div>

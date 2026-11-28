@@ -1,4 +1,7 @@
-import { MemberRole } from "../schemas/handball";
+import {
+  MEMBER_ROLE_ORDER,
+  MemberRole,
+} from "../schemas/handball";
 import {
   DEFAULT_ONBOARDING_STATE,
   ProfileCompletenessResult,
@@ -41,13 +44,23 @@ function isPlaceholderName(
 
 /**
  * Berechnet die rollenabhängige Profil-Vollständigkeit für schnelle Onboarding-Hinweise.
- * Bewusst kompakt gehalten (nur 2–4 wirklich hilfreiche Felder pro Rolle).
+ * Unterstützt sowohl eine einzelne Rolle als auch Mehrfachrollen.
  */
 export function calculateProfileCompleteness(
-  role: MemberRole,
+  roleOrRoles: MemberRole | readonly MemberRole[],
   member: ProfileCompletenessMemberInput | null | undefined,
   linkedChildren: ProfileCompletenessChildInput[] = []
 ): ProfileCompletenessResult {
+  const roles: MemberRole[] = Array.isArray(roleOrRoles)
+    ? roleOrRoles.length > 0
+      ? MEMBER_ROLE_ORDER.filter((r) => roleOrRoles.includes(r))
+      : ["PLAYER"]
+    : [roleOrRoles as MemberRole];
+
+  const isPlayer = roles.includes("PLAYER");
+  const isParent = roles.includes("PARENT");
+  const isOnlyHelper = roles.length === 1 && roles[0] === "HELPER";
+
   const checks: Array<{ ok: boolean; hint: ProfileFieldHint }> = [];
 
   checks.push({
@@ -59,7 +72,7 @@ export function calculateProfileCompleteness(
     },
   });
 
-  if (role === "PLAYER") {
+  if (isPlayer) {
     checks.push({
       ok: hasText(member?.primaryPosition),
       hint: {
@@ -92,7 +105,7 @@ export function calculateProfileCompleteness(
         description: "Wichtig bei Verletzungen (DSGVO-geschützt).",
       },
     });
-  } else if (role === "PARENT") {
+  } else if (isParent) {
     checks.push({
       ok: hasText(member?.phone),
       hint: {
@@ -117,16 +130,15 @@ export function calculateProfileCompleteness(
       },
     });
   } else {
-    // CLUB_ADMIN, COACH, ASSISTANT_COACH, TEAM_MANAGER, HELPER
+    // CLUB_ADMIN, COACH, ASSISTANT_COACH, TEAM_MANAGER, TREASURER, HELPER
     checks.push({
       ok: hasText(member?.phone),
       hint: {
         key: "phone",
         label: "Telefonnummer",
-        description:
-          role === "HELPER"
-            ? "Für schnelle Absprachen bei Spieltags-Diensten."
-            : "Für kurzfristige Absprachen im Team und am Spieltag.",
+        description: isOnlyHelper
+          ? "Für schnelle Absprachen bei Spieltags-Diensten."
+          : "Für kurzfristige Absprachen im Team und am Spieltag.",
       },
     });
   }

@@ -47,6 +47,10 @@ import {
   type TeamAnnouncementDTO,
   type TeamPollDTO,
 } from "@/domain/schemas/community";
+import {
+  isStaffMember,
+  isTreasurerMember,
+} from "@/domain/schemas/handball";
 import type { TeamMemberResponseDTO } from "@/domain/schemas/member";
 import { formatCentsEur } from "@/domain/services/cashbox-service";
 
@@ -93,14 +97,10 @@ export default function KasseUndNewsPage() {
   const [catCategory, setCatCategory] = useState("Disziplin");
   const [savingCat, setSavingCat] = useState(false);
 
-  const isStaff =
-    activeTeam?.isClubAdmin ||
-    activeTeam?.role === "CLUB_ADMIN" ||
-    activeTeam?.role === "COACH" ||
-    activeTeam?.role === "ASSISTANT_COACH" ||
-    activeTeam?.role === "TEAM_MANAGER";
-
-  const canManageCashbox = Boolean(cashbox?.canManage || isStaff);
+  const isStaff = isStaffMember(activeTeam);
+  const canManageCashbox = Boolean(
+    cashbox ? cashbox.canManage : isTreasurerMember(activeTeam)
+  );
 
   const reloadAll = useCallback(async () => {
     if (!activeTeam) return;
@@ -527,6 +527,13 @@ export default function KasseUndNewsPage() {
       ) : (
         /* Mannschaftskasse */
         <div className="space-y-6">
+          {!canManageCashbox && isStaff && (
+            <p className="text-xs text-muted-foreground">
+              Hinweis: Änderungen an der Mannschaftskasse sind nur für Mitglieder mit der Rolle{" "}
+              <span className="font-medium text-foreground">Kassenwart</span>{" "}
+              freigeschaltet. Die Rolle kann im Kader zusätzlich zu jeder anderen Rolle vergeben werden.
+            </p>
+          )}
           {cashbox && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Card data-testid="cashbox-balance-card">

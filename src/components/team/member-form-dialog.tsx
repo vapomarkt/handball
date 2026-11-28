@@ -17,8 +17,12 @@ import { SelectNative } from "@/components/ui/select-native";
 import {
   AVAILABILITY_STATUS_LABELS,
   getCommonTeamRoles,
+  getEffectiveRoles,
+  getPrimaryMemberRole,
   HANDBALL_POSITION_LABELS,
+  hasMemberRole,
   MEMBER_ROLE_LABELS,
+  MEMBER_ROLE_ORDER,
   THROWING_HAND_LABELS,
   type AvailabilityStatus,
   type HandballPosition,
@@ -40,7 +44,6 @@ interface MemberFormDialogProps {
 }
 
 const POSITIONS = Object.keys(HANDBALL_POSITION_LABELS) as HandballPosition[];
-const ROLES = Object.keys(MEMBER_ROLE_LABELS) as MemberRole[];
 
 export function MemberFormDialog({
   open,
@@ -59,9 +62,8 @@ export function MemberFormDialog({
 
   const [firstName, setFirstName] = useState(initial?.firstName ?? "");
   const [lastName, setLastName] = useState(initial?.lastName ?? "");
-  const [role, setRole] = useState<MemberRole>(initial?.role ?? "PLAYER");
-  const [isClubAdminFlag, setIsClubAdminFlag] = useState<boolean>(
-    Boolean(initial?.isClubAdmin || initial?.role === "CLUB_ADMIN")
+  const [roles, setRoles] = useState<MemberRole[]>(() =>
+    initial ? getEffectiveRoles(initial) : ["PLAYER"]
   );
   const [jerseyNumber, setJerseyNumber] = useState(
     initial && initial.jerseyNumber !== null ? String(initial.jerseyNumber) : ""
@@ -102,6 +104,22 @@ export function MemberFormDialog({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const memberIsPlayer = hasMemberRole(member, "PLAYER");
+
+  function toggleRole(r: MemberRole) {
+    if (r === "CLUB_ADMIN" && !viewerIsClubAdmin) return;
+    setRoles((prev) => {
+      if (prev.includes(r)) {
+        // Mindestens eine Rolle muss aktiv bleiben
+        if (prev.length <= 1) return prev;
+        return prev.filter((item) => item !== r);
+      }
+      return MEMBER_ROLE_ORDER.filter((candidate) =>
+        candidate === r || prev.includes(candidate)
+      );
+    });
+  }
+
   function toggleTeamRole(r: string) {
     setTeamRoles((prev) =>
       prev.includes(r) ? prev.filter((item) => item !== r) : [...prev, r]
@@ -112,6 +130,11 @@ export function MemberFormDialog({
     e.preventDefault();
     setError(null);
 
+    if (isFull && roles.length === 0) {
+      setError("Bitte mindestens eine Rolle auswählen.");
+      return;
+    }
+
     const normalizedPhone = normalizePhoneNumber(phone);
     if (!normalizedPhone.ok) {
       setError(normalizedPhone.error);
@@ -121,13 +144,15 @@ export function MemberFormDialog({
     setSubmitting(true);
 
     try {
+      const primaryRole = getPrimaryMemberRole(roles);
       const payload = isFull
         ? {
             firstName,
             lastName,
-            role,
+            role: primaryRole,
+            roles,
             ...(viewerIsClubAdmin
-              ? { isClubAdmin: role === "CLUB_ADMIN" ? true : isClubAdminFlag }
+              ? { isClubAdmin: roles.includes("CLUB_ADMIN") }
               : {}),
             jerseyNumber: jerseyNumber ? Number(jerseyNumber) : null,
             primaryPosition: (primaryPosition || null) as HandballPosition | null,
@@ -146,7 +171,7 @@ export function MemberFormDialog({
         : {
             firstName,
             lastName,
-            ...(member?.role === "PLAYER"
+            ...(memberIsPlayer
               ? {
                   primaryPosition: (primaryPosition ||
                     null) as HandballPosition | null,
@@ -238,31 +263,59 @@ export function MemberFormDialog({
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="m-role">Rolle</Label>
-                  <SelectNative
-                    id="m-role"
-                    value={role}
-                    onChange={(e) => {
-                      const nextRole = e.target.value as MemberRole;
-                      setRole(nextRole);
-                      if (nextRole === "CLUB_ADMIN") {
-                        setIsClubAdminFlag(true);
-                      }
-                    }}
-                  >
-                    {ROLES.filter(
-                      (r) =>
-                        viewerIsClubAdmin || r !== "CLUB_ADMIN" || r === role
-                    ).map((r) => (
-                      <option key={r} value={r}>
+              <div className="space-y-1.5">
+                <Label>Rollen * (mehrere kombinierbar)</Label>
+                <div
+                  className="flex flex-wrap gap-1.5"
+                  role="group"
+                  aria-label="Rollen auswählen"
+                >
+                  {MEMBER_ROLE_ORDER.filter(
+                    (r) =>
+                      viewerIsClubAdmin ||
+                      r !== "CLUB_ADMIN" ||
+                      roles.includes("CLUB_ADMIN")
+                  ).map((r) => {
+                    const active = roles.includes(r);
+                    const lockedAdmin =
+                      r === "CLUB_ADMIN" && !viewerIsClubAdmin;
+                    const lockedLast = active && roles.length <= 1;
+                    return (
+                      <button
+                        key={r}
+                        type="button"
+                        data-testid={`member-role-toggle-${r}`}
+                        aria-pressed={active}
+                        disabled={lockedAdmin}
+                        onClick={() => toggleRole(r)}
+                        title={
+                          lockedAdmin
+                            ? "Nur Vereins-Admins dürfen diese Rolle ändern."
+                            : lockedLast
+                              ? "Mindestens eine Rolle muss ausgewählt bleiben."
+                              : undefined
+                        }
+                        className={`rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                          lockedAdmin
+                            ? "cursor-not-allowed opacity-70"
+                            : "cursor-pointer"
+                        } ${
+                          active
+                            ? "border-primary bg-primary/15 text-primary"
+                            : "border-border bg-background text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
                         {MEMBER_ROLE_LABELS[r]}
-                      </option>
-                    ))}
-                  </SelectNative>
+                      </button>
+                    );
+                  })}
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Jedes Mitglied kann mehrere Rollen gleichzeitig haben (z. B. Spieler + Kassenwart oder Trainer + Vereins-Admin).
+                </p>
+              </div>
 
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="m-jersey">Trikotnummer</Label>
                   <Input
@@ -294,29 +347,6 @@ export function MemberFormDialog({
                   </SelectNative>
                 </div>
               </div>
-
-              {viewerIsClubAdmin && (
-                <label className="flex items-start gap-2.5 rounded-lg border border-border bg-muted/40 px-3 py-2.5 text-sm cursor-pointer">
-                  <input
-                    id="m-club-admin"
-                    type="checkbox"
-                    className="mt-0.5 h-4 w-4 rounded border-input accent-primary"
-                    checked={role === "CLUB_ADMIN" ? true : isClubAdminFlag}
-                    disabled={role === "CLUB_ADMIN"}
-                    onChange={(e) => setIsClubAdminFlag(e.target.checked)}
-                  />
-                  <span className="space-y-0.5">
-                    <span className="block font-medium text-foreground">
-                      Zusätzlich Vereins-Admin (Personalunion)
-                    </span>
-                    <span className="block text-xs text-muted-foreground">
-                      {role === "CLUB_ADMIN"
-                        ? "Bei der Hauptrolle Vereins-Admin automatisch aktiv."
-                        : "Darf neben der Team-Rolle (z. B. Trainer) auch Vereinslogo, Saisons und alle Vereins-Mannschaften verwalten."}
-                    </span>
-                  </span>
-                </label>
-              )}
 
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="space-y-1.5">
@@ -433,7 +463,7 @@ export function MemberFormDialog({
                 </div>
               </div>
 
-              {member?.role === "PLAYER" && (
+              {memberIsPlayer && (
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label htmlFor="m-self-pos1">Hauptposition</Label>

@@ -1,4 +1,8 @@
-import { RsvpStatus } from "../schemas/handball";
+import {
+  getEffectiveRoles,
+  getPrimaryMemberRole,
+  RsvpStatus,
+} from "../schemas/handball";
 import {
   TeamMemberEntity,
   TeamMemberPublicDTO,
@@ -34,20 +38,24 @@ export function canViewSensitiveMemberFields(
 
 /**
  * Serverseitige DTO-Projektion für TeamMember.
- * Garantiert, dass nicht berechtigte Rollen (insb. PLAYER, HELPER, fremde PARENT)
+ * Garantiert, dass nicht berechtigte Rollen (insb. PLAYER, TREASURER, HELPER, fremde PARENT)
  * niemals sensible Felder im JSON-Payload erhalten.
  */
 export function projectTeamMemberDTO(
   viewer: ViewerContext,
   member: TeamMemberEntity
 ): TeamMemberResponseDTO {
+  const effectiveRoles = getEffectiveRoles(member);
+  const primaryRole = getPrimaryMemberRole(effectiveRoles, member.role);
+
   const baseProfile: Omit<TeamMemberPublicDTO, "canViewSensitive"> = {
     id: member.id,
     clubId: member.clubId,
     teamId: member.teamId,
     isClaimed: member.userId !== null,
-    role: member.role,
-    isClubAdmin: Boolean(member.isClubAdmin || member.role === "CLUB_ADMIN"),
+    role: primaryRole,
+    roles: effectiveRoles,
+    isClubAdmin: effectiveRoles.includes("CLUB_ADMIN"),
     firstName: member.firstName,
     lastName: member.lastName,
     jerseyNumber: member.jerseyNumber,

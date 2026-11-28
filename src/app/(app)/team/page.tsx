@@ -8,9 +8,9 @@ import {
   Droplets,
   Link2,
   Loader2,
-  Lock,
+  MoreHorizontal,
+  Pencil,
   Search,
-  ShieldAlert,
   Shirt,
   Sparkles,
   Trash2,
@@ -21,6 +21,7 @@ import {
 import { JerseySetsPanel } from "@/components/jerseys/jersey-sets-panel";
 import { useAppContext } from "@/components/providers/app-context";
 import { InviteDialog } from "@/components/team/invite-dialog";
+import { MemberDetailDialog } from "@/components/team/member-detail-dialog";
 import { MemberFormDialog } from "@/components/team/member-form-dialog";
 import { NuligaRosterImportDialog } from "@/components/team/nuliga-roster-import-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +34,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { CardListSkeleton, EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
+import { SelectNative } from "@/components/ui/select-native";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import {
   AVAILABILITY_STATUS_LABELS,
@@ -49,7 +62,6 @@ import type {
   NuligaRosterImportResultDTO,
   TeamMemberResponseDTO,
 } from "@/domain/schemas/member";
-import { formatPhoneNumber, toTelHref } from "@/domain/schemas/phone";
 
 const POSITION_FILTERS: Array<"ALL" | HandballPosition> = [
   "ALL",
@@ -80,11 +92,14 @@ export default function TeamRosterPage() {
   const [query, setQuery] = useState("");
 
   // Dialog states
+  const [detailMemberId, setDetailMemberId] = useState<string | null>(null);
   const [memberDialogOpen, setMemberDialogOpen] = useState(false);
   const [memberDialogMode, setMemberDialogMode] = useState<
     "create" | "edit-full" | "edit-self"
   >("create");
   const [selectedMember, setSelectedMember] =
+    useState<TeamMemberResponseDTO | null>(null);
+  const [deleteTarget, setDeleteTarget] =
     useState<TeamMemberResponseDTO | null>(null);
 
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
@@ -95,21 +110,28 @@ export default function TeamRosterPage() {
   const [importNotice, setImportNotice] =
     useState<NuligaRosterImportResultDTO | null>(null);
 
-  const isStaff =
+  const isStaff = Boolean(
     activeTeam?.isClubAdmin ||
-    activeTeam?.role === "CLUB_ADMIN" ||
-    activeTeam?.role === "COACH" ||
-    activeTeam?.role === "ASSISTANT_COACH" ||
-    activeTeam?.role === "TEAM_MANAGER";
+      activeTeam?.role === "CLUB_ADMIN" ||
+      activeTeam?.role === "COACH" ||
+      activeTeam?.role === "ASSISTANT_COACH" ||
+      activeTeam?.role === "TEAM_MANAGER"
+  );
 
-  const canDelete =
+  const canDelete = Boolean(
     activeTeam?.isClubAdmin ||
-    activeTeam?.role === "CLUB_ADMIN" ||
-    activeTeam?.role === "COACH";
+      activeTeam?.role === "CLUB_ADMIN" ||
+      activeTeam?.role === "COACH"
+  );
 
   const linkedChildIds = useMemo(
     () => new Set(me?.guardianLinks.map((g) => g.childMemberId) ?? []),
     [me]
+  );
+
+  const detailMember = useMemo(
+    () => members.find((m) => m.id === detailMemberId) ?? null,
+    [members, detailMemberId]
   );
 
   const fetchRosterData = useCallback(async () => {
@@ -268,18 +290,14 @@ export default function TeamRosterPage() {
     setInviteDialogOpen(true);
   }
 
-  async function handleDelete(member: TeamMemberResponseDTO) {
-    if (!activeTeam) return;
-    const confirmed = window.confirm(
-      `Möchtest du ${member.firstName} ${member.lastName} wirklich aus dem Kader entfernen?`
-    );
-    if (!confirmed) return;
-
+  async function confirmDeleteMember() {
+    if (!activeTeam || !deleteTarget) return;
     const res = await fetch(
-      `/api/v1/teams/${encodeURIComponent(activeTeam.teamId)}/members/${encodeURIComponent(member.id)}`,
+      `/api/v1/teams/${encodeURIComponent(activeTeam.teamId)}/members/${encodeURIComponent(deleteTarget.id)}`,
       { method: "DELETE" }
     );
     if (res.ok) {
+      if (detailMemberId === deleteTarget.id) setDetailMemberId(null);
       await loadRoster();
     }
   }
@@ -316,100 +334,83 @@ export default function TeamRosterPage() {
   if (!activeTeam || !me) return null;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-            {activeTeam.clubName} · Saison {activeTeam.seasonName}
-          </p>
-          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-            Kader · {activeTeam.teamName}
-          </h1>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <span>
-              {members.length} Mitglieder im Team
-              {activeTeam.leagueName ? ` · ${activeTeam.leagueName}` : ""}
-            </span>
-            {isStaff ? (
-              <button
-                type="button"
-                onClick={handleToggleResin}
-                disabled={savingResin}
-                title="Umschalten, ob diese Mannschaft mit Harz (Backe) spielt. Bei ‚Ohne Harz‘ werden Hallen-Harzhinweise bei Terminen ausgeblendet."
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors cursor-pointer disabled:opacity-60",
-                  activeTeam.usesResin
-                    ? "border-primary/30 bg-primary/10 text-primary hover:bg-primary/15"
-                    : "border-border bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted"
-                )}
-              >
-                {savingResin ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Droplets className="h-3 w-3" />
-                )}
-                {activeTeam.usesResin
-                  ? "Mit Harz (Backe)"
-                  : "Ohne Harz (Backe)"}
-              </button>
-            ) : !activeTeam.usesResin ? (
-              <Badge variant="secondary" className="gap-1 text-xs">
-                <Droplets className="h-3 w-3" />
-                Ohne Harz
-              </Badge>
-            ) : null}
-          </div>
-        </div>
+    <div className="space-y-5">
+      {/* Kompakter Header (max. 2 Aktionen: 1x Primary + Overflow-Menü) */}
+      <PageHeader
+        title={`Kader · ${activeTeam.teamName}`}
+        subtitle={
+          <>
+            {members.length} Mitglieder
+            {activeTeam.leagueName ? ` · ${activeTeam.leagueName}` : ""}
+            {!activeTeam.usesResin ? " · Ohne Harz" : ""}
+          </>
+        }
+        actions={
+          isStaff && activeTab === "roster" ? (
+            <>
+              <Button onClick={openCreateDialog}>
+                <UserPlus className="h-4 w-4" />
+                Spieler hinzufügen
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label="Weitere Kader-Aktionen"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onSelect={openTeamInvite}>
+                    <Link2 className="h-4 w-4 text-primary" />
+                    <span>Einladungen &amp; Team-Link</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setNuligaImportOpen(true)}>
+                    <Download className="h-4 w-4 text-muted-foreground" />
+                    <span>Aus Spielberichten importieren</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    disabled={savingResin}
+                    onSelect={() => void handleToggleResin()}
+                  >
+                    {savingResin ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Droplets className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span>
+                      {activeTeam.usesResin
+                        ? "Harz (Backe): Aktiv (deaktivieren)"
+                        : "Harz (Backe): Aus (aktivieren)"}
+                    </span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          ) : undefined
+        }
+      />
 
-        {isStaff && activeTab === "roster" && (
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setNuligaImportOpen(true)}
-            >
-              <Download className="h-4 w-4" />
-              Aus Spielberichten
-            </Button>
-            <Button variant="outline" onClick={openTeamInvite}>
-              <Link2 className="h-4 w-4" />
-              Einladungen
-            </Button>
-            <Button onClick={openCreateDialog}>
-              <UserPlus className="h-4 w-4" />
-              Spieler hinzufügen
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* Tabs: Kader & Trikotsätze */}
-      <div className="flex flex-wrap gap-1.5 border-b border-border pb-3">
-        <button
-          type="button"
-          onClick={() => setActiveTab("roster")}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold cursor-pointer ${
-            activeTab === "roster"
-              ? "bg-primary text-primary-foreground"
-              : "bg-card text-muted-foreground hover:bg-muted border border-border"
-          }`}
-        >
-          <Users className="h-4 w-4" />
-          Kader ({members.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("jerseys")}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold cursor-pointer ${
-            activeTab === "jerseys"
-              ? "bg-primary text-primary-foreground"
-              : "bg-card text-muted-foreground hover:bg-muted border border-border"
-          }`}
-        >
-          <Shirt className="h-4 w-4" />
-          Trikotsätze ({jerseySets.length})
-        </button>
-      </div>
+      {/* Ruhige Segmented Tabs */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as TeamTab)}
+      >
+        <TabsList>
+          <TabsTrigger value="roster">
+            <Users className="h-4 w-4" />
+            Kader ({members.length})
+          </TabsTrigger>
+          <TabsTrigger value="jerseys">
+            <Shirt className="h-4 w-4" />
+            Trikotsätze ({jerseySets.length})
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {activeTab === "jerseys" ? (
         <JerseySetsPanel
@@ -422,12 +423,12 @@ export default function TeamRosterPage() {
           onChanged={loadJerseySets}
         />
       ) : (
-        <>
-          {/* Erfolgs-Banner nach Spielbericht-Import + direkter Link zur Team-Einladung */}
+        <div className="space-y-4">
+          {/* Erfolgs-Banner nach Spielbericht-Import */}
           {importNotice && (
             <div
               role="status"
-              className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/40 flex flex-col lg:flex-row lg:items-center justify-between gap-3"
+              className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
             >
               <div className="flex items-start gap-2.5 min-w-0 text-sm text-emerald-900 dark:text-emerald-200">
                 <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
@@ -435,22 +436,21 @@ export default function TeamRosterPage() {
                   <p className="font-semibold">
                     {importNotice.createdCount}{" "}
                     {importNotice.createdCount === 1 ? "Person" : "Personen"}{" "}
-                    aus nuLiga übernommen
+                    übernommen
                     {importNotice.updatedCount > 0
-                      ? ` · ${importNotice.updatedCount} Trikotnummer${importNotice.updatedCount === 1 ? "" : "n"} ergänzt`
+                      ? ` · ${importNotice.updatedCount} Nummer${importNotice.updatedCount === 1 ? "" : "n"} ergänzt`
                       : ""}
                   </p>
                   <p className="text-xs opacity-90 mt-0.5">
-                    Teile jetzt einfach den normalen Team-Einladungslink – beim
-                    Beitritt werden die Profile anhand des Namens automatisch
-                    verknüpft.
+                    Teile jetzt den Team-Einladungslink – Profile werden anhand
+                    des Namens automatisch verknüpft.
                   </p>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
-                <Button size="sm" onClick={openTeamInvite}>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button size="sm" variant="outline" onClick={openTeamInvite}>
                   <Link2 className="h-3.5 w-3.5" />
-                  Team-Link teilen
+                  Team-Link
                 </Button>
                 <Button
                   size="sm"
@@ -468,372 +468,330 @@ export default function TeamRosterPage() {
             !loading &&
             !importNotice &&
             members.filter((m) => m.role === "PLAYER").length === 0 && (
-              <Card className="border-primary/30 bg-primary/5">
-                <CardContent className="p-4 sm:p-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <Card className="border-primary/25 bg-primary/5">
+                <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-start gap-3 min-w-0">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
                       <Sparkles className="h-4 w-4" />
                     </div>
                     <div className="space-y-0.5 min-w-0">
                       <p className="text-sm font-bold text-foreground">
-                        Kader in Sekunden statt einzeln anlegen
+                        Kader schnell befüllen
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Übernehme Spieler, Trikotnummern und optional Offizielle
-                        direkt aus euren letzten nuLiga-Spielberichten oder teile
-                        einen Team-Link per WhatsApp &amp; QR-Code.
+                        Importiere Spieler &amp; Nummern aus nuLiga-Spielberichten
+                        oder teile den Team-Link.
                       </p>
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 lg:shrink-0">
-                    <Button
-                      size="sm"
-                      onClick={() => setNuligaImportOpen(true)}
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                      Aus Spielberichten importieren
-                    </Button>
+                  <div className="flex flex-wrap gap-2 shrink-0">
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={openTeamInvite}
+                      onClick={() => setNuligaImportOpen(true)}
                     >
+                      <Download className="h-3.5 w-3.5" />
+                      Aus Spielberichten
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={openTeamInvite}>
                       <Link2 className="h-3.5 w-3.5" />
-                      Team-Link teilen
+                      Team-Link
                     </Button>
                   </div>
                 </CardContent>
               </Card>
             )}
 
-          {/* Filter & Suche */}
-      <div className="space-y-3">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Nach Name, Trikotnummer oder Position suchen…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
+          {/* Kompakte 1-zeilige Suche + Positions-Filter (kein 8-Button-Block) */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative flex-1 min-w-0">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Name, Nummer oder Position suchen…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <SelectNative
+              aria-label="Position filtern"
+              value={posFilter}
+              onChange={(e) =>
+                setPosFilter(e.target.value as "ALL" | HandballPosition)
+              }
+              className="sm:w-52 shrink-0"
+            >
+              {POSITION_FILTERS.map((pos) => (
+                <option key={pos} value={pos}>
+                  {pos === "ALL"
+                    ? "Alle Positionen"
+                    : `${pos} · ${HANDBALL_POSITION_LABELS[pos].full}`}
+                </option>
+              ))}
+            </SelectNative>
+          </div>
 
-        <div
-          className="flex flex-wrap gap-1.5"
-          role="group"
-          aria-label="Position filtern"
-        >
-          {POSITION_FILTERS.map((pos) => {
-            const active = posFilter === pos;
-            return (
-              <button
-                key={pos}
-                type="button"
-                onClick={() => setPosFilter(pos)}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
-                  active
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-card text-foreground hover:bg-muted"
-                }`}
-              >
-                {pos === "ALL"
-                  ? "Alle Positionen"
-                  : `${pos} · ${HANDBALL_POSITION_LABELS[pos].full}`}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+          {error && (
+            <div
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 p-3.5 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-200"
+            >
+              {error}
+            </div>
+          )}
 
-      {error && (
-        <div
-          role="alert"
-          className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-200"
-        >
-          {error}
-        </div>
-      )}
+          {/* Scanbare Kaderliste (max. 2-3 Badges, 0 Inline-Detailboxen) */}
+          {loading ? (
+            <CardListSkeleton count={4} />
+          ) : filteredMembers.length === 0 ? (
+            <EmptyState
+              icon={<Users className="h-5 w-5" />}
+              title="Keine passenden Mitglieder"
+              description="Passe Suche oder Position an oder füge neue Spieler zum Kader hinzu."
+            />
+          ) : (
+            <div className="grid gap-2.5">
+              {filteredMembers.map((member) => {
+                const isOwnProfile =
+                  member.canViewSensitive && member.userId === me.user.id;
+                const isLinkedChild = linkedChildIds.has(member.id);
+                const canEditThis = isStaff || isOwnProfile || isLinkedChild;
 
-      {/* Kaderliste */}
-      {loading ? (
-        <p className="text-sm text-muted-foreground py-6">Lade Kader…</p>
-      ) : filteredMembers.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center gap-2">
-            <Users className="h-8 w-8 text-muted-foreground" />
-            <p className="font-semibold">Keine passenden Mitglieder gefunden</p>
-            <p className="text-sm text-muted-foreground">
-              Passe deine Filter an oder füge neue Spieler zum Kader hinzu.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-3">
-          {filteredMembers.map((member) => {
-            const isOwnProfile =
-              member.canViewSensitive && member.userId === me.user.id;
-            const isLinkedChild = linkedChildIds.has(member.id);
-            const canEditThis = isStaff || isOwnProfile || isLinkedChild;
+                const metaParts: string[] = [];
+                if (member.primaryPosition) {
+                  metaParts.push(
+                    `${member.primaryPosition} · ${HANDBALL_POSITION_LABELS[member.primaryPosition].full}`
+                  );
+                }
+                if (member.secondaryPosition) {
+                  metaParts.push(`2. ${member.secondaryPosition}`);
+                }
+                if (member.throwingHand) {
+                  metaParts.push(THROWING_HAND_LABELS[member.throwingHand]);
+                }
+                if (member.teamRoles.length > 0) {
+                  metaParts.push(member.teamRoles.join(", "));
+                }
 
-            return (
-              <Card
-                key={member.id}
-                interactive={canEditThis}
-                data-testid={`member-card-${member.id}`}
-              >
-                <CardContent className="p-4 sm:p-5">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="flex items-start gap-3.5 min-w-0">
-                      {/* Trikotnummer */}
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-secondary text-secondary-foreground font-mono text-base font-bold">
-                        {member.jerseyNumber !== null
-                          ? `#${member.jerseyNumber}`
-                          : "–"}
-                      </div>
+                // Max. 2–3 handlungsrelevante/abweichende Badges (kein 'Spieler'/'Fit'-Rauschen)
+                const showRoleBadge = member.role !== "PLAYER";
+                const showAvailabilityBadge =
+                  member.availabilityStatus !== "FIT";
 
-                      <div className="space-y-1.5 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h2 className="text-base font-bold text-foreground">
-                            {canEditThis ? (
-                              <button
-                                type="button"
-                                onClick={() => openEditDialog(member)}
-                                className={cn(
-                                  CARD_OVERLAY_TRIGGER_CLASS,
-                                  "transition-colors group-hover:text-primary"
-                                )}
-                              >
-                                {member.firstName} {member.lastName}
-                                <span className="sr-only">
-                                  {" "}– Profil bearbeiten
-                                </span>
-                              </button>
-                            ) : (
-                              <>
-                                {member.firstName} {member.lastName}
-                              </>
-                            )}
-                          </h2>
-                          <Badge variant="outline">
-                            {MEMBER_ROLE_LABELS[member.role]}
-                          </Badge>
-                          {member.isClubAdmin && member.role !== "CLUB_ADMIN" && (
-                            <Badge variant="secondary">Vereins-Admin</Badge>
-                          )}
-                          <Badge
-                            variant={
-                              member.availabilityStatus === "FIT"
-                                ? "fit"
-                                : member.availabilityStatus === "INJURED"
-                                  ? "injured"
-                                  : "unavailable"
-                            }
-                          >
-                            {
-                              AVAILABILITY_STATUS_LABELS[
-                                member.availabilityStatus
-                              ]
-                            }
-                          </Badge>
-                          {!member.isClaimed && (
-                            <Badge variant="secondary">Noch ohne Login</Badge>
-                          )}
-                          {isLinkedChild && (
-                            <Badge variant="default">Dein Kind</Badge>
-                          )}
-                        </div>
+                return (
+                  <Card
+                    key={member.id}
+                    interactive
+                    data-testid={`member-card-${member.id}`}
+                  >
+                    <CardContent className="p-3.5 sm:p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-secondary-foreground font-mono text-sm font-bold">
+                            {member.jerseyNumber !== null
+                              ? `#${member.jerseyNumber}`
+                              : "–"}
+                          </div>
 
-                        {/* Handball-Positionen, Wurfhand & Team-Ämter */}
-                        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                          {member.primaryPosition && (
-                            <Badge variant="position">
-                              {member.primaryPosition} ·{" "}
-                              {
-                                HANDBALL_POSITION_LABELS[member.primaryPosition]
-                                  .full
-                              }
-                            </Badge>
-                          )}
-                          {member.secondaryPosition && (
-                            <Badge variant="outline" className="font-mono">
-                              2. {member.secondaryPosition}
-                            </Badge>
-                          )}
-                          {member.throwingHand && (
-                            <span className="px-1">
-                              Wurfhand:{" "}
-                              <strong className="text-foreground">
-                                {THROWING_HAND_LABELS[member.throwingHand]}
-                              </strong>
-                            </span>
-                          )}
-                          {member.teamRoles.map((tr) => (
-                            <Badge key={tr} variant="secondary">
-                              {tr}
-                            </Badge>
-                          ))}
-                        </div>
+                          <div className="min-w-0 space-y-0.5">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <h2 className="text-sm sm:text-base font-bold text-foreground truncate">
+                                <button
+                                  type="button"
+                                  onClick={() => setDetailMemberId(member.id)}
+                                  className={cn(
+                                    CARD_OVERLAY_TRIGGER_CLASS,
+                                    "transition-colors group-hover:text-primary"
+                                  )}
+                                >
+                                  {member.firstName} {member.lastName}
+                                  <span className="sr-only">
+                                    {" "}– Profildetails öffnen
+                                  </span>
+                                </button>
+                              </h2>
 
-                        {/* DSGVO-geschützte Details (werden NUR vom Server geliefert, wenn berechtigt) */}
-                        {member.canViewSensitive &&
-                          (member.passNumber ||
-                            member.emergencyContact ||
-                            member.injuryNote ||
-                            member.phone) && (
-                            <div
-                              className={cn(
-                                CARD_ACTION_LAYER_CLASS,
-                                "mt-2 select-text rounded-lg border border-border bg-muted/40 p-2.5 text-xs space-y-1"
+                              {showRoleBadge && (
+                                <Badge variant="outline">
+                                  {MEMBER_ROLE_LABELS[member.role]}
+                                </Badge>
                               )}
-                              data-testid="sensitive-member-fields"
-                            >
-                              <div className="flex items-center gap-1 font-semibold text-muted-foreground">
-                                <Lock className="h-3 w-3 text-primary" />
-                                <span>Geschützte Profildaten</span>
-                              </div>
-                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-foreground">
-                                {member.passNumber && (
-                                  <span>
-                                    <span className="text-muted-foreground">
-                                      Pass-Nr.:{" "}
-                                    </span>
-                                    <span className="font-mono">
-                                      {member.passNumber}
-                                    </span>
-                                  </span>
-                                )}
-                                {member.emergencyContact && (
-                                  <span>
-                                    <span className="text-muted-foreground">
-                                      Notfallkontakt:{" "}
-                                    </span>
-                                    {member.emergencyContact}
-                                  </span>
-                                )}
-                                {member.phone && (() => {
-                                  const formattedPhone = formatPhoneNumber(
-                                    member.phone
-                                  );
-                                  const telHref = toTelHref(member.phone);
-                                  return (
-                                    <span>
-                                      <span className="text-muted-foreground">
-                                        Tel.:{" "}
-                                      </span>
-                                      {telHref ? (
-                                        <a
-                                          href={telHref}
-                                          className="font-mono underline-offset-2 hover:text-primary hover:underline"
-                                        >
-                                          {formattedPhone}
-                                        </a>
-                                      ) : (
-                                        formattedPhone
-                                      )}
-                                    </span>
-                                  );
-                                })()}
-                              </div>
-                              {member.injuryNote && (
-                                <p className="flex items-center gap-1 text-red-700 dark:text-red-300 pt-0.5">
-                                  <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
-                                  <span>{member.injuryNote}</span>
-                                </p>
+                              {showAvailabilityBadge && (
+                                <Badge
+                                  variant={
+                                    member.availabilityStatus === "INJURED"
+                                      ? "injured"
+                                      : "unavailable"
+                                  }
+                                >
+                                  {
+                                    AVAILABILITY_STATUS_LABELS[
+                                      member.availabilityStatus
+                                    ]
+                                  }
+                                </Badge>
+                              )}
+                              {isLinkedChild && (
+                                <Badge variant="default">Dein Kind</Badge>
+                              )}
+                              {isStaff && !member.isClaimed && !isLinkedChild && (
+                                <Badge variant="secondary">
+                                  Noch ohne Login
+                                </Badge>
                               )}
                             </div>
-                          )}
-                      </div>
-                    </div>
 
-                    {/* Aktionen */}
-                    <div className="flex flex-wrap items-center gap-1.5 sm:shrink-0">
-                      {isStaff && !member.isClaimed && !member.isMinor && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={CARD_ACTION_LAYER_CLASS}
-                          onClick={() =>
-                            openClaimInvite(member.id, "PROFILE_CLAIM")
-                          }
-                        >
-                          <Link2 className="h-3.5 w-3.5" />
-                          Claim-Link
-                        </Button>
-                      )}
-                      {isStaff && member.isMinor && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={CARD_ACTION_LAYER_CLASS}
-                          onClick={() =>
-                            openClaimInvite(member.id, "GUARDIAN_LINK")
-                          }
-                        >
-                          <UserCheck className="h-3.5 w-3.5" />
-                          Eltern-Link
-                        </Button>
-                      )}
-                      {canDelete && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className={CARD_ACTION_LAYER_CLASS}
-                          onClick={() => handleDelete(member)}
-                          aria-label={`${member.firstName} ${member.lastName} entfernen`}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      )}
-                      {canEditThis && (
-                        <ChevronRight
-                          className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
-                          aria-hidden="true"
-                        />
-                      )}
+                            <p className="truncate text-xs text-muted-foreground">
+                              {metaParts.length > 0
+                                ? metaParts.join(" · ")
+                                : member.isClubAdmin &&
+                                    member.role !== "CLUB_ADMIN"
+                                  ? "Vereins-Admin"
+                                  : MEMBER_ROLE_LABELS[member.role]}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          {(isStaff || canEditThis || canDelete) && (
+                            <div className={CARD_ACTION_LAYER_CLASS}>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-9 w-9 text-muted-foreground"
+                                    aria-label={`Aktionen für ${member.firstName} ${member.lastName}`}
+                                  >
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {canEditThis && (
+                                    <DropdownMenuItem
+                                      onSelect={() => openEditDialog(member)}
+                                    >
+                                      <Pencil className="h-4 w-4 text-muted-foreground" />
+                                      <span>Bearbeiten</span>
+                                    </DropdownMenuItem>
+                                  )}
+                                  {isStaff &&
+                                    !member.isClaimed &&
+                                    !member.isMinor && (
+                                      <DropdownMenuItem
+                                        onSelect={() =>
+                                          openClaimInvite(
+                                            member.id,
+                                            "PROFILE_CLAIM"
+                                          )
+                                        }
+                                      >
+                                        <Link2 className="h-4 w-4 text-primary" />
+                                        <span>Claim-Link erstellen</span>
+                                      </DropdownMenuItem>
+                                    )}
+                                  {isStaff && member.isMinor && (
+                                    <DropdownMenuItem
+                                      onSelect={() =>
+                                        openClaimInvite(
+                                          member.id,
+                                          "GUARDIAN_LINK"
+                                        )
+                                      }
+                                    >
+                                      <UserCheck className="h-4 w-4 text-primary" />
+                                      <span>Eltern-Link erstellen</span>
+                                    </DropdownMenuItem>
+                                  )}
+                                  {canDelete && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        destructive
+                                        onSelect={() => setDeleteTarget(member)}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                        <span>Aus Kader entfernen</span>
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          )}
+                          <ChevronRight
+                            className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+                            aria-hidden="true"
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Eltern-Kind-Verknüpfungen (für Staff) */}
+          {isStaff && guardianLinks.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <UserCheck className="h-4 w-4 text-primary" />
+                  Eltern-Kind-Verknüpfungen ({guardianLinks.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {guardianLinks.map((g) => (
+                  <div
+                    key={g.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3 text-sm"
+                  >
+                    <div className="min-w-0">
+                      <span className="font-semibold">{g.guardianName}</span>{" "}
+                      <span className="text-xs text-muted-foreground">
+                        ({g.guardianEmail})
+                      </span>{" "}
+                      →{" "}
+                      <span className="font-semibold text-primary">
+                        {g.childFirstName} {g.childLastName}
+                      </span>
                     </div>
+                    <Badge variant="secondary">{g.relationship}</Badge>
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                ))}
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 
-      {/* Eltern-Kind-Verknüpfungen (für Trainer/Admin sichtbar) */}
-      {isStaff && guardianLinks.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <UserCheck className="h-4 w-4 text-primary" />
-              Eltern-Kind-Verknüpfungen ({guardianLinks.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {guardianLinks.map((g) => (
-              <div
-                key={g.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3 text-sm"
-              >
-                <div>
-                  <span className="font-semibold">{g.guardianName}</span>{" "}
-                  <span className="text-xs text-muted-foreground">
-                    ({g.guardianEmail})
-                  </span>{" "}
-                  →{" "}
-                  <span className="font-semibold text-primary">
-                    {g.childFirstName} {g.childLastName}
-                  </span>
-                </div>
-                <Badge variant="secondary">{g.relationship}</Badge>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-        </>
-      )}
+      {/* Mitglieds-Detail-Dialog (Progressive Disclosure inkl. geschützter Profildaten) */}
+      <MemberDetailDialog
+        open={detailMember !== null}
+        onOpenChange={(open) => {
+          if (!open) setDetailMemberId(null);
+        }}
+        member={detailMember}
+        isStaff={isStaff}
+        canEdit={Boolean(
+          detailMember &&
+            (isStaff ||
+              (detailMember.canViewSensitive &&
+                detailMember.userId === me.user.id) ||
+              linkedChildIds.has(detailMember.id))
+        )}
+        canDelete={canDelete}
+        isLinkedChild={Boolean(
+          detailMember && linkedChildIds.has(detailMember.id)
+        )}
+        onEdit={openEditDialog}
+        onOpenInvite={openClaimInvite}
+        onRequestDelete={setDeleteTarget}
+      />
 
-      {/* Dialoge */}
+      {/* Bearbeiten / Anlegen Dialog */}
       <MemberFormDialog
         key={`${memberDialogMode}-${selectedMember?.id ?? "new"}-${memberDialogOpen}`}
         open={memberDialogOpen}
@@ -847,6 +805,22 @@ export default function TeamRosterPage() {
           void loadRoster();
           void refreshMe();
         }}
+      />
+
+      {/* Bestätigungsdialog statt window.confirm */}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Mitglied aus Kader entfernen?"
+        description={
+          deleteTarget
+            ? `Möchtest du ${deleteTarget.firstName} ${deleteTarget.lastName} wirklich aus dem Kader von ${activeTeam.teamName} entfernen?`
+            : undefined
+        }
+        confirmLabel="Aus Kader entfernen"
+        onConfirm={confirmDeleteMember}
       />
 
       {isStaff && (

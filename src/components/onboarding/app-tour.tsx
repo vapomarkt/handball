@@ -18,13 +18,21 @@ interface HighlightRect {
 
 function findVisibleTarget(targetId: string): HTMLElement | null {
   if (typeof document === "undefined") return null;
-  const candidates = Array.from(
-    document.querySelectorAll<HTMLElement>(`[data-tour-id="${targetId}"]`)
-  );
-  for (const el of candidates) {
-    const rect = el.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) {
-      return el;
+  const searchIds =
+    targetId === "nav-taktik" ||
+    targetId === "nav-verwaltung" ||
+    targetId === "nav-kasse"
+      ? [targetId, "nav-more"]
+      : [targetId];
+  for (const id of searchIds) {
+    const candidates = Array.from(
+      document.querySelectorAll<HTMLElement>(`[data-tour-id="${id}"]`)
+    );
+    for (const el of candidates) {
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        return el;
+      }
     }
   }
   return null;

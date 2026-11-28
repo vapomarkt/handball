@@ -9,6 +9,7 @@ import {
   Loader2,
   MessageCircle,
   QrCode,
+  Share2,
   Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -30,13 +31,18 @@ import {
 } from "@/domain/schemas/handball";
 import type { TeamInviteDTO } from "@/domain/schemas/invite";
 import type { TeamMemberResponseDTO } from "@/domain/schemas/member";
-import { formatShortCode } from "@/domain/services/invite-service";
+import {
+  buildInviteShareText,
+  formatShortCode,
+  formatTeamClubLabel,
+} from "@/domain/services/invite-service";
 
 interface InviteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   teamId: string;
   teamName?: string;
+  clubName?: string;
   members: TeamMemberResponseDTO[];
   initialTargetMemberId?: string | null;
   initialType?: InviteType;
@@ -56,6 +62,7 @@ export function InviteDialog({
   onOpenChange,
   teamId,
   teamName,
+  clubName,
   members,
   initialTargetMemberId = null,
   initialType = "TEAM_JOIN",
@@ -64,7 +71,7 @@ export function InviteDialog({
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const [typeOverride, setTypeOverride] = useState<InviteType | null>(null);
   const [role, setRole] = useState<MemberRole>("PLAYER");
@@ -80,6 +87,13 @@ export function InviteDialog({
   const [qrSvg, setQrSvg] = useState<string>("");
 
   const unclaimedMembers = members.filter((m) => !m.isClaimed);
+  const teamClubLabel = formatTeamClubLabel(teamName, clubName);
+  const trimmedTeamName = teamName?.trim() ?? "";
+  const trimmedClubName = clubName?.trim() ?? "";
+  const showSeparateClubName =
+    Boolean(trimmedClubName) &&
+    (!trimmedTeamName ||
+      !trimmedTeamName.toLowerCase().includes(trimmedClubName.toLowerCase()));
 
   const loadInvites = useCallback(async () => {
     try {
@@ -146,24 +160,20 @@ export function InviteDialog({
     }
   }
 
-  function buildWhatsAppUrl(invite: TeamInviteDTO): string {
-    const url = getInviteUrl(invite.token);
-    const short = invite.shortCode ? formatShortCode(invite.shortCode) : null;
-    const teamLabel = teamName ? ` (${teamName})` : "";
-    const greeting =
-      invite.type === "GUARDIAN_LINK" && invite.targetMemberName
-        ? `Hallo! Hier ist euer Eltern-Zugang zu ThrowOff${teamLabel} für ${invite.targetMemberName}:`
-        : invite.type === "PROFILE_CLAIM" && invite.targetMemberName
-          ? `Hi ${invite.targetMemberName.split(" ")[0]}! Hier ist dein persönlicher Link zu ThrowOff${teamLabel}:`
-          : `Hallo! Tritt unserem Team${teamLabel} als ${MEMBER_ROLE_LABELS[invite.role]} bei ThrowOff bei:`;
+  function buildShareText(invite: TeamInviteDTO): string {
+    return buildInviteShareText({
+      type: invite.type,
+      role: invite.role,
+      inviteUrl: getInviteUrl(invite.token),
+      shortCode: invite.shortCode,
+      targetMemberName: invite.targetMemberName,
+      teamName,
+      clubName,
+    });
+  }
 
-    const lines = [
-      greeting,
-      url,
-      ...(short ? [`Oder gib einfach den Team-Code ein: ${short}`] : []),
-      "Anmeldung geht in 30 Sekunden per E-Mail-Code – kein Passwort nötig.",
-    ];
-    return `https://wa.me/?text=${encodeURIComponent(lines.join("\n"))}`;
+  function buildWhatsAppUrl(invite: TeamInviteDTO): string {
+    return `https://wa.me/?text=${encodeURIComponent(buildShareText(invite))}`;
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -213,8 +223,18 @@ export function InviteDialog({
   async function copyLink(invite: TeamInviteDTO) {
     try {
       await navigator.clipboard.writeText(getInviteUrl(invite.token));
-      setCopiedId(invite.id);
-      setTimeout(() => setCopiedId(null), 2000);
+      setCopiedKey(`link:${invite.id}`);
+      setTimeout(() => setCopiedKey(null), 2000);
+    } catch {
+      // Fallback: ignore clipboard error in restricted browsers
+    }
+  }
+
+  async function copyShareText(invite: TeamInviteDTO) {
+    try {
+      await navigator.clipboard.writeText(buildShareText(invite));
+      setCopiedKey(`text:${invite.id}`);
+      setTimeout(() => setCopiedKey(null), 2000);
     } catch {
       // Fallback: ignore clipboard error in restricted browsers
     }
@@ -227,6 +247,11 @@ export function InviteDialog({
       <Dialog open={open} onOpenChange={handleDialogOpenChange}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
+            {teamClubLabel && (
+              <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+                {teamClubLabel}
+              </p>
+            )}
             <DialogTitle>Einladungen, Kurzcodes &amp; QR-Codes</DialogTitle>
             <DialogDescription>
               Lade Spieler, Eltern, Betreuer oder Helfer mit einem Tipp per
@@ -373,7 +398,7 @@ export function InviteDialog({
                         variant="outline"
                         onClick={() => copyLink(inv)}
                       >
-                        {copiedId === inv.id ? (
+                        {copiedKey === `link:${inv.id}` ? (
                           <>
                             <Check className="h-3.5 w-3.5 text-emerald-600" />
                             Kopiert
@@ -382,6 +407,26 @@ export function InviteDialog({
                           <>
                             <Copy className="h-3.5 w-3.5" />
                             Link
+                          </>
+                        )}
+                      </Button>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => copyShareText(inv)}
+                        title="Einladungstext inkl. Verein, Mannschaft, Link und Kurzcode kopieren"
+                      >
+                        {copiedKey === `text:${inv.id}` ? (
+                          <>
+                            <Check className="h-3.5 w-3.5 text-emerald-600" />
+                            Kopiert
+                          </>
+                        ) : (
+                          <>
+                            <Share2 className="h-3.5 w-3.5" />
+                            Text
                           </>
                         )}
                       </Button>
@@ -444,6 +489,21 @@ export function InviteDialog({
 
           {qrInvite && (
             <div className="flex flex-col items-center gap-4 py-2 min-w-0">
+              {teamClubLabel && (
+                <div className="space-y-0.5 text-center">
+                  {trimmedTeamName && (
+                    <p className="text-base font-bold text-foreground leading-tight break-words">
+                      {trimmedTeamName}
+                    </p>
+                  )}
+                  {showSeparateClubName && (
+                    <p className="text-xs font-medium text-muted-foreground break-words">
+                      {trimmedClubName}
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="flex flex-wrap items-center justify-center gap-1.5">
                 <Badge variant="secondary">
                   {MEMBER_ROLE_LABELS[qrInvite.role]}

@@ -7,6 +7,11 @@ import {
 import { DomainError } from "../errors";
 import { canManageInvites, isClubAdmin, ViewerContext } from "../policies/rbac";
 import {
+  InviteType,
+  MEMBER_ROLE_LABELS,
+  MemberRole,
+} from "../schemas/handball";
+import {
   ClaimInviteSchema,
   CreateTeamInviteSchema,
   InvitePreviewDTO,
@@ -45,6 +50,62 @@ export function formatShortCode(code: string | null | undefined): string {
     return `${clean.slice(0, 3)}-${clean.slice(3)}`;
   }
   return clean;
+}
+
+/**
+ * Formatiert Mannschafts- und Vereinsname gemeinsam (z. B. für Einladungslinks,
+ * Kurzcodes, QR-Codes und Link-Vorschauen). Vermeidet Doppelungen, falls der
+ * Vereinsname bereits im Mannschaftsnamen enthalten ist.
+ */
+export function formatTeamClubLabel(
+  teamName?: string | null,
+  clubName?: string | null
+): string {
+  const team = teamName?.trim() ?? "";
+  const club = clubName?.trim() ?? "";
+  if (team && club) {
+    if (team.toLowerCase().includes(club.toLowerCase())) {
+      return team;
+    }
+    return `${team} · ${club}`;
+  }
+  return team || club;
+}
+
+export interface InviteShareTextParams {
+  type: InviteType;
+  role: MemberRole;
+  inviteUrl: string;
+  shortCode?: string | null;
+  targetMemberName?: string | null;
+  teamName?: string | null;
+  clubName?: string | null;
+}
+
+/**
+ * Erzeugt den vollständigen Einladungstext zum Teilen (WhatsApp, Kopieren etc.)
+ * inkl. Mannschafts- und Vereinsname, Link sowie 6-stelligem Kurzcode.
+ */
+export function buildInviteShareText(params: InviteShareTextParams): string {
+  const short = params.shortCode ? formatShortCode(params.shortCode) : null;
+  const teamClub = formatTeamClubLabel(params.teamName, params.clubName);
+  const teamLabel = teamClub ? ` (${teamClub})` : "";
+
+  const greeting =
+    params.type === "GUARDIAN_LINK" && params.targetMemberName
+      ? `Hallo! Hier ist euer Eltern-Zugang zu ThrowOff${teamLabel} für ${params.targetMemberName}:`
+      : params.type === "PROFILE_CLAIM" && params.targetMemberName
+        ? `Hi ${params.targetMemberName.split(" ")[0]}! Hier ist dein persönlicher Link zu ThrowOff${teamLabel}:`
+        : `Hallo! Tritt unserem Team${teamLabel} als ${MEMBER_ROLE_LABELS[params.role]} bei ThrowOff bei:`;
+
+  const lines = [
+    greeting,
+    params.inviteUrl,
+    ...(short ? [`Oder gib einfach den Team-Code ein: ${short}`] : []),
+    "Anmeldung geht in 30 Sekunden per E-Mail-Code – kein Passwort nötig.",
+  ];
+
+  return lines.join("\n");
 }
 
 /**

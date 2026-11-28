@@ -10,7 +10,9 @@ import {
   ROLE_TOUR_STEPS,
 } from "@/domain/schemas/onboarding-state";
 import {
+  buildInviteShareText,
   formatShortCode,
+  formatTeamClubLabel,
   generateShortCode,
   normalizeInviteLookup,
 } from "@/domain/services/invite-service";
@@ -175,6 +177,68 @@ describe("Einladungs-Kurzcodes & Normalisierung", () => {
     expect(
       normalizeInviteLookup("https://throwoff.app/invite/h7k-4p9?utm=whatsapp")
     ).toBe("H7K4P9");
+  });
+
+  it("kombiniert Mannschafts- und Vereinsname sauber ohne Doppelungen", () => {
+    expect(formatTeamClubLabel("1. Herren", "TuS Jahn Hollenstedt")).toBe(
+      "1. Herren · TuS Jahn Hollenstedt"
+    );
+    expect(
+      formatTeamClubLabel("  mC-Jugend ", "  HL Buchholz 08-Rosengarten ")
+    ).toBe("mC-Jugend · HL Buchholz 08-Rosengarten");
+    expect(formatTeamClubLabel("1. Herren", null)).toBe("1. Herren");
+    expect(formatTeamClubLabel(undefined, "TuS Jahn Hollenstedt")).toBe(
+      "TuS Jahn Hollenstedt"
+    );
+    expect(
+      formatTeamClubLabel(
+        "TuS Jahn Hollenstedt 1. Herren",
+        "TuS Jahn Hollenstedt"
+      )
+    ).toBe("TuS Jahn Hollenstedt 1. Herren");
+    expect(formatTeamClubLabel("", "")).toBe("");
+  });
+
+  it("zeigt beim Teilen von Einladungslinks und -Codes neben dem Mannschaftsnamen auch den Vereinsnamen an", () => {
+    const teamJoinText = buildInviteShareText({
+      type: "TEAM_JOIN",
+      role: "PLAYER",
+      inviteUrl: "https://throwoff.app/invite/tok123",
+      shortCode: "H7K4P9",
+      teamName: "1. Herren",
+      clubName: "TuS Jahn Hollenstedt",
+    });
+    expect(teamJoinText).toContain("(1. Herren · TuS Jahn Hollenstedt)");
+    expect(teamJoinText).toContain("https://throwoff.app/invite/tok123");
+    expect(teamJoinText).toContain("H7K-4P9");
+
+    const claimText = buildInviteShareText({
+      type: "PROFILE_CLAIM",
+      role: "PLAYER",
+      inviteUrl: "https://throwoff.app/invite/claim1",
+      shortCode: "ABC234",
+      targetMemberName: "Lukas Weber",
+      teamName: "1. Herren",
+      clubName: "TuS Jahn Hollenstedt",
+    });
+    expect(claimText).toContain(
+      "Hi Lukas! Hier ist dein persönlicher Link zu ThrowOff (1. Herren · TuS Jahn Hollenstedt):"
+    );
+    expect(claimText).toContain("ABC-234");
+
+    const guardianText = buildInviteShareText({
+      type: "GUARDIAN_LINK",
+      role: "PARENT",
+      inviteUrl: "https://throwoff.app/invite/guard1",
+      shortCode: "XYZ789",
+      targetMemberName: "Jarle Hofmann",
+      teamName: "mC-Jugend",
+      clubName: "TuS Jahn Hollenstedt",
+    });
+    expect(guardianText).toContain(
+      "Hallo! Hier ist euer Eltern-Zugang zu ThrowOff (mC-Jugend · TuS Jahn Hollenstedt) für Jarle Hofmann:"
+    );
+    expect(guardianText).toContain("XYZ-789");
   });
 });
 

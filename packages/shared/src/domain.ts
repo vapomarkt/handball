@@ -19,6 +19,9 @@ export * from "../../../src/domain/schemas/onboarding-state";
 export * from "../../../src/domain/schemas/phone";
 export * from "../../../src/domain/services/onboarding-state-service";
 export {
+  buildInviteShareText,
   formatShortCode,
+  formatTeamClubLabel,
   normalizeInviteLookup,
+  type InviteShareTextParams,
 } from "../../../src/domain/services/invite-service";

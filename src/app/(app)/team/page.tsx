@@ -855,6 +855,7 @@ export default function TeamRosterPage() {
           onOpenChange={setInviteDialogOpen}
           teamId={activeTeam.teamId}
           teamName={activeTeam.teamName}
+          clubName={activeTeam.clubName}
           members={members}
           initialTargetMemberId={inviteTargetId}
           initialType={inviteInitialType}

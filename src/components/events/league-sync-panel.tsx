@@ -31,6 +31,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectNative } from "@/components/ui/select-native";
+import { formatGermanDateTime } from "@/domain/date-time";
 import {
   isDirectoryManagedProvider,
   LEAGUE_PROVIDER_LABELS,
@@ -404,9 +405,9 @@ export function LeagueSyncPanel({
                   {activeHvnbSource.lastSyncedAt && (
                     <p className="text-[11px] text-muted-foreground">
                       Letzter Sync:{" "}
-                      {new Date(activeHvnbSource.lastSyncedAt).toLocaleString(
-                        "de-DE"
-                      )}
+                      {formatGermanDateTime(activeHvnbSource.lastSyncedAt, {
+                        includeUhr: true,
+                      })}
                     </p>
                   )}
                 </div>
@@ -858,13 +859,7 @@ export function LeagueSyncPanel({
                     )}
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {new Date(log.detectedAt).toLocaleString("de-DE", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {formatGermanDateTime(log.detectedAt, { includeUhr: true })}
                   </span>
                 </div>
                 <p className="text-xs font-medium text-foreground">

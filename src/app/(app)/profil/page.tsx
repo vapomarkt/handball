@@ -34,6 +34,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatGermanDate } from "@/domain/date-time";
 import {
   formatMemberRoles,
   MEMBER_ROLE_DESCRIPTIONS,
@@ -559,7 +560,7 @@ export default function ProfilePage() {
                       <p className="text-xs text-muted-foreground truncate">
                         {pk.deviceType ? `${pk.deviceType}` : "WebAuthn"}
                         {pk.createdAt
-                          ? ` · Eingerichtet am ${new Date(pk.createdAt).toLocaleDateString("de-DE")}`
+                          ? ` · Eingerichtet am ${formatGermanDate(pk.createdAt)}`
                           : ""}
                       </p>
                     </div>

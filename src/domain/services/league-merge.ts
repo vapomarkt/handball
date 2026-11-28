@@ -4,6 +4,7 @@ import {
   NormalizedLeagueMatch,
   ScoreSyncUpdate,
 } from "../adapters/league-provider";
+import { formatGermanDateTime, GERMAN_TIME_ZONE } from "../date-time";
 import { SyncChangeType } from "../schemas/league";
 
 export interface MatchMergeAction {
@@ -16,12 +17,10 @@ export interface MatchMergeAction {
 }
 
 function formatDeDateTime(d: Date): string {
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const year = d.getUTCFullYear();
-  const h = String(d.getUTCHours()).padStart(2, "0");
-  const m = String(d.getUTCMinutes()).padStart(2, "0");
-  return `${day}.${month}.${year} ${h}:${m}`;
+  return formatGermanDateTime(d, {
+    includeUhr: true,
+    timeZone: GERMAN_TIME_ZONE,
+  });
 }
 
 export function formatScoreSummary(scores: MatchScoresSnapshot): string {

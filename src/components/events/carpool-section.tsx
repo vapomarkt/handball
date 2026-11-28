@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectNative } from "@/components/ui/select-native";
+import { formatDepartureTime } from "@/domain/date-time";
 import type { CarpoolDTO } from "@/domain/schemas/carpool";
 import { getEffectiveRoles } from "@/domain/schemas/handball";
 
@@ -327,7 +328,9 @@ export function CarpoolSection({
                     <p className="flex items-center gap-1 text-muted-foreground">
                       <MapPin className="h-3 w-3 text-primary" />
                       {cp.departureLocation}
-                      {cp.departureTime ? ` · ${cp.departureTime}` : ""}
+                      {cp.departureTime
+                        ? ` · ${formatDepartureTime(cp.departureTime)}`
+                        : ""}
                     </p>
                     {cp.notes && (
                       <p className="text-muted-foreground">{cp.notes}</p>

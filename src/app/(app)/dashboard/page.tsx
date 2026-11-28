@@ -35,6 +35,7 @@ import {
 import { CardListSkeleton, EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
+import { formatGermanDateTime } from "@/domain/date-time";
 import type { WorkDutyDTO } from "@/domain/schemas/duty";
 import type { EventDTO } from "@/domain/schemas/event";
 import {
@@ -47,14 +48,8 @@ import {
 } from "@/domain/schemas/handball";
 import type { TeamMemberResponseDTO } from "@/domain/schemas/member";
 
-function formatShortDate(iso: string) {
-  return new Date(iso).toLocaleString("de-DE", {
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function formatEventDateTime(iso: string) {
+  return formatGermanDateTime(iso, { includeWeekday: true, includeUhr: true });
 }
 
 export default function DashboardPage() {
@@ -327,7 +322,7 @@ export default function DashboardPage() {
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
                   <Clock className="h-3.5 w-3.5 text-primary" />
-                  {formatShortDate(nextEvent.startAt)} Uhr
+                  {formatEventDateTime(nextEvent.startAt)}
                 </span>
                 {nextEvent.venue && (
                   <span className="inline-flex items-center gap-1">
@@ -412,7 +407,7 @@ export default function DashboardPage() {
               <CardContent className="space-y-1.5 text-xs text-muted-foreground">
                 <p className="flex items-center gap-1.5 font-medium text-foreground">
                   <Clock className="h-3.5 w-3.5 text-primary" />
-                  Anwurf: {formatShortDate(nextMatch.startAt)} Uhr
+                  Anwurf: {formatEventDateTime(nextMatch.startAt)}
                 </p>
                 {nextMatch.venue && (
                   <div className="flex flex-wrap items-center gap-2">

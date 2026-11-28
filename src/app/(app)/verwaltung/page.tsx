@@ -39,10 +39,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { GermanDateInput } from "@/components/ui/date-time-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatGermanCalendarDate } from "@/domain/date-time";
 import type { ClubDTO, TeamDTO } from "@/domain/schemas/club";
 import type { SeasonCatalogDTO } from "@/domain/schemas/season-catalog";
 import { cn } from "@/lib/utils";
@@ -54,13 +56,7 @@ function toDateInputValue(iso: string | null): string {
 
 function formatGermanDate(iso: string | null): string | null {
   if (!iso) return null;
-  const parsed = new Date(iso);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return new Intl.DateTimeFormat("de-DE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(parsed);
+  return formatGermanCalendarDate(iso) || null;
 }
 
 interface SeasonFormState {
@@ -997,23 +993,21 @@ export default function AdminSeasonsPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="season-start">Startdatum</Label>
-                <Input
+                <GermanDateInput
                   id="season-start"
-                  type="date"
                   value={form.startDate}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, startDate: e.target.value }))
+                  onChange={(nextIso) =>
+                    setForm((prev) => ({ ...prev, startDate: nextIso }))
                   }
                 />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="season-end">Enddatum</Label>
-                <Input
+                <GermanDateInput
                   id="season-end"
-                  type="date"
                   value={form.endDate}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, endDate: e.target.value }))
+                  onChange={(nextIso) =>
+                    setForm((prev) => ({ ...prev, endDate: nextIso }))
                   }
                 />
               </div>

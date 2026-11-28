@@ -53,6 +53,7 @@ import { FilterChips } from "@/components/ui/filter-chips";
 import { PageHeader } from "@/components/ui/page-header";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { formatGermanDate, formatGermanTime } from "@/domain/date-time";
 import {
   EVENT_TYPE_LABELS,
   type EventDTO,
@@ -82,19 +83,11 @@ const TYPE_FILTER_OPTIONS: ReadonlyArray<{
 ];
 
 function formatEventDate(iso: string) {
-  return new Date(iso).toLocaleDateString("de-DE", {
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  return formatGermanDate(iso, { includeWeekday: true });
 }
 
 function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("de-DE", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatGermanTime(iso);
 }
 
 function TerminePageContent() {
@@ -571,7 +564,9 @@ function TerminePageContent() {
                               {ev.endAt ? `–${formatTime(ev.endAt)}` : ""} Uhr
                             </span>
                             {ev.meetingAt && (
-                              <span>Treffpunkt {formatTime(ev.meetingAt)}</span>
+                              <span>
+                                Treffpunkt {formatTime(ev.meetingAt)} Uhr
+                              </span>
                             )}
                             {ev.venue && (
                               <span className="inline-flex items-center gap-1">

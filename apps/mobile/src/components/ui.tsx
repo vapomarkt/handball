@@ -1,5 +1,6 @@
 import NetInfo from "@react-native-community/netinfo";
 import { useIsRestoring } from "@tanstack/react-query";
+import { formatGermanDateTime } from "@throwoff/shared";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -130,14 +131,7 @@ export function OfflineBanner() {
 }
 
 export function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) return "";
-  return new Date(iso).toLocaleString("de-DE", {
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatGermanDateTime(iso, { includeWeekday: true, includeUhr: true });
 }
 
 const styles = StyleSheet.create({

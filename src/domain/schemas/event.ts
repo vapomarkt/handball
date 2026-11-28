@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { parseGermanDateToIso } from "../date-time";
 import { RsvpStatus, RsvpStatusSchema } from "./handball";
 import type { JerseySetSummaryDTO } from "./jersey-set";
 
@@ -412,7 +413,14 @@ export const UpdateEventSchema = z.object({
 export type UpdateEventInput = z.infer<typeof UpdateEventSchema>;
 
 const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
-const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+const DateStringInputSchema = (fieldLabel: string) =>
+  z
+    .string()
+    .transform((val) => parseGermanDateToIso(val) ?? val.trim())
+    .refine((val) => /^\d{4}-\d{2}-\d{2}$/.test(val), {
+      message: `${fieldLabel} im Format TT.MM.JJJJ erforderlich.`,
+    });
 
 export const CreateRecurringEventsSchema = z.object({
   type: EventTypeSchema.default("TRAINING"),
@@ -423,12 +431,16 @@ export const CreateRecurringEventsSchema = z.object({
     .array(z.number().int().min(0).max(6))
     .min(1, "Mindestens ein Wochentag muss gewählt werden.")
     .max(7),
-  startTime: z.string().regex(timeRegex, "Uhrzeit im Format HH:mm erforderlich."),
-  endTime: z.string().regex(timeRegex, "Endzeit im Format HH:mm erforderlich."),
-  startDate: z.string().regex(isoDateRegex, "Startdatum YYYY-MM-DD erforderlich."),
-  endDate: z.string().regex(isoDateRegex, "Enddatum YYYY-MM-DD erforderlich."),
+  startTime: z
+    .string()
+    .regex(timeRegex, "Uhrzeit im 24-Stunden-Format HH:MM erforderlich."),
+  endTime: z
+    .string()
+    .regex(timeRegex, "Endzeit im 24-Stunden-Format HH:MM erforderlich."),
+  startDate: DateStringInputSchema("Startdatum"),
+  endDate: DateStringInputSchema("Enddatum"),
   excludedDates: z
-    .array(z.string().regex(isoDateRegex, "Ausnahmedatum YYYY-MM-DD."))
+    .array(DateStringInputSchema("Ausnahmedatum"))
     .max(60)
     .default([]),
   rsvpDeadlineHours: z.number().int().min(1).max(168).nullable().optional(),

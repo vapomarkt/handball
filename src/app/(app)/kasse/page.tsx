@@ -36,6 +36,7 @@ import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
 import { SelectNative } from "@/components/ui/select-native";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatGermanDate } from "@/domain/date-time";
 import {
   ANNOUNCEMENT_AUDIENCE_LABELS,
   CASH_ENTRY_STATUS_LABELS,
@@ -432,7 +433,7 @@ export default function KasseUndNewsPage() {
                         <CardTitle className="text-base">{ann.title}</CardTitle>
                         <CardDescription className="text-xs">
                           Von {ann.authorName} ·{" "}
-                          {new Date(ann.createdAt).toLocaleDateString("de-DE")}
+                          {formatGermanDate(ann.createdAt)}
                         </CardDescription>
                       </div>
                       {isStaff && (

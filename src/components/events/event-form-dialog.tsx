@@ -10,9 +10,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  GermanDateInput,
+  GermanTimeInput,
+} from "@/components/ui/date-time-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectNative } from "@/components/ui/select-native";
+import {
+  parseGermanDateToIso,
+  parseGermanTimeTo24h,
+  toLocalIsoDate,
+} from "@/domain/date-time";
 import {
   EVENT_TYPE_LABELS,
   type EventType,
@@ -47,7 +56,7 @@ const EVENT_TYPES = Object.keys(EVENT_TYPE_LABELS) as EventType[];
 function defaultDateStr(offsetDays: number) {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().slice(0, 10);
+  return toLocalIsoDate(d);
 }
 
 export function EventFormDialog({
@@ -101,16 +110,50 @@ export function EventFormDialog({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    const normalizedDate = parseGermanDateToIso(date);
+    const normalizedStartTime = parseGermanTimeTo24h(startTime);
+    if (!normalizedDate) {
+      setError("Bitte ein gültiges Datum im Format TT.MM.JJJJ angeben.");
+      return;
+    }
+    if (!normalizedStartTime) {
+      setError("Bitte eine gültige Beginn-Uhrzeit im 24h-Format (HH:MM) angeben.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
       let body: Record<string, unknown>;
 
       if (recurring) {
-        const excludedDates = excludedDatesText
+        const normalizedEndDate = parseGermanDateToIso(endDate);
+        const normalizedEndTime = parseGermanTimeTo24h(endTime);
+        if (!normalizedEndDate) {
+          setError("Bitte ein gültiges Enddatum im Format TT.MM.JJJJ angeben.");
+          return;
+        }
+        if (!normalizedEndTime) {
+          setError("Bitte eine gültige End-Uhrzeit im 24h-Format (HH:MM) angeben.");
+          return;
+        }
+
+        const rawTokens = excludedDatesText
           .split(/[,\s]+/)
           .map((s) => s.trim())
-          .filter((s) => /^\d{4}-\d{2}-\d{2}$/.test(s));
+          .filter(Boolean);
+        const excludedDates: string[] = [];
+        for (const token of rawTokens) {
+          const parsed = parseGermanDateToIso(token);
+          if (!parsed) {
+            setError(
+              `Ungültiges Ausnahmedatum „${token}“. Bitte im Format TT.MM.JJJJ angeben.`
+            );
+            return;
+          }
+          excludedDates.push(parsed);
+        }
 
         body = {
           recurring: true,
@@ -119,10 +162,10 @@ export function EventFormDialog({
           description: description || null,
           venueId: venueId || null,
           daysOfWeek,
-          startTime,
-          endTime,
-          startDate: date,
-          endDate,
+          startTime: normalizedStartTime,
+          endTime: normalizedEndTime,
+          startDate: normalizedDate,
+          endDate: normalizedEndDate,
           excludedDates,
           rsvpDeadlineHours: rsvpDeadlineHours
             ? Number(rsvpDeadlineHours)
@@ -130,12 +173,33 @@ export function EventFormDialog({
           requireDeclineReason,
         };
       } else {
-        const startAt = new Date(`${date}T${startTime}:00`).toISOString();
-        const endAt = endTime
-          ? new Date(`${date}T${endTime}:00`).toISOString()
+        const normalizedEndTime = endTime
+          ? parseGermanTimeTo24h(endTime)
           : null;
-        const meetingAt = meetingTime
-          ? new Date(`${date}T${meetingTime}:00`).toISOString()
+        if (endTime && !normalizedEndTime) {
+          setError("Bitte eine gültige End-Uhrzeit im 24h-Format (HH:MM) angeben.");
+          return;
+        }
+        const normalizedMeetingTime = meetingTime
+          ? parseGermanTimeTo24h(meetingTime)
+          : null;
+        if (meetingTime && !normalizedMeetingTime) {
+          setError(
+            "Bitte eine gültige Treffpunkt-Uhrzeit im 24h-Format (HH:MM) angeben."
+          );
+          return;
+        }
+
+        const startAt = new Date(
+          `${normalizedDate}T${normalizedStartTime}:00`
+        ).toISOString();
+        const endAt = normalizedEndTime
+          ? new Date(`${normalizedDate}T${normalizedEndTime}:00`).toISOString()
+          : null;
+        const meetingAt = normalizedMeetingTime
+          ? new Date(
+              `${normalizedDate}T${normalizedMeetingTime}:00`
+            ).toISOString()
           : null;
 
         body = {
@@ -315,45 +379,41 @@ export function EventFormDialog({
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="ev-rec-start">Von Datum</Label>
-                  <Input
+                  <GermanDateInput
                     id="ev-rec-start"
-                    type="date"
                     required
                     value={date}
-                    onChange={(e) => setDate(e.target.value)}
+                    onChange={setDate}
                   />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="ev-rec-end">Bis Datum</Label>
-                  <Input
+                  <GermanDateInput
                     id="ev-rec-end"
-                    type="date"
                     required
                     value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
+                    onChange={setEndDate}
                   />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="ev-rec-t1">Beginn</Label>
-                  <Input
+                  <GermanTimeInput
                     id="ev-rec-t1"
-                    type="time"
                     required
                     value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
+                    onChange={setStartTime}
                   />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="ev-rec-t2">Ende</Label>
-                  <Input
+                  <GermanTimeInput
                     id="ev-rec-t2"
-                    type="time"
                     required
                     value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
+                    onChange={setEndTime}
                   />
                 </div>
               </div>
@@ -361,11 +421,11 @@ export function EventFormDialog({
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="ev-rec-excl">
-                    Ferien-Ausnahmen (YYYY-MM-DD, kommagetrennt)
+                    Ferien-Ausnahmen (TT.MM.JJJJ, kommagetrennt)
                   </Label>
                   <Input
                     id="ev-rec-excl"
-                    placeholder="z. B. 2026-12-24, 2026-12-31"
+                    placeholder="z. B. 24.12.2026, 31.12.2026"
                     value={excludedDatesText}
                     onChange={(e) => setExcludedDatesText(e.target.value)}
                   />
@@ -386,45 +446,41 @@ export function EventFormDialog({
               </div>
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="ev-date">Datum *</Label>
-                <Input
+                <GermanDateInput
                   id="ev-date"
-                  type="date"
                   required
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  onChange={setDate}
                 />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="ev-start">
                   {type === "MATCH" ? "Anwurf *" : "Beginn *"}
                 </Label>
-                <Input
+                <GermanTimeInput
                   id="ev-start"
-                  type="time"
                   required
                   value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
+                  onChange={setStartTime}
                 />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="ev-end">Ende</Label>
-                <Input
+                <GermanTimeInput
                   id="ev-end"
-                  type="time"
                   value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
+                  onChange={setEndTime}
                 />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="ev-meet">Treffpunkt</Label>
-                <Input
+                <GermanTimeInput
                   id="ev-meet"
-                  type="time"
                   value={meetingTime}
-                  onChange={(e) => setMeetingTime(e.target.value)}
+                  onChange={setMeetingTime}
                 />
               </div>
             </div>

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { parseGermanDateToIso } from "../date-time";
 
 const OptionalDateInputSchema = z
   .union([z.string(), z.null(), z.undefined()])
@@ -8,9 +9,10 @@ const OptionalDateInputSchema = z
     if (val === null) return null;
     const trimmed = val.trim();
     if (!trimmed) return null;
-    // Unterstützt sowohl YYYY-MM-DD (HTML date input) als auch ISO-Timestamps
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-      return `${trimmed}T00:00:00.000Z`;
+    // Unterstützt TT.MM.JJJJ, YYYY-MM-DD und ISO-Timestamps
+    const parsedIsoDate = parseGermanDateToIso(trimmed);
+    if (parsedIsoDate) {
+      return `${parsedIsoDate}T00:00:00.000Z`;
     }
     return trimmed;
   })
@@ -19,7 +21,7 @@ const OptionalDateInputSchema = z
       if (val === undefined || val === null) return true;
       return !Number.isNaN(Date.parse(val));
     },
-    { message: "Ungültiges Datum (erwartet JJJJ-MM-TT oder ISO-Datum)." }
+    { message: "Ungültiges Datum (erwartet TT.MM.JJJJ oder ISO-Datum)." }
   );
 
 export const CreateSeasonCatalogSchema = z

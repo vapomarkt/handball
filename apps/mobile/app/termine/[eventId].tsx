@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
+  formatDepartureTime,
   formatMatchScore,
   formatOfficialMatchScore,
   getMatchOutcome,
@@ -191,7 +192,9 @@ export default function EventDetailScreen() {
                 {c.driverFirstName} {c.driverLastName} · ab {c.departureLocation}
               </Body>
               <Muted>
-                {c.departureTime ? `${formatDateTime(c.departureTime)} · ` : ""}
+                {c.departureTime
+                  ? `${formatDepartureTime(c.departureTime)} · `
+                  : ""}
                 {c.availableSeats}/{c.totalSeats} Plätze frei
               </Muted>
             </View>

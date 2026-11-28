@@ -50,6 +50,7 @@ import {
   MatchScoreStatusBadges,
 } from "./match-badges";
 import { ResinBadge } from "./resin-badge";
+import { formatGermanDateTime, formatGermanTime } from "@/domain/date-time";
 
 interface EventDetailDialogProps {
   open: boolean;
@@ -64,14 +65,7 @@ interface EventDetailDialogProps {
 }
 
 function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString("de-DE", {
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatGermanDateTime(iso, { includeWeekday: true, includeUhr: true });
 }
 
 export function EventDetailDialog({
@@ -346,10 +340,9 @@ export function EventDetailDialog({
           <DialogDescription>
             {formatDateTime(event.startAt)}
             {event.meetingAt
-              ? ` · Treffpunkt: ${new Date(event.meetingAt).toLocaleTimeString(
-                  "de-DE",
-                  { hour: "2-digit", minute: "2-digit" }
-                )} Uhr`
+              ? ` · Treffpunkt: ${formatGermanTime(event.meetingAt, {
+                  includeUhr: true,
+                })}`
               : ""}
           </DialogDescription>
         </DialogHeader>

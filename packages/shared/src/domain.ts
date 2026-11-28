@@ -5,6 +5,7 @@
  * Core development keeps editing `src/domain/**` as usual – web and mobile
  * automatically share the same schemas, enums and DTO types.
  */
+export * from "../../../src/domain/date-time";
 export * from "../../../src/domain/schemas/handball";
 export * from "../../../src/domain/schemas/event";
 export * from "../../../src/domain/schemas/member";

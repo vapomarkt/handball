@@ -1,3 +1,4 @@
+import { LeagueProviderRegistry } from "../adapters/league-data-provider";
 import { LeagueDirectoryRepository } from "../adapters/league-directory-repository";
 import {
   FetchTextFn,
@@ -5,9 +6,16 @@ import {
 } from "../adapters/league-provider";
 import { ScoutingRepository } from "../adapters/m4-repositories";
 import { TeamRepository } from "../adapters/repositories";
+import { getFederationConfig } from "../data/federation-registry";
 import { DomainError } from "../errors";
 import { canManageEvents, ViewerContext } from "../policies/rbac";
 import {
+  isDirectoryManagedProvider,
+  isNuligaProvider,
+  LeagueProviderType,
+} from "../schemas/league";
+import {
+  LeagueDirectoryFederationOptionDTO,
   LeagueDirectoryMatchSuggestionDTO,
   LeagueDirectorySearchQuerySchema,
   LeagueDirectorySearchResponseDTO,
@@ -38,6 +46,8 @@ const NOISE_WORDS = new Set([
   "handball",
   "sc",
   "fc",
+  "uhc",
+  "union",
 ]);
 
 export function normalizeClubText(value: string): string {
@@ -90,7 +100,11 @@ export function computeClubMatchScore(
   let matched = 0;
   for (const token of qTokens) {
     for (const cToken of cTokens) {
-      if (cToken === token || cToken.startsWith(token) || token.startsWith(cToken)) {
+      if (
+        cToken === token ||
+        cToken.startsWith(token) ||
+        token.startsWith(cToken)
+      ) {
         matched += 1;
         break;
       }
@@ -126,7 +140,8 @@ export class LeagueDirectoryService {
     private readonly leagueSyncService: LeagueSyncService,
     private readonly scouting?: ScoutingRepository,
     private readonly fetchText?: FetchTextFn,
-    private readonly clubLogoAutoImporter?: ClubLogoAutoImporter
+    private readonly clubLogoAutoImporter?: ClubLogoAutoImporter,
+    private readonly providerRegistry?: LeagueProviderRegistry
   ) {}
 
   async search(rawQuery: unknown): Promise<LeagueDirectorySearchResponseDTO> {
@@ -140,12 +155,46 @@ export class LeagueDirectoryService {
 
     const query = parsed.data;
     const allGroups = await this.directory.findGroupsWithTeams({
+      countryCode: query.countryCode,
       federationCode: query.federationCode,
       seasonName: query.seasonName,
       ageGroup: query.ageGroup,
       gender: query.gender,
       leagueId: query.leagueId,
     });
+
+    // Verbände im Suchergebnis aggregieren (ermöglicht bundesweite / europaweite Filterung)
+    const fedMap = new Map<
+      string,
+      { count: number; provider: LeagueProviderType | null; countryCode: string }
+    >();
+    for (const g of allGroups) {
+      const existing = fedMap.get(g.federationCode);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        fedMap.set(g.federationCode, {
+          count: 1,
+          provider: g.externalProvider ?? null,
+          countryCode: g.countryCode || query.countryCode,
+        });
+      }
+    }
+
+    const federations: LeagueDirectoryFederationOptionDTO[] = Array.from(
+      fedMap.entries()
+    )
+      .map(([code, info]) => {
+        const cfg = getFederationConfig(code);
+        return {
+          code,
+          name: cfg?.name ?? code,
+          countryCode: info.countryCode,
+          provider: info.provider,
+          groupCount: info.count,
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, "de"));
 
     // Regionen aggregieren (vor regionCode- und q-Filter, damit alle Regionen wählbar bleiben)
     const regionMap = new Map<string, { name: string; count: number }>();
@@ -164,8 +213,10 @@ export class LeagueDirectoryService {
         groupCount: info.count,
       }))
       .sort((a, b) => {
-        if (a.code === "HVNB") return -1;
-        if (b.code === "HVNB") return 1;
+        if (query.federationCode) {
+          if (a.code === query.federationCode) return -1;
+          if (b.code === query.federationCode) return 1;
+        }
         return a.name.localeCompare(b.name, "de");
       });
 
@@ -204,7 +255,7 @@ export class LeagueDirectoryService {
         if (!normalizedQ) return true;
 
         const groupHaystack = normalizeClubText(
-          `${group.name} ${group.shortName ?? ""} ${group.regionName} ${group.regionCode}`
+          `${group.name} ${group.shortName ?? ""} ${group.regionName} ${group.regionCode} ${group.federationCode}`
         );
         if (groupHaystack.includes(normalizedQ)) return true;
 
@@ -217,7 +268,9 @@ export class LeagueDirectoryService {
       .sort((a, b) => a.name.localeCompare(b.name, "de"));
 
     return {
-      federationCode: query.federationCode,
+      countryCode: query.countryCode,
+      federationCode: query.federationCode ?? null,
+      federations,
       regions,
       suggestions: suggestions.slice(0, 6),
       groups,
@@ -267,23 +320,30 @@ export class LeagueDirectoryService {
     );
     if (!groupTeam) {
       throw DomainError.notFound(
-        "Die ausgewählte HVNB-Mannschaft wurde im Verzeichnis nicht gefunden."
+        "Die ausgewählte Mannschaft wurde im Liga-Verzeichnis nicht gefunden."
       );
     }
 
+    const resolvedProvider: LeagueProviderType = groupTeam.group.externalProvider;
+    const providerAdapter = this.providerRegistry?.get(resolvedProvider) ?? null;
     const displayLeagueName = `${groupTeam.group.name} (${groupTeam.group.federationCode})`;
 
-    // Verzeichnis enthält nicht für jede Mannschaft eine Feed-URL: live bei nuLiga auflösen.
+    // Feed-URL best-effort live auflösen (z. B. nuLiga Webcal)
     let feedUrl = groupTeam.icalUrl;
-    if (!feedUrl && this.fetchText) {
+    if (!feedUrl) {
       try {
-        feedUrl = await resolveNuligaTeamFeed(this.fetchText, {
-          clubName: groupTeam.clubName,
-          teamName: groupTeam.name,
-          groupName: groupTeam.group.name,
-          groupUrl: groupTeam.group.externalUrl,
-          teamUrl: groupTeam.externalUrl,
-        });
+        if (providerAdapter?.resolveTeamFeedUrl) {
+          feedUrl = await providerAdapter.resolveTeamFeedUrl(groupTeam);
+        } else if (isNuligaProvider(resolvedProvider) && this.fetchText) {
+          feedUrl = await resolveNuligaTeamFeed(this.fetchText, {
+            clubName: groupTeam.clubName,
+            teamName: groupTeam.name,
+            groupName: groupTeam.group.name,
+            federationCode: groupTeam.group.federationCode,
+            groupUrl: groupTeam.group.externalUrl,
+            teamUrl: groupTeam.externalUrl,
+          });
+        }
         if (feedUrl) {
           await this.directory.updateGroupTeamIcalUrl(groupTeam.id, feedUrl);
         }
@@ -298,23 +358,40 @@ export class LeagueDirectoryService {
       leagueGroupTeamId: groupTeam.id,
     });
 
-    // Bestehende HVNB-Quelle für dieses Team aktualisieren oder neu anlegen
+    // Bestehende Verzeichnis-Quelle für dieses Team aktualisieren oder neu anlegen
     const existingSources = await this.leagueSyncRepo.listSourcesByTeam(teamId);
-    const existingHvnbSource = existingSources.find(
-      (s) => s.provider === "HVNB_NULIGA" || s.leagueGroupTeamId !== null
+    const existingDirectorySource = existingSources.find(
+      (s) => isDirectoryManagedProvider(s.provider) || s.leagueGroupTeamId !== null
     );
 
-    if (existingHvnbSource) {
-      await this.leagueSyncRepo.deleteSource(existingHvnbSource.id);
+    if (existingDirectorySource) {
+      await this.leagueSyncRepo.deleteSource(existingDirectorySource.id);
     }
 
+    const canSyncDirectlyWithoutIcal =
+      Boolean(providerAdapter?.capabilities.directScheduleSync) ||
+      resolvedProvider === "HANDBALL360" ||
+      (isNuligaProvider(resolvedProvider) &&
+        Boolean(this.fetchText) &&
+        Boolean(groupTeam.externalUrl || groupTeam.group.externalUrl));
+
+    const providerConfig: Record<string, unknown> = {
+      countryCode: groupTeam.group.countryCode,
+      federationCode: groupTeam.group.federationCode,
+      externalGroupId: groupTeam.group.externalGroupId,
+      externalTeamId: groupTeam.externalTeamId,
+      externalClubId: groupTeam.externalClubId ?? null,
+      ...(groupTeam.providerMeta ?? {}),
+    };
+
     const createdSource = await this.leagueSyncRepo.createSource(clubId, teamId, {
-      provider: "HVNB_NULIGA",
+      provider: resolvedProvider,
       leagueGroupTeamId: groupTeam.id,
       name: `${groupTeam.group.name} (${groupTeam.group.federationCode})`,
       sourceUrl: feedUrl ?? null,
       teamNameMatch: groupTeam.name,
-      isEnabled: Boolean(feedUrl),
+      providerConfig,
+      isEnabled: Boolean(feedUrl) || canSyncDirectlyWithoutIcal,
       syncIntervalMinutes: 60,
     });
     const sourceId = createdSource.id;
@@ -323,9 +400,9 @@ export class LeagueDirectoryService {
     let syncWarning: string | null = null;
 
     if (input.autoImportSchedule) {
-      if (!feedUrl) {
+      if (!feedUrl && !canSyncDirectlyWithoutIcal) {
         syncWarning =
-          "Die Mannschaft ist verknüpft, aber für diese Staffel ist noch kein automatischer iCal-Feed hinterlegt. Du kannst unter Termine → Liga-Sync jederzeit eine Feed-URL oder CSV ergänzen.";
+          "Die Mannschaft ist verknüpft, aber für diese Staffel ist noch kein automatischer Spielplan-Feed hinterlegt. Du kannst unter Termine → Liga-Sync jederzeit eine Feed-URL oder CSV ergänzen.";
       } else {
         try {
           syncSummary = await this.leagueSyncService.syncSourceById(sourceId);
@@ -391,6 +468,9 @@ export class LeagueDirectoryService {
       officialTeamName: groupTeam.name,
       groupName: groupTeam.group.name,
       regionName: groupTeam.group.regionName,
+      federationCode: groupTeam.group.federationCode,
+      countryCode: groupTeam.group.countryCode,
+      provider: resolvedProvider,
       sourceId,
       hasIcalFeed: Boolean(feedUrl),
       syncSummary,
@@ -417,7 +497,7 @@ export class LeagueDirectoryService {
 
     const sources = await this.leagueSyncRepo.listSourcesByTeam(teamId);
     for (const src of sources) {
-      if (src.provider === "HVNB_NULIGA" || src.leagueGroupTeamId) {
+      if (isDirectoryManagedProvider(src.provider) || src.leagueGroupTeamId) {
         await this.leagueSyncRepo.deleteSource(src.id);
       }
     }

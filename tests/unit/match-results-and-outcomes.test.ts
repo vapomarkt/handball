@@ -562,6 +562,7 @@ describe("Automatisches Nachtragen von Ergebnissen im Liga-Sync", () => {
         group: {
           id: "grp-1",
           code: "HVNB-2627-HRLS-489002",
+          countryCode: "DE",
           federationCode: "HVNB",
           regionCode: "HRLS",
           regionName: "HR Lüneburg-Stade",

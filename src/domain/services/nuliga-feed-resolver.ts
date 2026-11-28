@@ -1,10 +1,16 @@
 import { FetchTextFn } from "../adapters/league-provider";
+import {
+  getFederationConfig,
+  resolveFederationByNuligaHost,
+} from "../data/federation-registry";
 
 export interface NuligaFeedTarget {
   clubName: string;
   teamName: string;
   groupName: string;
-  /** Staffelseite aus dem HVNB-Verzeichnis (liefert Host und WebObjects-Pfad). */
+  /** Optionales Verbandskürzel (z. B. "HVNB", "BHV", "HHV", "OEHB"). */
+  federationCode?: string | null;
+  /** Staffelseite aus dem Verzeichnis (liefert Host und WebObjects-Pfad). */
   groupUrl: string | null;
   /** Mannschaftsseite aus dem Verzeichnis – spart die Suche, wenn vorhanden. */
   teamUrl?: string | null;
@@ -77,6 +83,20 @@ function extractFeedUrl(html: string): string | null {
   return decodeHtml(feed).replace(/^webcal:\/\//i, "https://");
 }
 
+function resolveClubSearchFederationParam(
+  url: URL,
+  federationCode?: string | null
+): string {
+  const byCode = getFederationConfig(federationCode)?.nuliga?.federationParam;
+  if (byCode) return byCode;
+
+  const byHost = resolveFederationByNuligaHost(url.hostname)?.nuliga?.federationParam;
+  if (byHost) return byHost;
+
+  const prefix = url.hostname.split("-")[0]?.toUpperCase();
+  return prefix && prefix.length >= 2 ? prefix : "HVNB";
+}
+
 /**
  * Ermittelt den offiziellen nuLiga-Spielplan-Feed einer Mannschaft, wenn im
  * Verzeichnis noch keine Feed-URL hinterlegt ist:
@@ -98,13 +118,17 @@ export async function resolveNuligaTeamFeed(
   const url = new URL(target.groupUrl);
   if (!/(^|\.)liga\.nu$/i.test(url.hostname)) return null;
   const base = new URL(".", url);
+  const federationParam = resolveClubSearchFederationParam(
+    url,
+    target.federationCode
+  );
 
   const searchTerm = (target.clubName.split("/")[0] ?? "")
     .replace(/\([^)]*\)/g, "")
     .trim();
   const searchUrl = (term: string) =>
     new URL(
-      `clubSearch?federation=HVNB&searchFor=${encodeURIComponent(term)}`,
+      `clubSearch?federation=${encodeURIComponent(federationParam)}&searchFor=${encodeURIComponent(term)}`,
       base
     ).toString();
 

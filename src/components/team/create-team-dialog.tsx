@@ -31,6 +31,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectNative } from "@/components/ui/select-native";
+import { isDirectoryLinkingSupported } from "@/domain/data/federation-registry";
 import {
   defaultUsesResinForAgeGroup,
   GERMAN_AGE_GROUPS,
@@ -639,8 +640,11 @@ export function CreateTeamDialog({
               )}
 
               {(selectedHvnbTeam ||
-                selectedLeague?.federationCode === "HVNB") && (
+                isDirectoryLinkingSupported(
+                  selectedLeague?.federationCode
+                )) && (
                 <HvnbTeamPicker
+                  federationCode={selectedLeague?.federationCode ?? null}
                   clubName={clubName}
                   seasonName={selectedSeason?.name ?? defaultSeasonName}
                   ageGroup={ageGroup}

@@ -1,4 +1,11 @@
-import { LeagueDirectoryRepository } from "../adapters/league-directory-repository";
+import {
+  LeagueProviderRegistry,
+  ProviderMatchResultSnapshot,
+} from "../adapters/league-data-provider";
+import {
+  LeagueDirectoryGroupTeamRecord,
+  LeagueDirectoryRepository,
+} from "../adapters/league-directory-repository";
 import {
   FetchTextFn,
   LeagueSyncRepository,
@@ -10,6 +17,7 @@ import { canManageEvents, canViewTeam, ViewerContext } from "../policies/rbac";
 import {
   CreateLeagueSourceSchema,
   CsvLeagueImportSchema,
+  isNuligaProvider,
   LeagueImportSourceDTO,
   LeagueSyncChangeLogDTO,
   SyncRunSummaryDTO,
@@ -29,17 +37,27 @@ import {
   ParsedNuligaMatchResult,
 } from "./nuliga-match-results";
 import { isAllowedNuligaUrl } from "./nuliga-opponent-players";
+import { NuligaProviderAdapter } from "./nuliga-provider-adapter";
 
 export class LeagueSyncService {
   private readonly icalAdapter = new IcalLeagueProviderAdapter();
   private readonly csvAdapter = new CsvLeagueProviderAdapter();
+  private readonly providerRegistry: LeagueProviderRegistry;
 
   constructor(
     private readonly teams: TeamRepository,
     private readonly leagueSync: LeagueSyncRepository,
     private readonly fetchText: FetchTextFn,
-    private readonly leagueDirectory?: LeagueDirectoryRepository
-  ) {}
+    private readonly leagueDirectory?: LeagueDirectoryRepository,
+    providerRegistry?: LeagueProviderRegistry
+  ) {
+    if (providerRegistry) {
+      this.providerRegistry = providerRegistry;
+    } else {
+      this.providerRegistry = new LeagueProviderRegistry();
+      this.providerRegistry.register(new NuligaProviderAdapter(fetchText));
+    }
+  }
 
   async listSources(
     viewer: ViewerContext,
@@ -128,7 +146,7 @@ export class LeagueSyncService {
       );
     }
 
-    return this.executeIcalSync(source, parsed.data.icalContent);
+    return this.executeSourceSync(source, parsed.data.icalContent);
   }
 
   /**
@@ -139,7 +157,7 @@ export class LeagueSyncService {
     if (!source) {
       throw DomainError.notFound("Importquelle nicht gefunden.");
     }
-    return this.executeIcalSync(source);
+    return this.executeSourceSync(source);
   }
 
   async syncAllEnabledIcalSources(): Promise<{
@@ -151,7 +169,7 @@ export class LeagueSyncService {
 
     for (const source of sources) {
       try {
-        await this.executeIcalSync(source);
+        await this.executeSourceSync(source);
       } catch (err) {
         const msg =
           err instanceof Error ? err.message : "Unbekannter Sync-Fehler";
@@ -208,37 +226,38 @@ export class LeagueSyncService {
     return summary;
   }
 
-  private async resolveNuligaResultsTarget(
-    source: LeagueImportSourceDTO,
-    parsedMatches: NormalizedLeagueMatch[]
-  ): Promise<NuligaMatchResultsTarget | null> {
-    let teamUrl: string | null = null;
-    let groupUrl: string | null = null;
-    let clubName: string | null = null;
-    let teamName: string | null = source.teamNameMatch ?? null;
-    let groupName: string | null =
-      parsedMatches.find((m) => m.leagueGroupName)?.leagueGroupName ?? null;
+  private async resolveGroupTeamForSource(
+    source: LeagueImportSourceDTO
+  ): Promise<LeagueDirectoryGroupTeamRecord | null> {
+    if (!this.leagueDirectory) return null;
 
     let groupTeamId = source.leagueGroupTeamId ?? null;
     if (!groupTeamId) {
       const team = await this.teams.findById(source.teamId);
       groupTeamId = team?.leagueGroupTeamId ?? null;
     }
+    if (!groupTeamId) return null;
 
-    if (groupTeamId && this.leagueDirectory) {
-      try {
-        const groupTeam = await this.leagueDirectory.findGroupTeamById(groupTeamId);
-        if (groupTeam) {
-          teamUrl = groupTeam.externalUrl;
-          groupUrl = groupTeam.group.externalUrl;
-          clubName = groupTeam.clubName;
-          teamName = groupTeam.name;
-          groupName = groupTeam.group.name;
-        }
-      } catch {
-        // Best-effort
-      }
+    try {
+      return await this.leagueDirectory.findGroupTeamById(groupTeamId);
+    } catch {
+      return null;
     }
+  }
+
+  private resolveNuligaResultsTarget(
+    source: LeagueImportSourceDTO,
+    groupTeam: LeagueDirectoryGroupTeamRecord | null,
+    parsedMatches: NormalizedLeagueMatch[]
+  ): NuligaMatchResultsTarget | null {
+    const teamUrl = groupTeam?.externalUrl ?? null;
+    const groupUrl = groupTeam?.group.externalUrl ?? null;
+    const clubName = groupTeam?.clubName ?? null;
+    const teamName = groupTeam?.name ?? source.teamNameMatch ?? null;
+    const groupName =
+      groupTeam?.group.name ??
+      parsedMatches.find((m) => m.leagueGroupName)?.leagueGroupName ??
+      null;
 
     const fallbackNuligaUrl =
       source.sourceUrl && isAllowedNuligaUrl(source.sourceUrl)
@@ -259,9 +278,9 @@ export class LeagueSyncService {
     };
   }
 
-  private enrichMatchesWithNuligaResults(
+  private enrichMatchesWithResults(
     matches: NormalizedLeagueMatch[],
-    results: ParsedNuligaMatchResult[],
+    results: ProviderMatchResultSnapshot[],
     teamNameMatch?: string | null
   ): NormalizedLeagueMatch[] {
     if (results.length === 0) return matches;
@@ -300,7 +319,7 @@ export class LeagueSyncService {
 
   private async backfillRemainingPastMatches(
     source: LeagueImportSourceDTO,
-    results: ParsedNuligaMatchResult[],
+    results: ProviderMatchResultSnapshot[],
     skipEventIds: Set<string>
   ): Promise<{ count: number; changes: LeagueSyncChangeLogDTO[] }> {
     if (
@@ -341,7 +360,11 @@ export class LeagueSyncService {
       await this.leagueSync.backfillMatchScores(match.eventId, scoreSyncUpdate);
 
       let summaryText: string;
-      if (scoreSyncUpdate.discrepancyDetected && match.homeScoreFull !== null && match.awayScoreFull !== null) {
+      if (
+        scoreSyncUpdate.discrepancyDetected &&
+        match.homeScoreFull !== null &&
+        match.awayScoreFull !== null
+      ) {
         const localSummary = formatScoreSummary({
           homeScoreFull: match.homeScoreFull,
           awayScoreFull: match.awayScoreFull,
@@ -372,40 +395,71 @@ export class LeagueSyncService {
     return { count, changes };
   }
 
-  private async executeIcalSync(
+  private async executeSourceSync(
     source: LeagueImportSourceDTO,
     inlineIcalContent?: string
   ): Promise<SyncRunSummaryDTO> {
     try {
+      const groupTeam = await this.resolveGroupTeamForSource(source);
       let matches: NormalizedLeagueMatch[] = [];
-      let rawIcal = inlineIcalContent;
+      let officialResults: ProviderMatchResultSnapshot[] = [];
 
-      if (!rawIcal) {
-        if (source.sourceUrl) {
-          rawIcal = await this.fetchText(source.sourceUrl);
-        } else if (!source.leagueGroupTeamId) {
+      const registeredProvider =
+        source.provider !== "ICAL_URL" && source.provider !== "CSV_MANUAL"
+          ? this.providerRegistry.get(source.provider)
+          : null;
+
+      if (registeredProvider) {
+        // Provider-spezifischer Abruf (NULIGA / HVNB_NULIGA / HANDBALL360)
+        if (
+          !inlineIcalContent &&
+          !source.sourceUrl &&
+          !source.leagueGroupTeamId &&
+          !source.providerConfig
+        ) {
           throw DomainError.validation(
-            "Für diese Importquelle ist keine iCal-URL hinterlegt."
+            "Für diese Importquelle sind weder eine Feed-URL noch Verbands-IDs hinterlegt."
           );
         }
-      }
 
-      if (rawIcal) {
-        matches = this.icalAdapter.parse(rawIcal, {
-          teamNameMatch: source.teamNameMatch,
+        const fetched = await registeredProvider.fetchScheduleAndResults({
+          source,
+          groupTeam,
+          inlineContent: inlineIcalContent,
         });
-      }
+        matches = fetched.matches;
+        officialResults = fetched.officialResults;
+      } else {
+        // Generischer iCal-Feed (mit optionalem nuLiga-Ergebnis-Enrichment)
+        let rawIcal = inlineIcalContent;
+        if (!rawIcal) {
+          if (source.sourceUrl) {
+            rawIcal = await this.fetchText(source.sourceUrl);
+          } else if (!source.leagueGroupTeamId && !isNuligaProvider(source.provider)) {
+            throw DomainError.validation(
+              "Für diese Importquelle ist keine iCal-URL hinterlegt."
+            );
+          }
+        }
 
-      let nuligaResults: ParsedNuligaMatchResult[] = [];
-      if (!inlineIcalContent) {
-        const target = await this.resolveNuligaResultsTarget(source, matches);
-        if (target) {
-          nuligaResults = await fetchNuligaMatchResults(this.fetchText, target);
-          matches = this.enrichMatchesWithNuligaResults(
-            matches,
-            nuligaResults,
-            target.teamName ?? source.teamNameMatch
-          );
+        if (rawIcal) {
+          matches = this.icalAdapter.parse(rawIcal, {
+            teamNameMatch: source.teamNameMatch,
+          });
+        }
+
+        if (!inlineIcalContent) {
+          const target = this.resolveNuligaResultsTarget(source, groupTeam, matches);
+          if (target) {
+            const nuligaResults: ParsedNuligaMatchResult[] =
+              await fetchNuligaMatchResults(this.fetchText, target);
+            officialResults = nuligaResults;
+            matches = this.enrichMatchesWithResults(
+              matches,
+              nuligaResults,
+              target.teamName ?? source.teamNameMatch
+            );
+          }
         }
       }
 
@@ -416,7 +470,7 @@ export class LeagueSyncService {
 
       const backfilled = await this.backfillRemainingPastMatches(
         source,
-        nuligaResults,
+        officialResults,
         touchedEventIds
       );
 

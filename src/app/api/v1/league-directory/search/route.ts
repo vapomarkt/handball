@@ -7,7 +7,8 @@ export async function GET(request: Request) {
     await requireViewerContext();
     const { searchParams } = new URL(request.url);
     const result = await services.leagueDirectory.search({
-      federationCode: searchParams.get("federationCode") ?? "HVNB",
+      countryCode: searchParams.get("countryCode") ?? "DE",
+      federationCode: searchParams.get("federationCode") || undefined,
       seasonName: searchParams.get("seasonName") ?? undefined,
       ageGroup: searchParams.get("ageGroup") ?? undefined,
       gender: searchParams.get("gender") ?? undefined,

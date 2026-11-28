@@ -1,14 +1,21 @@
 import type { PushNotificationData } from "@throwoff/shared";
 import { PgBoss } from "pg-boss";
+import { getNuligaFederations } from "@/domain/data/federation-registry";
 import { prisma } from "../db/prisma";
-import { importHvnbLive } from "../leagues/hvnb-live-importer";
+import { importNuligaFederationLive } from "../leagues/directory-importer";
 import { ExpoPushService } from "../push/expo-push-service";
 import { services } from "../services/container";
 
 export const LEAGUE_AUTO_SYNC_QUEUE = "league-auto-sync";
 export const HVNB_DIRECTORY_SYNC_QUEUE = "hvnb-directory-sync";
+export const DIRECTORY_SYNC_FEDERATION_QUEUE = "directory-sync-federation";
 export const PUSH_NOTIFICATIONS_QUEUE = "push-notifications";
 export const RSVP_REMINDERS_QUEUE = "rsvp-reminders";
+
+export interface DirectorySyncFederationPayload {
+  federationCode: string;
+  seasonName?: string;
+}
 
 export interface PushJobPayload {
   userIds: string[];
@@ -122,15 +129,45 @@ export async function startPgBossWorker(): Promise<PgBoss> {
     );
   });
 
+  await boss.createQueue(DIRECTORY_SYNC_FEDERATION_QUEUE);
+  await boss.work<DirectorySyncFederationPayload>(
+    DIRECTORY_SYNC_FEDERATION_QUEUE,
+    async (jobs) => {
+      for (const job of jobs) {
+        const fedCode = job.data?.federationCode;
+        if (!fedCode) continue;
+        const result = await importNuligaFederationLive(prisma, fedCode, {
+          seasonName: job.data?.seasonName ?? "2026/27",
+          delayMs: 150,
+        });
+        console.log(
+          `[pg-boss] Verzeichnis ${result.countryCode}/${result.federationCode} (${result.status}): ` +
+            `${result.groups} Staffeln, ${result.teams} Mannschaften, ${result.failures.length} Fehler.`
+        );
+      }
+    }
+  );
+
   await boss.createQueue(HVNB_DIRECTORY_SYNC_QUEUE);
-  // Nächtliche Aktualisierung des HVNB-Verzeichnisses (Staffeln & Mannschaften)
-  await boss.schedule(HVNB_DIRECTORY_SYNC_QUEUE, "30 3 * * *", {}, {
+  // Nächtlicher Orchestrator für alle aktiven nuLiga-Verbände (zeitlich gestaffelt ab 02:30 Uhr)
+  await boss.schedule(HVNB_DIRECTORY_SYNC_QUEUE, "30 2 * * *", {}, {
     tz: "Europe/Berlin",
   });
   await boss.work(HVNB_DIRECTORY_SYNC_QUEUE, async () => {
-    const result = await importHvnbLive(prisma);
+    const federations = getNuligaFederations();
+    for (let idx = 0; idx < federations.length; idx++) {
+      const fed = federations[idx];
+      await boss.send(
+        DIRECTORY_SYNC_FEDERATION_QUEUE,
+        { federationCode: fed.federationCode, seasonName: "2026/27" },
+        {
+          startAfter: idx * 10 * 60, // 10 Minuten Versatz pro Verband
+          singletonKey: `dir-sync-${fed.federationCode}`,
+        }
+      );
+    }
     console.log(
-      `[pg-boss] HVNB-Verzeichnis aktualisiert: ${result.groups} Staffeln, ${result.teams} Mannschaften, ${result.failures.length} Fehler.`
+      `[pg-boss] Nächtlicher Verzeichnis-Sync für ${federations.length} nuLiga-Verbände gestaffelt eingereiht.`
     );
   });
 

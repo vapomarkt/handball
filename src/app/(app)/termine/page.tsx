@@ -145,9 +145,14 @@ function TerminePageContent() {
     () =>
       leagueSources.filter(
         (s) =>
-          (s.provider === "HVNB_NULIGA" &&
-            (Boolean(s.sourceUrl) || Boolean(s.leagueGroupTeamId))) ||
-          (s.provider === "ICAL_URL" && Boolean(s.sourceUrl))
+          (s.provider === "ICAL_URL" && Boolean(s.sourceUrl)) ||
+          ((s.provider === "HVNB_NULIGA" ||
+            s.provider === "NULIGA" ||
+            s.provider === "HANDBALL360" ||
+            s.provider === "HANDBALL4ALL") &&
+            (Boolean(s.sourceUrl) ||
+              Boolean(s.leagueGroupTeamId) ||
+              Boolean(s.providerConfig)))
       ),
     [leagueSources]
   );

@@ -1,4 +1,10 @@
-import { LeagueAgeGroup, LeagueProviderType, TeamGender } from "@prisma/client";
+import {
+  LeagueAgeGroup,
+  LeagueProviderType,
+  Prisma,
+  TeamGender,
+} from "@prisma/client";
+import { DirectoryGroupSeed } from "@/domain/adapters/league-data-provider";
 import {
   LeagueDirectoryFilter,
   LeagueDirectoryGroupTeamRecord,
@@ -7,6 +13,15 @@ import {
 import { HvnbDirectoryGroupSeed } from "@/domain/data/hvnb-directory-seed";
 import { LeagueGroupDTO } from "@/domain/schemas/league-directory";
 import { prisma } from "../db/prisma";
+
+function toRecordOrNull(
+  value: Prisma.JsonValue | null | undefined
+): Record<string, unknown> | null {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return null;
+}
 
 export class PrismaLeagueDirectoryRepository
   implements LeagueDirectoryRepository
@@ -17,7 +32,10 @@ export class PrismaLeagueDirectoryRepository
     const rows = await prisma.leagueGroup.findMany({
       where: {
         isActive: true,
-        federationCode: filter.federationCode,
+        ...(filter.countryCode ? { countryCode: filter.countryCode } : {}),
+        ...(filter.federationCode
+          ? { federationCode: filter.federationCode }
+          : {}),
         ...(filter.seasonName ? { seasonName: filter.seasonName } : {}),
         ...(filter.ageGroup ? { ageGroup: filter.ageGroup } : {}),
         ...(filter.gender ? { gender: filter.gender } : {}),
@@ -31,12 +49,13 @@ export class PrismaLeagueDirectoryRepository
           orderBy: { name: "asc" },
         },
       },
-      orderBy: [{ regionName: "asc" }, { name: "asc" }],
+      orderBy: [{ federationCode: "asc" }, { regionName: "asc" }, { name: "asc" }],
     });
 
     return rows.map((g) => ({
       id: g.id,
       code: g.code,
+      countryCode: g.countryCode,
       federationCode: g.federationCode,
       regionCode: g.regionCode,
       regionName: g.regionName,
@@ -54,6 +73,7 @@ export class PrismaLeagueDirectoryRepository
         id: t.id,
         leagueGroupId: t.leagueGroupId,
         externalTeamId: t.externalTeamId,
+        externalClubId: t.externalClubId,
         name: t.name,
         clubName: t.clubName,
         shortName: t.shortName,
@@ -87,14 +107,17 @@ export class PrismaLeagueDirectoryRepository
       id: row.id,
       leagueGroupId: row.leagueGroupId,
       externalTeamId: row.externalTeamId,
+      externalClubId: row.externalClubId,
       name: row.name,
       clubName: row.clubName,
       shortName: row.shortName,
       icalUrl: row.icalUrl,
       externalUrl: row.externalUrl,
+      providerMeta: toRecordOrNull(row.providerMeta),
       group: {
         id: row.leagueGroup.id,
         code: row.leagueGroup.code,
+        countryCode: row.leagueGroup.countryCode,
         federationCode: row.leagueGroup.federationCode,
         regionCode: row.leagueGroup.regionCode,
         regionName: row.leagueGroup.regionName,
@@ -108,6 +131,7 @@ export class PrismaLeagueDirectoryRepository
         externalProvider: row.leagueGroup.externalProvider,
         externalGroupId: row.leagueGroup.externalGroupId,
         externalUrl: row.leagueGroup.externalUrl,
+        providerMeta: toRecordOrNull(row.leagueGroup.providerMeta),
       },
       siblingTeams: row.leagueGroup.teams,
     };
@@ -124,20 +148,29 @@ export class PrismaLeagueDirectoryRepository
   }
 
   async upsertDirectorySnapshot(
-    groups: HvnbDirectoryGroupSeed[]
+    groups: Array<DirectoryGroupSeed | HvnbDirectoryGroupSeed>
   ): Promise<{ groupsUpserted: number; teamsUpserted: number }> {
     let groupsUpserted = 0;
     let teamsUpserted = 0;
 
     for (const g of groups) {
-      const league = await prisma.league.findUnique({
-        where: { code: g.leagueCode },
-        select: { id: true },
-      });
+      const league = g.leagueCode
+        ? await prisma.league.findUnique({
+            where: { code: g.leagueCode },
+            select: { id: true },
+          })
+        : null;
+
+      const countryCode = "countryCode" in g && g.countryCode ? g.countryCode : "DE";
+      const providerMeta =
+        "providerMeta" in g && g.providerMeta
+          ? (g.providerMeta as Prisma.InputJsonValue)
+          : Prisma.JsonNull;
 
       const savedGroup = await prisma.leagueGroup.upsert({
         where: { code: g.code },
         update: {
+          countryCode,
           federationCode: g.federationCode,
           regionCode: g.regionCode,
           regionName: g.regionName,
@@ -150,11 +183,13 @@ export class PrismaLeagueDirectoryRepository
           externalProvider: g.externalProvider as LeagueProviderType,
           externalGroupId: g.externalGroupId ?? null,
           externalUrl: g.externalUrl ?? null,
+          providerMeta,
           isActive: true,
           lastSyncedAt: new Date(),
         },
         create: {
           code: g.code,
+          countryCode,
           federationCode: g.federationCode,
           regionCode: g.regionCode,
           regionName: g.regionName,
@@ -167,6 +202,7 @@ export class PrismaLeagueDirectoryRepository
           externalProvider: g.externalProvider as LeagueProviderType,
           externalGroupId: g.externalGroupId ?? null,
           externalUrl: g.externalUrl ?? null,
+          providerMeta,
           isActive: true,
           lastSyncedAt: new Date(),
         },
@@ -174,6 +210,13 @@ export class PrismaLeagueDirectoryRepository
       groupsUpserted += 1;
 
       for (const t of g.teams) {
+        const externalClubId =
+          "externalClubId" in t ? (t.externalClubId ?? null) : null;
+        const teamMeta =
+          "providerMeta" in t && t.providerMeta
+            ? (t.providerMeta as Prisma.InputJsonValue)
+            : Prisma.JsonNull;
+
         await prisma.leagueGroupTeam.upsert({
           where: {
             leagueGroupId_externalTeamId: {
@@ -184,19 +227,23 @@ export class PrismaLeagueDirectoryRepository
           update: {
             name: t.name,
             clubName: t.clubName,
+            externalClubId,
             shortName: t.shortName ?? null,
             icalUrl: t.icalUrl ?? null,
             externalUrl: t.externalUrl ?? null,
+            providerMeta: teamMeta,
             isActive: true,
           },
           create: {
             leagueGroupId: savedGroup.id,
             externalTeamId: t.externalTeamId,
+            externalClubId,
             name: t.name,
             clubName: t.clubName,
             shortName: t.shortName ?? null,
             icalUrl: t.icalUrl ?? null,
             externalUrl: t.externalUrl ?? null,
+            providerMeta: teamMeta,
             isActive: true,
           },
         });

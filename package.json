@@ -23,9 +23,11 @@
     "test:e2e": "playwright test",
     "db:seed": "tsx prisma/seed.ts",
     "db:import-leagues:de": "tsx prisma/import-leagues-de.ts",
+    "db:import-leagues:at": "tsx prisma/import-leagues-at.ts",
     "db:import-seasons": "tsx prisma/import-seasons.ts",
     "db:import-hvnb": "tsx prisma/import-hvnb-directory.ts",
     "db:import-hvnb-live": "tsx prisma/import-hvnb-live.ts",
+    "db:import-directory": "tsx prisma/import-directory.ts",
     "db:migrate": "prisma migrate deploy",
     "worker": "tsx src/infrastructure/jobs/run-worker.ts"
   },

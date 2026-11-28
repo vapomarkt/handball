@@ -1,4 +1,5 @@
 import { LeagueCatalogRepository } from "../adapters/league-catalog-repository";
+import { FEDERATION_CONFIG_BY_CODE } from "../data/federation-registry";
 import { GERMAN_FEDERATION_BY_CODE } from "../data/german-leagues";
 import { DomainError } from "../errors";
 import {
@@ -48,14 +49,22 @@ export class LeagueCatalogService {
       fedCounts.entries()
     )
       .map(([code, info]) => {
-        const meta = GERMAN_FEDERATION_BY_CODE.get(code);
+        const germanMeta = GERMAN_FEDERATION_BY_CODE.get(code);
+        const registryMeta = FEDERATION_CONFIG_BY_CODE.get(code);
         return {
           code,
-          name: meta?.name ?? info.name,
-          regionLabel: meta?.regionLabel ?? info.name,
-          isNational: meta?.isNational ?? code === "DHB",
+          name: germanMeta?.name ?? registryMeta?.name ?? info.name,
+          regionLabel:
+            germanMeta?.regionLabel ?? registryMeta?.regionLabel ?? info.name,
+          isNational:
+            germanMeta?.isNational ?? registryMeta?.isNational ?? code === "DHB",
           leagueCount: info.count,
-          searchKeywords: meta?.searchKeywords ?? [code.toLowerCase()],
+          searchKeywords: germanMeta?.searchKeywords ?? [
+            code.toLowerCase(),
+            ...(registryMeta?.shortLabel
+              ? [registryMeta.shortLabel.toLowerCase()]
+              : []),
+          ],
         };
       })
       .sort((a, b) => {

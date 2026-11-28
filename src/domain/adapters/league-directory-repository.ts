@@ -1,20 +1,25 @@
 import { HvnbDirectoryGroupSeed } from "../data/hvnb-directory-seed";
 import { TeamGender } from "../schemas/handball";
+import { LeagueProviderType } from "../schemas/league";
 import { LeagueAgeGroup } from "../schemas/league-catalog";
 import { LeagueGroupDTO } from "../schemas/league-directory";
+import { DirectoryGroupSeed } from "./league-data-provider";
 
 export interface LeagueDirectoryGroupTeamRecord {
   id: string;
   leagueGroupId: string;
   externalTeamId: string;
+  externalClubId?: string | null;
   name: string;
   clubName: string;
   shortName: string | null;
   icalUrl: string | null;
   externalUrl: string | null;
+  providerMeta?: Record<string, unknown> | null;
   group: {
     id: string;
     code: string;
+    countryCode: string;
     federationCode: string;
     regionCode: string;
     regionName: string;
@@ -25,9 +30,10 @@ export interface LeagueDirectoryGroupTeamRecord {
     gender: TeamGender;
     name: string;
     shortName: string | null;
-    externalProvider: "ICAL_URL" | "CSV_MANUAL" | "HVNB_NULIGA";
+    externalProvider: LeagueProviderType;
     externalGroupId: string | null;
     externalUrl: string | null;
+    providerMeta?: Record<string, unknown> | null;
   };
   siblingTeams: Array<{
     id: string;
@@ -38,7 +44,8 @@ export interface LeagueDirectoryGroupTeamRecord {
 }
 
 export interface LeagueDirectoryFilter {
-  federationCode: string;
+  countryCode?: string;
+  federationCode?: string;
   seasonName?: string;
   ageGroup?: LeagueAgeGroup;
   gender?: TeamGender;
@@ -52,13 +59,14 @@ export interface LeagueDirectoryRepository {
     leagueGroupTeamId: string
   ): Promise<LeagueDirectoryGroupTeamRecord | null>;
   upsertDirectorySnapshot(
-    groups: HvnbDirectoryGroupSeed[]
+    groups: Array<DirectoryGroupSeed | HvnbDirectoryGroupSeed>
   ): Promise<{ groupsUpserted: number; teamsUpserted: number }>;
   /** Speichert eine live ermittelte Feed-URL am Verzeichnis-Eintrag. */
   updateGroupTeamIcalUrl(leagueGroupTeamId: string, icalUrl: string): Promise<void>;
 }
 
 export interface LeagueDirectoryProvider {
+  readonly countryCode?: string;
   readonly federationCode: string;
-  fetchSnapshot(): Promise<HvnbDirectoryGroupSeed[]>;
+  fetchSnapshot(): Promise<Array<DirectoryGroupSeed | HvnbDirectoryGroupSeed>>;
 }

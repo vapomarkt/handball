@@ -1,15 +1,26 @@
 import { z } from "zod";
 import { TeamGenderSchema } from "./handball";
-import { LeagueProviderTypeSchema, SyncRunSummaryDTO } from "./league";
+import {
+  LeagueProviderType,
+  LeagueProviderTypeSchema,
+  SyncRunSummaryDTO,
+} from "./league";
 import { LeagueAgeGroupSchema } from "./league-catalog";
 
 export const LeagueDirectorySearchQuerySchema = z.object({
-  federationCode: z.string().trim().min(2).max(20).toUpperCase().default("HVNB"),
+  countryCode: z.string().trim().min(2).max(2).toUpperCase().default("DE"),
+  federationCode: z
+    .string()
+    .trim()
+    .min(2)
+    .max(20)
+    .toUpperCase()
+    .optional(),
   seasonName: z.string().trim().min(3).max(30).optional(),
   ageGroup: LeagueAgeGroupSchema.optional(),
   gender: TeamGenderSchema.optional(),
   leagueId: z.string().trim().min(1).optional(),
-  regionCode: z.string().trim().min(2).max(20).toUpperCase().optional(),
+  regionCode: z.string().trim().min(2).max(30).toUpperCase().optional(),
   q: z.string().trim().max(100).optional(),
   clubName: z.string().trim().max(100).optional(),
 });
@@ -33,6 +44,7 @@ export interface LeagueGroupTeamDTO {
   id: string;
   leagueGroupId: string;
   externalTeamId: string;
+  externalClubId?: string | null;
   name: string;
   clubName: string;
   shortName: string | null;
@@ -43,6 +55,7 @@ export interface LeagueGroupTeamDTO {
 export interface LeagueGroupDTO {
   id: string;
   code: string;
+  countryCode: string;
   federationCode: string;
   regionCode: string;
   regionName: string;
@@ -67,8 +80,18 @@ export interface LeagueDirectoryMatchSuggestionDTO {
   matchReason: string;
 }
 
+export interface LeagueDirectoryFederationOptionDTO {
+  code: string;
+  name: string;
+  countryCode: string;
+  provider: LeagueProviderType | null;
+  groupCount: number;
+}
+
 export interface LeagueDirectorySearchResponseDTO {
-  federationCode: string;
+  countryCode: string;
+  federationCode: string | null;
+  federations: LeagueDirectoryFederationOptionDTO[];
   regions: Array<{
     code: string;
     name: string;
@@ -86,6 +109,9 @@ export interface TeamLeagueLinkResultDTO {
   officialTeamName: string;
   groupName: string;
   regionName: string;
+  federationCode: string;
+  countryCode: string;
+  provider: LeagueProviderType;
   sourceId: string;
   hasIcalFeed: boolean;
   syncSummary: SyncRunSummaryDTO | null;

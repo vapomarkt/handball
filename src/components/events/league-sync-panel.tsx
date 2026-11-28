@@ -32,6 +32,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectNative } from "@/components/ui/select-native";
 import {
+  isDirectoryManagedProvider,
+  LEAGUE_PROVIDER_LABELS,
   SYNC_CHANGE_TYPE_LABELS,
   type LeagueImportSourceDTO,
   type LeagueSyncChangeLogDTO,
@@ -90,7 +92,7 @@ export function LeagueSyncPanel({
 
   const activeHvnbSource =
     sources.find(
-      (s) => s.provider === "HVNB_NULIGA" || Boolean(s.leagueGroupTeamId)
+      (s) => isDirectoryManagedProvider(s.provider) || Boolean(s.leagueGroupTeamId)
     ) ?? null;
 
   const loadData = useCallback(async () => {
@@ -365,7 +367,7 @@ export function LeagueSyncPanel({
         </div>
       )}
 
-      {/* HVNB Direkt-Verknüpfung (1-Klick für Niedersachsen & Bremen) */}
+      {/* Offizielle Verbands-Verknüpfung (nuLiga / Handball360) */}
       {isStaff && (
         <Card className="border-primary/30">
           <CardHeader>
@@ -373,15 +375,15 @@ export function LeagueSyncPanel({
               <div>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Link2 className="h-4 w-4 text-primary" />
-                  HVNB Mannschaft verknüpfen (Niedersachsen & Bremen)
+                  Verbands-Mannschaft verknüpfen (nuLiga & Handball360)
                 </CardTitle>
                 <CardDescription>
-                  Ordne deine Mannschaft direkt ihrer offiziellen HVNB-Staffel
-                  zu – der Spielplan wird automatisch importiert und stündlich
-                  aktuell gehalten.
+                  Ordne deine Mannschaft direkt ihrer offiziellen Staffel zu –
+                  Spielplan, Hallen und Ergebnisse werden automatisch importiert
+                  und stündlich aktuell gehalten.
                 </CardDescription>
               </div>
-              <Badge variant="secondary">Empfohlen · HVNB</Badge>
+              <Badge variant="secondary">Empfohlen · Auto-Sync</Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -392,7 +394,9 @@ export function LeagueSyncPanel({
                     <span className="text-sm font-bold text-foreground">
                       {activeHvnbSource.teamNameMatch || clubName}
                     </span>
-                    <Badge variant="fit">HVNB verbunden</Badge>
+                    <Badge variant="fit">
+                      {LEAGUE_PROVIDER_LABELS[activeHvnbSource.provider]} verbunden
+                    </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {activeHvnbSource.name}
@@ -408,7 +412,8 @@ export function LeagueSyncPanel({
                 </div>
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
                   {(activeHvnbSource.sourceUrl ||
-                    activeHvnbSource.leagueGroupTeamId) && (
+                    activeHvnbSource.leagueGroupTeamId ||
+                    activeHvnbSource.providerConfig) && (
                     <Button
                       type="button"
                       size="sm"
@@ -420,9 +425,7 @@ export function LeagueSyncPanel({
                       ) : (
                         <RefreshCw className="h-3.5 w-3.5" />
                       )}
-                      {activeHvnbSource.sourceUrl
-                        ? "Spielplan & Ergebnisse syncen"
-                        : "Ergebnisse abrufen"}
+                      Spielplan & Ergebnisse syncen
                     </Button>
                   )}
                   <Button
@@ -491,7 +494,7 @@ export function LeagueSyncPanel({
         </Card>
       )}
 
-      {/* Aktive Sync-Quellen (HVNB & iCal) */}
+      {/* Aktive Sync-Quellen (nuLiga, Handball360 & iCal) */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -499,7 +502,7 @@ export function LeagueSyncPanel({
             Verbundene Spielplan-Quellen (Stündlicher pg-boss Auto-Sync)
           </CardTitle>
           <CardDescription>
-            Alle aktiven HVNB-, nuLiga- und handball.net-Feeds dieser Mannschaft.
+            Alle aktiven nuLiga-, Handball360- und iCal-Quellen dieser Mannschaft.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -520,9 +523,7 @@ export function LeagueSyncPanel({
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold">{src.name}</span>
                       <Badge variant="outline">
-                        {src.provider === "HVNB_NULIGA"
-                          ? "HVNB Auto"
-                          : src.provider}
+                        {LEAGUE_PROVIDER_LABELS[src.provider] ?? src.provider}
                       </Badge>
                       <Badge
                         variant={
@@ -555,8 +556,10 @@ export function LeagueSyncPanel({
                   {isStaff && (
                     <div className="flex items-center gap-1.5 shrink-0">
                       {((src.provider === "ICAL_URL" && src.sourceUrl) ||
-                        (src.provider === "HVNB_NULIGA" &&
-                          (src.sourceUrl || src.leagueGroupTeamId))) && (
+                        (isDirectoryManagedProvider(src.provider) &&
+                          (src.sourceUrl ||
+                            src.leagueGroupTeamId ||
+                            src.providerConfig))) && (
                           <Button
                             size="sm"
                             variant="outline"

@@ -4,8 +4,63 @@ export const LeagueProviderTypeSchema = z.enum([
   "ICAL_URL",
   "CSV_MANUAL",
   "HVNB_NULIGA",
+  "NULIGA",
+  "HANDBALL360",
+  "HANDBALL4ALL",
 ]);
 export type LeagueProviderType = z.infer<typeof LeagueProviderTypeSchema>;
+
+export const DirectorySyncRunStatusSchema = z.enum([
+  "RUNNING",
+  "SUCCESS",
+  "PARTIAL",
+  "ERROR",
+  "ABORTED_SAFETY_GUARD",
+]);
+export type DirectorySyncRunStatus = z.infer<
+  typeof DirectorySyncRunStatusSchema
+>;
+
+/** Normalisiert Legacy-Provider (HVNB_NULIGA -> NULIGA) für den Adapter-Dispatch. */
+export function normalizeProviderType(
+  provider: LeagueProviderType
+): LeagueProviderType {
+  return provider === "HVNB_NULIGA" ? "NULIGA" : provider;
+}
+
+export function isNuligaProvider(provider: LeagueProviderType): boolean {
+  return provider === "HVNB_NULIGA" || provider === "NULIGA";
+}
+
+export function isDirectoryManagedProvider(
+  provider: LeagueProviderType
+): boolean {
+  return (
+    provider === "HVNB_NULIGA" ||
+    provider === "NULIGA" ||
+    provider === "HANDBALL360" ||
+    provider === "HANDBALL4ALL"
+  );
+}
+
+export function isAutoSyncProvider(provider: LeagueProviderType): boolean {
+  return (
+    provider === "ICAL_URL" ||
+    provider === "HVNB_NULIGA" ||
+    provider === "NULIGA" ||
+    provider === "HANDBALL360" ||
+    provider === "HANDBALL4ALL"
+  );
+}
+
+export const LEAGUE_PROVIDER_LABELS: Record<LeagueProviderType, string> = {
+  ICAL_URL: "iCal-Feed",
+  CSV_MANUAL: "CSV-Import",
+  HVNB_NULIGA: "nuLiga (HVNB)",
+  NULIGA: "nuLiga",
+  HANDBALL360: "Handball360 / handball.net",
+  HANDBALL4ALL: "Handball4All",
+};
 
 export const SyncStatusSchema = z.enum(["NEVER", "SUCCESS", "ERROR"]);
 export type SyncStatus = z.infer<typeof SyncStatusSchema>;
@@ -27,6 +82,12 @@ export const SYNC_CHANGE_TYPE_LABELS: Record<SyncChangeType, string> = {
   UPDATED: "Aktualisiert",
 };
 
+export const ProviderConfigSchema = z
+  .record(z.string(), z.unknown())
+  .nullable()
+  .optional();
+export type ProviderConfig = Record<string, unknown>;
+
 export const CreateLeagueSourceSchema = z
   .object({
     provider: LeagueProviderTypeSchema.default("ICAL_URL"),
@@ -40,6 +101,7 @@ export const CreateLeagueSourceSchema = z
       .or(z.literal("").transform(() => null))
       .optional(),
     teamNameMatch: z.string().trim().max(100).nullable().optional(),
+    providerConfig: ProviderConfigSchema,
     isEnabled: z.boolean().default(true),
     syncIntervalMinutes: z.number().int().min(15).max(1440).default(60),
   })
@@ -78,7 +140,10 @@ export const CsvLeagueImportSchema = z.object({
   teamNameMatch: z
     .string()
     .trim()
-    .min(2, "Eigener Mannschafts-/Vereinsname zur Heim/Auswärts-Erkennung erforderlich.")
+    .min(
+      2,
+      "Eigener Mannschafts-/Vereinsname zur Heim/Auswärts-Erkennung erforderlich."
+    )
     .max(100),
   csvContent: z.string().min(10, "CSV-Inhalt darf nicht leer sein."),
   mapping: CsvColumnMappingSchema,
@@ -94,11 +159,13 @@ export interface LeagueImportSourceDTO {
   name: string;
   sourceUrl: string | null;
   teamNameMatch: string | null;
+  providerConfig?: ProviderConfig | null;
   isEnabled: boolean;
   syncIntervalMinutes: number;
   lastSyncedAt: string | null;
   lastSyncStatus: SyncStatus;
   lastSyncError: string | null;
+  consecutiveErrors?: number;
   createdAt: string;
 }
 
@@ -126,4 +193,20 @@ export interface SyncRunSummaryDTO {
   unchangedCount: number;
   resultsUpdatedCount?: number;
   changes: LeagueSyncChangeLogDTO[];
+}
+
+export interface DirectorySyncRunDTO {
+  id: string;
+  countryCode: string;
+  federationCode: string;
+  provider: LeagueProviderType;
+  seasonName: string;
+  status: DirectorySyncRunStatus;
+  groupsSynced: number;
+  teamsSynced: number;
+  deactivatedGroups: number;
+  deactivatedTeams: number;
+  errorCount: number;
+  startedAt: string;
+  finishedAt: string | null;
 }

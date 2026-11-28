@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import {
   CarpoolRepository,
   ExistingSyncedMatch,
@@ -12,10 +13,20 @@ import {
   CreateLeagueSourceInput,
   LeagueImportSourceDTO,
   LeagueSyncChangeLogDTO,
+  ProviderConfig,
   SyncChangeType,
   SyncStatus,
 } from "@/domain/schemas/league";
 import { prisma } from "../db/prisma";
+
+function mapProviderConfig(
+  value: Prisma.JsonValue | null | undefined
+): ProviderConfig | null {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as ProviderConfig;
+  }
+  return null;
+}
 
 function mapSource(s: {
   id: string;
@@ -26,11 +37,13 @@ function mapSource(s: {
   name: string;
   sourceUrl: string | null;
   teamNameMatch: string | null;
+  providerConfig?: Prisma.JsonValue | null;
   isEnabled: boolean;
   syncIntervalMinutes: number;
   lastSyncedAt: Date | null;
   lastSyncStatus: SyncStatus;
   lastSyncError: string | null;
+  consecutiveErrors?: number;
   createdAt: Date;
 }): LeagueImportSourceDTO {
   return {
@@ -42,11 +55,13 @@ function mapSource(s: {
     name: s.name,
     sourceUrl: s.sourceUrl,
     teamNameMatch: s.teamNameMatch,
+    providerConfig: mapProviderConfig(s.providerConfig),
     isEnabled: s.isEnabled,
     syncIntervalMinutes: s.syncIntervalMinutes,
     lastSyncedAt: s.lastSyncedAt ? s.lastSyncedAt.toISOString() : null,
     lastSyncStatus: s.lastSyncStatus,
     lastSyncError: s.lastSyncError,
+    consecutiveErrors: s.consecutiveErrors ?? 0,
     createdAt: s.createdAt.toISOString(),
   };
 }
@@ -95,11 +110,21 @@ export class PrismaLeagueSyncRepository implements LeagueSyncRepository {
   async listEnabledIcalSources(): Promise<LeagueImportSourceDTO[]> {
     const rows = await prisma.leagueImportSource.findMany({
       where: {
-        provider: { in: ["ICAL_URL", "HVNB_NULIGA"] },
+        provider: {
+          in: ["ICAL_URL", "HVNB_NULIGA", "NULIGA", "HANDBALL360"],
+        },
         isEnabled: true,
+        consecutiveErrors: { lt: 12 },
         OR: [
           { sourceUrl: { not: null } },
-          { provider: "HVNB_NULIGA", leagueGroupTeamId: { not: null } },
+          {
+            provider: { in: ["HVNB_NULIGA", "NULIGA", "HANDBALL360"] },
+            leagueGroupTeamId: { not: null },
+          },
+          {
+            provider: "HANDBALL360",
+            providerConfig: { not: Prisma.JsonNull },
+          },
         ],
       },
     });
@@ -127,6 +152,9 @@ export class PrismaLeagueSyncRepository implements LeagueSyncRepository {
         name: input.name,
         sourceUrl: input.sourceUrl ?? null,
         teamNameMatch: input.teamNameMatch ?? null,
+        providerConfig: input.providerConfig
+          ? (input.providerConfig as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
         isEnabled: input.isEnabled,
         syncIntervalMinutes: input.syncIntervalMinutes,
       },
@@ -145,6 +173,7 @@ export class PrismaLeagueSyncRepository implements LeagueSyncRepository {
         lastSyncedAt: new Date(),
         lastSyncStatus: status,
         lastSyncError: errorMessage ?? null,
+        consecutiveErrors: status === "ERROR" ? { increment: 1 } : 0,
       },
     });
   }

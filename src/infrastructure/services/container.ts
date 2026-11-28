@@ -1,3 +1,4 @@
+import { LeagueProviderRegistry } from "@/domain/adapters/league-data-provider";
 import { CarpoolService } from "@/domain/services/carpool-service";
 import { CashboxService } from "@/domain/services/cashbox-service";
 import { ClubService } from "@/domain/services/club-service";
@@ -15,6 +16,7 @@ import {
   NuligaClubLogoTarget,
   resolveNuligaClubLogo,
 } from "@/domain/services/nuliga-club-logo";
+import { NuligaProviderAdapter } from "@/domain/services/nuliga-provider-adapter";
 import { OnboardingService } from "@/domain/services/onboarding-service";
 import { RosterService } from "@/domain/services/roster-service";
 import { ScoutingService } from "@/domain/services/scouting-service";
@@ -91,11 +93,15 @@ const nuligaSessionFetch = createDefaultNuligaSessionFetch();
 const fetchNuligaClubLogo = (target: NuligaClubLogoTarget) =>
   resolveNuligaClubLogo(nuligaSessionFetch, target);
 
+const leagueProviderRegistry = new LeagueProviderRegistry();
+leagueProviderRegistry.register(new NuligaProviderAdapter(fetchUrlText));
+
 const leagueSyncService = new LeagueSyncService(
   teamRepo,
   leagueSyncRepo,
   fetchUrlText,
-  leagueDirectoryRepo
+  leagueDirectoryRepo,
+  leagueProviderRegistry
 );
 
 let clubServiceRef: ClubService | null = null;
@@ -110,7 +116,8 @@ const leagueDirectoryService = new LeagueDirectoryService(
   (clubId, hints) =>
     clubServiceRef
       ? clubServiceRef.tryAutoImportClubLogoInternal(clubId, hints)
-      : Promise.resolve(null)
+      : Promise.resolve(null),
+  leagueProviderRegistry
 );
 
 const clubService = new ClubService(

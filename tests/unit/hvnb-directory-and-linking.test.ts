@@ -61,6 +61,7 @@ function buildTestHarness(fetchTextImpl: (url: string) => Promise<string>) {
   const groupDTOs: LeagueGroupDTO[] = seedGroups.map((g, gIdx) => ({
     id: `grp-${gIdx}`,
     code: g.code,
+    countryCode: "DE",
     federationCode: g.federationCode,
     regionCode: g.regionCode,
     regionName: g.regionName,

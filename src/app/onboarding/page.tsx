@@ -29,6 +29,7 @@ import {
   SelectedHvnbTeam,
 } from "@/components/leagues/hvnb-team-picker";
 import { LeagueSelector } from "@/components/leagues/league-selector";
+import { isDirectoryLinkingSupported } from "@/domain/data/federation-registry";
 import { CreateTeamDialog } from "@/components/team/create-team-dialog";
 import { NuligaRosterImportDialog } from "@/components/team/nuliga-roster-import-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -1160,10 +1161,13 @@ export default function OnboardingPage() {
                     />
                   )}
 
-                  {/* Direkte HVNB-Staffel- & Mannschafts-Zuordnung (sobald HVNB gewählt oder direkt übernommen) */}
+                  {/* Direkte Staffel- & Mannschafts-Zuordnung für alle unterstützten Verbände */}
                   {(selectedHvnbTeam ||
-                    selectedLeague?.federationCode === "HVNB") && (
+                    isDirectoryLinkingSupported(
+                      selectedLeague?.federationCode
+                    )) && (
                     <HvnbTeamPicker
+                      federationCode={selectedLeague?.federationCode ?? null}
                       clubName={clubName}
                       seasonName={selectedSeason?.name}
                       ageGroup={ageGroup}

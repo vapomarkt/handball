@@ -106,6 +106,17 @@ enum LeagueProviderType {
   ICAL_URL
   CSV_MANUAL
   HVNB_NULIGA
+  NULIGA
+  HANDBALL360
+  HANDBALL4ALL
+}
+
+enum DirectorySyncRunStatus {
+  RUNNING
+  SUCCESS
+  PARTIAL
+  ERROR
+  ABORTED_SAFETY_GUARD
 }
 
 enum SyncStatus {
@@ -671,11 +682,13 @@ model LeagueImportSource {
   name                String
   sourceUrl           String?
   teamNameMatch       String?
+  providerConfig      Json?
   isEnabled           Boolean            @default(true)
   syncIntervalMinutes Int                @default(60)
   lastSyncedAt        DateTime?
   lastSyncStatus      SyncStatus         @default(NEVER)
   lastSyncError       String?
+  consecutiveErrors   Int                @default(0)
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 
@@ -1133,12 +1146,13 @@ model SeasonCatalog {
 }
 
 // ============================================================================
-// Liga-Verzeichnis: Konkrete Staffeln & offizielle Verbandsmannschaften (Start: HVNB)
+// Liga-Verzeichnis: Konkrete Staffeln & offizielle Verbandsmannschaften (DE & Europa)
 // ============================================================================
 
 model LeagueGroup {
   id               String             @id @default(cuid())
   code             String             @unique
+  countryCode      String             @default("DE")
   federationCode   String
   regionCode       String
   regionName       String
@@ -1149,9 +1163,10 @@ model LeagueGroup {
   gender           TeamGender
   name             String
   shortName        String?
-  externalProvider LeagueProviderType @default(HVNB_NULIGA)
+  externalProvider LeagueProviderType @default(NULIGA)
   externalGroupId  String?
   externalUrl      String?
+  providerMeta     Json?
   isActive         Boolean            @default(true)
   lastSyncedAt     DateTime?
   createdAt        DateTime           @default(now())
@@ -1159,6 +1174,7 @@ model LeagueGroup {
 
   teams LeagueGroupTeam[]
 
+  @@index([countryCode, federationCode, seasonName, ageGroup, gender])
   @@index([federationCode, seasonName, ageGroup, gender])
   @@index([federationCode, regionCode])
   @@index([leagueId])
@@ -1170,11 +1186,13 @@ model LeagueGroupTeam {
   leagueGroupId  String
   leagueGroup    LeagueGroup @relation(fields: [leagueGroupId], references: [id], onDelete: Cascade)
   externalTeamId String
+  externalClubId String?
   name           String
   clubName       String
   shortName      String?
   icalUrl        String?
   externalUrl    String?
+  providerMeta   Json?
   isActive       Boolean     @default(true)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
@@ -1185,7 +1203,29 @@ model LeagueGroupTeam {
   @@unique([leagueGroupId, externalTeamId])
   @@index([leagueGroupId])
   @@index([clubName])
+  @@index([externalClubId])
   @@map("league_group_team")
+}
+
+model DirectorySyncRun {
+  id                String                 @id @default(cuid())
+  countryCode       String                 @default("DE")
+  federationCode    String
+  provider          LeagueProviderType
+  seasonName        String
+  status            DirectorySyncRunStatus @default(RUNNING)
+  groupsSynced      Int                    @default(0)
+  teamsSynced       Int                    @default(0)
+  deactivatedGroups Int                    @default(0)
+  deactivatedTeams  Int                    @default(0)
+  errorCount        Int                    @default(0)
+  errorSample       Json?
+  startedAt         DateTime               @default(now())
+  finishedAt        DateTime?
+
+  @@index([countryCode, federationCode, startedAt])
+  @@index([provider, startedAt])
+  @@map("directory_sync_run")
 }
 
 // ============================================================================

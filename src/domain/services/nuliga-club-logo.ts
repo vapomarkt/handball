@@ -1,3 +1,8 @@
+import {
+  getFederationConfig,
+  getNuligaWebObjectsBaseUrl,
+  resolveFederationByNuligaHost,
+} from "../data/federation-registry";
 import { DomainError } from "../errors";
 
 export const MAX_CLUB_LOGO_BYTES = 2 * 1024 * 1024; // 2 MB
@@ -229,7 +234,10 @@ export function extractNuligaClubLogoSrc(html: string): string | null {
   return null;
 }
 
-function resolveNuligaBaseUrl(sourceUrl?: string | null): URL {
+function resolveNuligaBaseUrl(
+  sourceUrl?: string | null,
+  federationCode?: string | null
+): URL {
   if (sourceUrl) {
     try {
       const parsed = new URL(sourceUrl);
@@ -237,8 +245,12 @@ function resolveNuligaBaseUrl(sourceUrl?: string | null): URL {
         return new URL(".", parsed);
       }
     } catch {
-      // Fallback auf HVNB-Standard-Host
+      // Fallback über FederationRegistry
     }
+  }
+  const byFederation = getNuligaWebObjectsBaseUrl(federationCode);
+  if (byFederation) {
+    return new URL(byFederation);
   }
   return new URL(DEFAULT_HVNB_NULIGA_BASE);
 }
@@ -336,8 +348,14 @@ export async function resolveNuligaClubLogo(
   const clubName = target.clubName.trim();
   if (clubName.length < 2) return null;
 
-  const base = resolveNuligaBaseUrl(target.sourceUrl);
-  const federation = target.federationCode?.trim() || "HVNB";
+  const base = resolveNuligaBaseUrl(target.sourceUrl, target.federationCode);
+  const fedConfig =
+    getFederationConfig(target.federationCode) ??
+    resolveFederationByNuligaHost(base.hostname);
+  const federation =
+    fedConfig?.nuliga?.federationParam ??
+    target.federationCode?.trim() ??
+    "HVNB";
   const searchTerms = buildSearchTerms(clubName);
 
   let clubLink: ClubLink | null = null;

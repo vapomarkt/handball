@@ -4,21 +4,17 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ArrowLeftRight,
   Award,
-  BookOpen,
   CheckCircle2,
   ClipboardList,
   Clock,
-  Dumbbell,
+  MoreHorizontal,
   Plus,
   ShieldCheck,
-  Shirt,
   Sparkles,
   Trash2,
-  Users,
 } from "lucide-react";
 import { DutyFormDialog } from "@/components/duties/duty-form-dialog";
 import { useAppContext } from "@/components/providers/app-context";
-import { TrainingPanel } from "@/components/training/training-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +24,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { CardListSkeleton, EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DUTY_ASSIGNMENT_STATUS_LABELS,
   DUTY_CATEGORY_LABELS,
@@ -41,9 +47,9 @@ import {
   type JerseySetDTO,
 } from "@/domain/schemas/jersey-set";
 
-type ActiveTab = "duties" | "hours" | "plans" | "drills";
+type ActiveTab = "duties" | "hours";
 
-export default function DiensteUndTrainingPage() {
+export default function DienstePage() {
   const { me, activeTeam, selectableTeams } = useAppContext();
 
   const [tab, setTab] = useState<ActiveTab>("duties");
@@ -56,14 +62,15 @@ export default function DiensteUndTrainingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dutyDialogOpen, setDutyDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<WorkDutyDTO | null>(null);
 
-  const isCoachingStaff =
+  const isStaff = Boolean(
     activeTeam?.isClubAdmin ||
-    activeTeam?.role === "CLUB_ADMIN" ||
-    activeTeam?.role === "COACH" ||
-    activeTeam?.role === "ASSISTANT_COACH";
-
-  const isStaff = isCoachingStaff || activeTeam?.role === "TEAM_MANAGER";
+      activeTeam?.role === "CLUB_ADMIN" ||
+      activeTeam?.role === "COACH" ||
+      activeTeam?.role === "ASSISTANT_COACH" ||
+      activeTeam?.role === "TEAM_MANAGER"
+  );
 
   const myMemberInTeam =
     me?.memberships.find((m) => m.team.id === activeTeam?.teamId) ??
@@ -208,11 +215,10 @@ export default function DiensteUndTrainingPage() {
     if (res.ok) await loadAll();
   }
 
-  async function handleDeleteDuty(duty: WorkDutyDTO) {
-    if (!activeTeam) return;
-    if (!window.confirm(`Dienst „${duty.title}“ wirklich löschen?`)) return;
+  async function confirmDeleteDuty() {
+    if (!activeTeam || !deleteTarget) return;
     const res = await fetch(
-      `/api/v1/clubs/${encodeURIComponent(activeTeam.clubId)}/duties/${encodeURIComponent(duty.id)}`,
+      `/api/v1/clubs/${encodeURIComponent(activeTeam.clubId)}/duties/${encodeURIComponent(deleteTarget.id)}`,
       { method: "DELETE" }
     );
     if (res.ok) await loadAll();
@@ -221,81 +227,34 @@ export default function DiensteUndTrainingPage() {
   if (!activeTeam || !me) return null;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-            {activeTeam.clubName} · {activeTeam.teamName}
-          </p>
-          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-            Dienste & Trainingsplaner
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Heimspieltag- & Teamdienste, Kampfgericht, Arbeitsstunden-Konto &
-            Übungsbibliothek
-          </p>
-        </div>
+    <div className="space-y-5">
+      {/* Kompakter Header */}
+      <PageHeader
+        title="Dienste"
+        subtitle={`${activeTeam.teamName} · Heimspieltag, Kampfgericht & Arbeitsstunden`}
+        actions={
+          isStaff && tab === "duties" ? (
+            <Button onClick={() => setDutyDialogOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Dienst anlegen
+            </Button>
+          ) : undefined
+        }
+      />
 
-        {isStaff && tab === "duties" && (
-          <Button onClick={() => setDutyDialogOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Dienst anlegen
-          </Button>
-        )}
-      </div>
-
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-1.5 border-b border-border pb-3">
-        <button
-          type="button"
-          onClick={() => setTab("duties")}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold cursor-pointer ${
-            tab === "duties"
-              ? "bg-primary text-primary-foreground"
-              : "bg-card text-muted-foreground hover:bg-muted border border-border"
-          }`}
-        >
-          <ClipboardList className="h-4 w-4" />
-          Dienste & Heimspieltag ({duties.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("hours")}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold cursor-pointer ${
-            tab === "hours"
-              ? "bg-primary text-primary-foreground"
-              : "bg-card text-muted-foreground hover:bg-muted border border-border"
-          }`}
-        >
-          <Clock className="h-4 w-4" />
-          Arbeitsstunden-Konto
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("plans")}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold cursor-pointer ${
-            tab === "plans"
-              ? "bg-primary text-primary-foreground"
-              : "bg-card text-muted-foreground hover:bg-muted border border-border"
-          }`}
-        >
-          <Dumbbell className="h-4 w-4" />
-          Trainingsplaner
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("drills")}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold cursor-pointer ${
-            tab === "drills"
-              ? "bg-primary text-primary-foreground"
-              : "bg-card text-muted-foreground hover:bg-muted border border-border"
-          }`}
-        >
-          <BookOpen className="h-4 w-4" />
-          Übungsbibliothek
-        </button>
-      </div>
+      {/* Ruhige Segmented Tabs – fachlich klar auf Dienste & Stunden fokussiert */}
+      <Tabs value={tab} onValueChange={(v) => setTab(v as ActiveTab)}>
+        <TabsList>
+          <TabsTrigger value="duties">
+            <ClipboardList className="h-4 w-4" />
+            Dienste ({duties.length})
+          </TabsTrigger>
+          <TabsTrigger value="hours">
+            <Clock className="h-4 w-4" />
+            Arbeitsstunden-Konto
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {error && (
         <div
@@ -306,17 +265,25 @@ export default function DiensteUndTrainingPage() {
         </div>
       )}
 
-      {/* TAB 1: ZWEISTUFIGE DIENSTE & TAUSCHBÖRSE */}
+      {/* TAB 1: DIENSTE & TAUSCHBÖRSE */}
       {tab === "duties" && (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {loading ? (
-            <p className="text-sm text-muted-foreground">Lade Dienste…</p>
+            <CardListSkeleton count={3} />
           ) : duties.length === 0 ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Aktuell sind keine Dienste hinterlegt.
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={<ClipboardList className="h-5 w-5" />}
+              title="Aktuell keine Dienste"
+              description="Sobald Spieltags- oder Teamdienste angelegt werden, kannst du sie hier übernehmen oder tauschen."
+              action={
+                isStaff ? (
+                  <Button size="sm" onClick={() => setDutyDialogOpen(true)}>
+                    <Plus className="h-4 w-4" />
+                    Dienst anlegen
+                  </Button>
+                ) : undefined
+              }
+            />
           ) : (
             <div className="grid gap-3">
               {duties.map((duty) => {
@@ -333,222 +300,247 @@ export default function DiensteUndTrainingPage() {
                         linkedChildIds.has(a.assignedMemberId)))
                 );
 
+                const metaLine = [
+                  DUTY_SCOPE_LABELS[duty.scope],
+                  duty.matchdayTitle,
+                  duty.assignedTeamName
+                    ? `Team: ${duty.assignedTeamName}`
+                    : null,
+                  duty.jerseySet
+                    ? `${duty.jerseySet.name} (${duty.jerseySet.colors})`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ");
+
                 return (
-                <Card key={duty.id} data-testid={`duty-card-${duty.id}`}>
-                  <CardContent className="p-4 sm:p-5 space-y-3">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="space-y-1.5">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <Badge
-                            variant={
-                              duty.scope === "CLUB_MATCHDAY"
-                                ? "default"
-                                : "secondary"
+                  <Card key={duty.id} data-testid={`duty-card-${duty.id}`}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="space-y-1 min-w-0">
+                          {/* Max. 2–3 Badges */}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Badge variant="secondary">
+                              {DUTY_CATEGORY_LABELS[duty.category]}
+                            </Badge>
+                            <Badge variant="outline" className="font-mono">
+                              +{duty.hoursCredit} Std.
+                            </Badge>
+                            {duty.requiresLicense && (
+                              <Badge variant="unavailable" className="gap-1">
+                                <Award className="h-3 w-3" />
+                                Z/S-Lizenz
+                              </Badge>
+                            )}
+                          </div>
+
+                          <h2 className="text-base font-bold text-foreground">
+                            {duty.title}
+                          </h2>
+                          {metaLine && (
+                            <p className="text-xs text-muted-foreground">
+                              {metaLine}
+                            </p>
+                          )}
+                          {duty.description && (
+                            <p className="text-xs text-muted-foreground">
+                              {duty.description}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {duty.openSlots > 0 && myMemberInTeam && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleClaim(duty.id)}
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                              Slot übernehmen ({duty.openSlots} offen)
+                            </Button>
+                          )}
+                          {isStaff && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-9 w-9 text-muted-foreground"
+                                  aria-label={`Aktionen für Dienst ${duty.title}`}
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  destructive
+                                  onSelect={() => setDeleteTarget(duty)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  <span>Dienst löschen</span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Pflegehinweise zum Waschen */}
+                      {duty.jerseySet &&
+                        (duty.jerseySet.careInstructions ||
+                          duty.jerseySet.conditionNote) && (
+                          <div
+                            data-testid={`laundry-care-${duty.id}`}
+                            className={
+                              isAssignedToMe
+                                ? "rounded-xl border border-sky-400 bg-sky-50 p-3 text-xs space-y-1 dark:border-sky-700 dark:bg-sky-950/45"
+                                : "rounded-lg border border-sky-200/80 bg-sky-50/50 p-3 text-xs space-y-1 dark:border-sky-900/60 dark:bg-sky-950/25"
                             }
                           >
-                            {DUTY_SCOPE_LABELS[duty.scope]}
-                          </Badge>
-                          <Badge variant="outline">
-                            {DUTY_CATEGORY_LABELS[duty.category]}
-                          </Badge>
-                          <Badge variant="outline" className="font-mono">
-                            +{duty.hoursCredit} Std.
-                          </Badge>
-                          {duty.requiresLicense && (
-                            <Badge variant="unavailable" className="gap-1">
-                              <Award className="h-3 w-3" />
-                              Z/S-Lizenz erforderlich
-                            </Badge>
-                          )}
-                          {duty.assignedTeamName && (
-                            <Badge variant="position" className="gap-1">
-                              <Users className="h-3 w-3" />
-                              Delegiert an {duty.assignedTeamName}
-                            </Badge>
-                          )}
-                          {duty.jerseySet && (
-                            <Badge variant="secondary" className="gap-1">
-                              <Shirt className="h-3 w-3 text-primary" />
-                              {duty.jerseySet.name} ({duty.jerseySet.colors})
-                            </Badge>
-                          )}
-                        </div>
-
-                        <h2 className="text-base font-bold">{duty.title}</h2>
-                        {duty.matchdayTitle && (
-                          <p className="text-xs font-medium text-primary">
-                            {duty.matchdayTitle}
-                          </p>
-                        )}
-                        {duty.description && (
-                          <p className="text-xs text-muted-foreground">
-                            {duty.description}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {duty.openSlots > 0 && myMemberInTeam && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleClaim(duty.id)}
-                          >
-                            <ShieldCheck className="h-3.5 w-3.5" />
-                            Slot übernehmen ({duty.openSlots} offen)
-                          </Button>
-                        )}
-                        {isStaff && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => handleDeleteDuty(duty)}
-                            aria-label={`Dienst ${duty.title} löschen`}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Pflegehinweise zum Waschen (besonders hervorgehoben für eingeteilte Person) */}
-                    {duty.jerseySet &&
-                      (duty.jerseySet.careInstructions ||
-                        duty.jerseySet.conditionNote) && (
-                        <div
-                          data-testid={`laundry-care-${duty.id}`}
-                          className={
-                            isAssignedToMe
-                              ? "rounded-xl border-2 border-sky-400 bg-sky-50 p-3.5 text-xs space-y-1.5 dark:border-sky-600 dark:bg-sky-950/50"
-                              : "rounded-lg border border-sky-200/80 bg-sky-50/50 p-3 text-xs space-y-1 dark:border-sky-900/60 dark:bg-sky-950/25"
-                          }
-                        >
-                          <p className="font-bold text-sky-900 dark:text-sky-200 flex items-center gap-1.5">
-                            <Sparkles className="h-3.5 w-3.5 shrink-0" />
-                            {isAssignedToMe
-                              ? `Deine Trikotwäsche (${duty.jerseySet.name}) – Pflegehinweise beachten`
-                              : `Pflegehinweise zum Waschen · ${duty.jerseySet.name}`}
-                          </p>
-                          {duty.jerseySet.careInstructions && (
-                            <p className="text-sky-950/90 dark:text-sky-100/90 whitespace-pre-line">
-                              {duty.jerseySet.careInstructions}
+                            <p className="font-bold text-sky-900 dark:text-sky-200 flex items-center gap-1.5">
+                              <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                              {isAssignedToMe
+                                ? `Deine Trikotwäsche (${duty.jerseySet.name}) – Pflegehinweise`
+                                : `Pflegehinweise · ${duty.jerseySet.name}`}
                             </p>
-                          )}
-                          {duty.jerseySet.conditionNote && (
-                            <p className="text-muted-foreground">
-                              Zustand (
-                              {
-                                JERSEY_CONDITION_LABELS[
-                                  duty.jerseySet.condition
-                                ]
-                              }
-                              ): {duty.jerseySet.conditionNote}
-                            </p>
-                          )}
-                        </div>
-                      )}
+                            {duty.jerseySet.careInstructions && (
+                              <p className="text-sky-950/90 dark:text-sky-100/90 whitespace-pre-line">
+                                {duty.jerseySet.careInstructions}
+                              </p>
+                            )}
+                            {duty.jerseySet.conditionNote && (
+                              <p className="text-muted-foreground">
+                                Zustand (
+                                {
+                                  JERSEY_CONDITION_LABELS[
+                                    duty.jerseySet.condition
+                                  ]
+                                }
+                                ): {duty.jerseySet.conditionNote}
+                              </p>
+                            )}
+                          </div>
+                        )}
 
-                    {/* Zugewiesene Slots & Tauschbörse */}
-                    {duty.assignments.length > 0 && (
-                      <div className="border-t border-border pt-2.5 space-y-2">
-                        {duty.assignments.map((a) => {
-                          const isMine =
-                            a.assignedMemberUserId === me.user.id ||
-                            a.assignedMemberId === myMemberInTeam?.memberId;
-                          return (
-                            <div
-                              key={a.id}
-                              className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-lg border border-border bg-muted/25 p-2.5 text-xs"
-                            >
-                              <div className="space-y-0.5">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className="font-semibold text-sm">
-                                    {a.assignedMemberFirstName}{" "}
-                                    {a.assignedMemberLastName}
-                                  </span>
-                                  {a.assignedMemberTeamName && (
-                                    <span className="text-muted-foreground">
-                                      ({a.assignedMemberTeamName})
+                      {/* Zugewiesene Slots & Tauschbörse */}
+                      {duty.assignments.length > 0 && (
+                        <div className="border-t border-border pt-2.5 space-y-2">
+                          {duty.assignments.map((a) => {
+                            const isMine =
+                              a.assignedMemberUserId === me.user.id ||
+                              a.assignedMemberId === myMemberInTeam?.memberId;
+                            return (
+                              <div
+                                key={a.id}
+                                className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-lg border border-border bg-muted/25 p-2.5 text-xs"
+                              >
+                                <div className="space-y-0.5 min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="font-semibold text-sm">
+                                      {a.assignedMemberFirstName}{" "}
+                                      {a.assignedMemberLastName}
                                     </span>
-                                  )}
-                                  <Badge
-                                    variant={
-                                      a.status === "COMPLETED"
-                                        ? "fit"
-                                        : a.status === "SWAP_REQUESTED"
-                                          ? "unavailable"
-                                          : "secondary"
-                                    }
-                                  >
-                                    {DUTY_ASSIGNMENT_STATUS_LABELS[a.status]}
-                                  </Badge>
-                                </div>
-                                {a.swapNote && (
-                                  <p className="text-amber-700 dark:text-amber-300">
-                                    Tauschbörse: {a.swapNote}
-                                  </p>
-                                )}
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                {a.status === "ASSIGNED" && (isMine || isStaff) && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 text-xs"
-                                    onClick={() =>
-                                      handleSwap(duty.id, a.id, "REQUEST_SWAP")
-                                    }
-                                  >
-                                    <ArrowLeftRight className="h-3 w-3" />
-                                    Tausch anfragen
-                                  </Button>
-                                )}
-                                {a.status === "SWAP_REQUESTED" &&
-                                  !isMine &&
-                                  myMemberInTeam && (
-                                    <Button
-                                      size="sm"
-                                      className="h-7 text-xs"
-                                      onClick={() =>
-                                        handleSwap(duty.id, a.id, "ACCEPT_SWAP")
+                                    {a.assignedMemberTeamName && (
+                                      <span className="text-muted-foreground">
+                                        ({a.assignedMemberTeamName})
+                                      </span>
+                                    )}
+                                    <Badge
+                                      variant={
+                                        a.status === "COMPLETED"
+                                          ? "fit"
+                                          : a.status === "SWAP_REQUESTED"
+                                            ? "unavailable"
+                                            : "secondary"
                                       }
                                     >
-                                      <ArrowLeftRight className="h-3 w-3" />
-                                      Tausch übernehmen
-                                    </Button>
+                                      {DUTY_ASSIGNMENT_STATUS_LABELS[a.status]}
+                                    </Badge>
+                                  </div>
+                                  {a.swapNote && (
+                                    <p className="text-amber-700 dark:text-amber-300">
+                                      Tauschbörse: {a.swapNote}
+                                    </p>
                                   )}
-                                {a.status === "SWAP_REQUESTED" &&
-                                  (isMine || isStaff) && (
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                                  {a.status === "ASSIGNED" &&
+                                    (isMine || isStaff) && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-8 text-xs"
+                                        onClick={() =>
+                                          handleSwap(
+                                            duty.id,
+                                            a.id,
+                                            "REQUEST_SWAP"
+                                          )
+                                        }
+                                      >
+                                        <ArrowLeftRight className="h-3 w-3" />
+                                        Tausch anfragen
+                                      </Button>
+                                    )}
+                                  {a.status === "SWAP_REQUESTED" &&
+                                    !isMine &&
+                                    myMemberInTeam && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-8 text-xs"
+                                        onClick={() =>
+                                          handleSwap(
+                                            duty.id,
+                                            a.id,
+                                            "ACCEPT_SWAP"
+                                          )
+                                        }
+                                      >
+                                        <ArrowLeftRight className="h-3 w-3 text-primary" />
+                                        Tausch übernehmen
+                                      </Button>
+                                    )}
+                                  {a.status === "SWAP_REQUESTED" &&
+                                    (isMine || isStaff) && (
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-8 text-xs"
+                                        onClick={() =>
+                                          handleSwap(
+                                            duty.id,
+                                            a.id,
+                                            "CANCEL_SWAP"
+                                          )
+                                        }
+                                      >
+                                        Abbrechen
+                                      </Button>
+                                    )}
+                                  {isStaff && a.status !== "COMPLETED" && (
                                     <Button
                                       size="sm"
                                       variant="ghost"
-                                      className="h-7 text-xs"
+                                      className="h-8 text-xs"
                                       onClick={() =>
-                                        handleSwap(duty.id, a.id, "CANCEL_SWAP")
+                                        handleComplete(duty.id, a.id)
                                       }
                                     >
-                                      Tausch abbrechen
+                                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                      Erledigt
                                     </Button>
                                   )}
-                                {isStaff && a.status !== "COMPLETED" && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 text-xs"
-                                    onClick={() => handleComplete(duty.id, a.id)}
-                                  >
-                                    <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                                    Erledigt
-                                  </Button>
-                                )}
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 );
               })}
             </div>
@@ -559,13 +551,12 @@ export default function DiensteUndTrainingPage() {
       {/* TAB 2: ARBEITSSTUNDEN-KONTO */}
       {tab === "hours" && workHours && (
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <CardTitle className="text-base">
               Arbeitsstunden-Konto · {activeTeam.teamName}
             </CardTitle>
             <CardDescription>
-              Jahres-Soll: {workHours.annualTargetHours} Std. pro Mitglied ·
-              Team gesamt:{" "}
+              Jahres-Soll: {workHours.annualTargetHours} Std. · Team gesamt:{" "}
               <strong className="text-foreground">
                 {workHours.totalCompletedHours} Std. geleistet
               </strong>{" "}
@@ -603,21 +594,20 @@ export default function DiensteUndTrainingPage() {
         </Card>
       )}
 
-      {/* TAB 3 & 4: TRAININGSPLANER & ÜBUNGSBIBLIOTHEK */}
-      {tab === "plans" && (
-        <TrainingPanel
-          teamId={activeTeam.teamId}
-          mode="plans"
-          isStaff={isCoachingStaff}
-        />
-      )}
-      {tab === "drills" && (
-        <TrainingPanel
-          teamId={activeTeam.teamId}
-          mode="drills"
-          isStaff={isCoachingStaff}
-        />
-      )}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Dienst löschen?"
+        description={
+          deleteTarget
+            ? `Dienst „${deleteTarget.title}“ wirklich endgültig löschen?`
+            : undefined
+        }
+        confirmLabel="Dienst löschen"
+        onConfirm={confirmDeleteDuty}
+      />
 
       {isStaff && (
         <DutyFormDialog

@@ -25,7 +25,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Dashboard",
+          title: "Start",
           tabBarIcon: ({ color }) => <TabIcon glyph="⌂" color={color} />,
         }}
       />
@@ -46,7 +46,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="taktik"
         options={{
-          title: "Taktik",
+          title: "Playbook",
           tabBarIcon: ({ color }) => <TabIcon glyph="◎" color={color} />,
         }}
       />

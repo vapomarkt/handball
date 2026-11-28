@@ -160,13 +160,9 @@ export default function TermineScreen() {
                       </Text>
                     </View>
                   ) : null}
-                  <Text
-                    style={
-                      item.type === "MATCH" ? styles.typeSubtle : styles.type
-                    }
-                  >
-                    {TYPE_LABEL[item.type]}
-                  </Text>
+                  {!md ? (
+                    <Text style={styles.type}>{TYPE_LABEL[item.type]}</Text>
+                  ) : null}
                 </View>
                 <Text style={styles.title}>
                   {item.isCancelled ? "ABGESAGT · " : ""}

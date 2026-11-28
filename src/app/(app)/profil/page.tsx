@@ -32,6 +32,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageHeader } from "@/components/ui/page-header";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MEMBER_ROLE_DESCRIPTIONS,
   MEMBER_ROLE_LABELS,
@@ -58,6 +60,9 @@ export default function ProfilePage() {
     refreshMe,
   } = useAppContext();
 
+  const [profileTab, setProfileTab] = useState<"profile" | "security">(
+    "profile"
+  );
   const [profileNotice, setProfileNotice] = useState<string | null>(null);
 
   // Passkeys
@@ -296,35 +301,51 @@ export default function ProfilePage() {
     (nameParts.length > 1 ? nameParts.slice(1).join(" ") : "");
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      {/* Header */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary">
-            <UserCircle2 className="h-7 w-7" />
+    <div className="space-y-5 max-w-3xl">
+      <PageHeader
+        leading={
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
+            <UserCircle2 className="h-6 w-6" />
           </div>
-          <div className="min-w-0">
-            <h1 className="text-2xl font-extrabold tracking-tight text-foreground break-words">
-              Mein Profil &amp; Sicherheit
-            </h1>
-            <p className="text-sm text-muted-foreground break-words">
-              <span className="break-all">{me.user.email}</span> ·{" "}
-              <strong className="text-foreground">
-                {MEMBER_ROLE_LABELS[activeTeam.role]}
-              </strong>{" "}
-              ({activeTeam.teamName})
-            </p>
-          </div>
-        </div>
-        <Badge
-          variant={completeness.isComplete ? "secondary" : "outline"}
-          className="w-fit shrink-0"
-        >
-          Profil {completeness.percentage} % vollständig
-        </Badge>
-      </div>
+        }
+        title="Mein Profil & Sicherheit"
+        subtitle={
+          <>
+            <span className="break-all">{me.user.email}</span> ·{" "}
+            <strong className="text-foreground">
+              {MEMBER_ROLE_LABELS[activeTeam.role]}
+            </strong>{" "}
+            ({activeTeam.teamName})
+          </>
+        }
+        actions={
+          <Badge
+            variant={completeness.isComplete ? "secondary" : "outline"}
+            className="shrink-0"
+          >
+            {completeness.percentage} % vollständig
+          </Badge>
+        }
+      />
+
+      <Tabs
+        value={profileTab}
+        onValueChange={(v) => setProfileTab(v as "profile" | "security")}
+      >
+        <TabsList>
+          <TabsTrigger value="profile">
+            <UserCircle2 className="h-4 w-4" />
+            Profil &amp; Hilfe
+          </TabsTrigger>
+          <TabsTrigger value="security">
+            <Shield className="h-4 w-4" />
+            Anmeldung &amp; Sicherheit
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* 1. Profil-Karte */}
+      {profileTab === "profile" && (
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Persönliche Daten</CardTitle>
@@ -364,9 +385,10 @@ export default function ProfilePage() {
           />
         </CardContent>
       </Card>
+      )}
 
       {/* Eltern: Verknüpfte Kinder */}
-      {me.guardianLinks.length > 0 && (
+      {profileTab === "profile" && me.guardianLinks.length > 0 && (
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -438,6 +460,7 @@ export default function ProfilePage() {
       )}
 
       {/* 2. Anmeldung & Sicherheit (Passkeys, Login-PIN, Passwort) */}
+      {profileTab === "security" && (
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
@@ -616,8 +639,10 @@ export default function ProfilePage() {
           </form>
         </CardContent>
       </Card>
+      )}
 
       {/* 3. Hilfe & App-Tour */}
+      {profileTab === "profile" && (
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
@@ -658,6 +683,7 @@ export default function ProfilePage() {
           </Button>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

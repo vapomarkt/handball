@@ -38,7 +38,7 @@ test.describe("Meilenstein 2a – Termine, Hallen, Harz-Regelung & 1-Klick-RSVP"
     await page.getByRole("button", { name: "Schließen" }).click();
 
     // Hallen-Tab: Neue Halle anlegen und wieder entfernen
-    await page.getByRole("button", { name: /Hallen & Harz-Info/ }).click();
+    await page.getByRole("tab", { name: /Hallen & Harz-Info/ }).click();
     await expect(page.getByText("Sporthalle Musterstadt-Süd")).toBeVisible();
     await expect(page.getByText("Dreifeldhalle Nachbarstadt")).toBeVisible();
 
@@ -53,9 +53,13 @@ test.describe("Meilenstein 2a – Termine, Hallen, Harz-Regelung & 1-Klick-RSVP"
 
     await expect(page.getByText(venueName)).toBeVisible();
 
-    page.once("dialog", (d) => d.accept());
     await page
-      .getByRole("button", { name: `Halle ${venueName} entfernen` })
+      .getByRole("button", { name: `Aktionen für Halle ${venueName}` })
+      .click();
+    await page.getByRole("menuitem", { name: "Halle entfernen" }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Halle entfernen" })
       .click();
     await expect(page.getByText(venueName)).toHaveCount(0);
   });
@@ -88,10 +92,10 @@ test.describe("Meilenstein 2a – Termine, Hallen, Harz-Regelung & 1-Klick-RSVP"
       '[data-testid="event-card-event-h1-training-next"]'
     );
     await trainingCard.getByRole("button", { name: "Vielleicht" }).click();
-    await expect(trainingCard.getByText(/2 Vielleicht/)).toBeVisible();
+    await expect(trainingCard.getByText(/2 vielleicht/i)).toBeVisible();
 
     await trainingCard.getByRole("button", { name: "Zugesagt" }).click();
-    await expect(trainingCard.getByText(/3 Zugesagt/)).toBeVisible();
+    await expect(trainingCard.getByText(/3 zugesagt/i)).toBeVisible();
   });
 
   test("Eltern-Kind 1-Klick-RSVP (PARENT): Rückmeldung für Leo Weber ohne Kinder-Login", async ({
@@ -110,6 +114,8 @@ test.describe("Meilenstein 2a – Termine, Hallen, Harz-Regelung & 1-Klick-RSVP"
       .click();
 
     await page.reload();
-    await expect(page.getByText("1/2").first()).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Zugesagt", pressed: true }).first()
+    ).toBeVisible();
   });
 });

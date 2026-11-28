@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { TACTIC_CATEGORY_LABELS } from "@throwoff/shared";
 import React from "react";
 import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { Body, Card, EmptyState, ErrorState, Loading, Muted, Screen } from "../../src/components/ui";
@@ -36,7 +37,9 @@ export default function TaktikScreen() {
         ListEmptyComponent={<EmptyState text="Noch keine Spielzüge freigegeben." />}
         renderItem={({ item }) => (
           <Card>
-            <Text style={styles.category}>{item.category}</Text>
+            <Text style={styles.category}>
+              {TACTIC_CATEGORY_LABELS[item.category] ?? item.category}
+            </Text>
             <Text style={styles.title}>{item.title}</Text>
             {item.description ? <Body>{item.description}</Body> : null}
             {item.tags.length > 0 ? (

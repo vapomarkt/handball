@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { DUTY_CATEGORY_LABELS } from "@throwoff/shared";
 import React from "react";
 import { FlatList, RefreshControl, StyleSheet, Text } from "react-native";
 import {
@@ -53,17 +54,20 @@ export default function DiensteScreen() {
           const mine = item.assignments.some((a) => a.assignedMemberId === activeMemberId);
           return (
             <Card>
-              <Text style={styles.category}>{item.category}</Text>
+              <Text style={styles.category}>
+                {DUTY_CATEGORY_LABELS[item.category] ?? item.category}
+              </Text>
               <Text style={styles.title}>{item.title}</Text>
               {item.startAt ? <Muted>{formatDateTime(item.startAt)}</Muted> : null}
               <Muted>
-                {item.openSlots} von {item.slotsNeeded} Plätzen frei · {item.hoursCredit} h
+                {item.openSlots} von {item.slotsNeeded} Plätzen frei · +{item.hoursCredit} Std.
               </Muted>
               {mine ? (
                 <Text style={{ color: colors.success, fontWeight: "700" }}>Du bist eingetragen</Text>
               ) : item.openSlots > 0 && activeMemberId ? (
                 <Button
                   label="Dienst übernehmen"
+                  variant="secondary"
                   onPress={() => claim.mutate(item.id)}
                   loading={claim.isPending && claim.variables === item.id}
                 />

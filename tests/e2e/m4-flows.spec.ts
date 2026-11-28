@@ -42,10 +42,8 @@ test.describe("Meilenstein 4 – Interaktives Taktikboard & Gegner-Scouting", ()
     await expect(playBtn).toBeEnabled();
     await playBtn.click();
 
-    // Wechsel zum Tab "Gegner-Scouting & Matchplan"
-    await page
-      .getByRole("button", { name: /Gegner-Scouting & Matchplan/ })
-      .click();
+    // Wechsel zum Tab "Scouting"
+    await page.getByRole("tab", { name: /Scouting/ }).click();
 
     const dossier = page.getByTestId("opponent-dossier-opponent-sg-neustadt");
     await expect(dossier).toBeVisible();
@@ -88,10 +86,8 @@ test.describe("Meilenstein 4 – Interaktives Taktikboard & Gegner-Scouting", ()
       page.getByTestId("tactic-card-tactic-draft-7-6")
     ).toHaveCount(0);
 
-    // UI Scouting-Tab: Freigegebener Matchplan sichtbar, Trainer-Notiz unsichtbar
-    await page
-      .getByRole("button", { name: /Gegner-Scouting & Matchplan/ })
-      .click();
+    // UI Matchplan-Tab: Freigegebener Matchplan sichtbar, Trainer-Notiz unsichtbar
+    await page.getByRole("tab", { name: /Matchplan/ }).click();
     await expect(
       page.getByTestId("scouting-note-scouting-note-matchplan-shared")
     ).toBeVisible();

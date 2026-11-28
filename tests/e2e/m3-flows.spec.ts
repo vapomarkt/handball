@@ -26,10 +26,8 @@ test.describe("Meilenstein 3 – Zweistufige Dienste, Arbeitsstunden & Trainings
     await expect(
       kampfgCard.getByText("Kampfgericht (Zeitnehmer) – Damen 1")
     ).toBeVisible();
-    await expect(
-      kampfgCard.getByText("Delegiert an Herren 1", { exact: true })
-    ).toBeVisible();
-    await expect(kampfgCard.getByText("Z/S-Lizenz erforderlich")).toBeVisible();
+    await expect(kampfgCard.getByText(/Team: Herren 1/)).toBeVisible();
+    await expect(kampfgCard.getByText(/Z\/S-Lizenz/)).toBeVisible();
 
     // Tauschbörse auf Kiosk-Schicht
     const kioskCard = page.getByTestId("duty-card-duty-kiosk-samstag");
@@ -37,28 +35,28 @@ test.describe("Meilenstein 3 – Zweistufige Dienste, Arbeitsstunden & Trainings
     await expect(kioskCard.getByText("Katrin Weber")).toBeVisible();
 
     // Arbeitsstunden-Konto zeigt gutgeschriebene 1.5 Std. für Lukas Hartmann
-    await page.getByRole("button", { name: /Arbeitsstunden-Konto/ }).click();
+    await page.getByRole("tab", { name: /Arbeitsstunden-Konto/ }).click();
     await expect(
       page.getByRole("main").getByText("Lukas Hartmann")
     ).toBeVisible();
     await expect(page.getByText(/1\.5 \/ 8 Std\./)).toBeVisible();
   });
 
-  test("Trainer-Flow: Trainingsplaner & Übungsbibliothek mit Handball-Tags", async ({
+  test("Trainer-Flow: Trainingsplaner & Übungsbibliothek mit Handball-Tags unter Taktik & Training", async ({
     page,
   }) => {
     await loginAs(page, "trainer@tsv-musterstadt.de");
-    await page.goto("/dienste");
+    await page.goto("/taktik");
 
     // Trainingsplaner
-    await page.getByRole("button", { name: /^Trainingsplaner/ }).click();
+    await page.getByRole("tab", { name: /^Trainingsplaner/ }).click();
     await expect(
       page.getByText("Vorbereitung SG Neustadt – 6:0-Abwehr & 1. Welle")
     ).toBeVisible();
     await expect(page.getByText("90 / 90 Min.")).toBeVisible();
 
     // Übungsbibliothek mit Tag-Filter
-    await page.getByRole("button", { name: /Übungsbibliothek/ }).click();
+    await page.getByRole("tab", { name: /Übungsbibliothek/ }).click();
     await expect(
       page.getByText("Torwart-Einwerfen & 1.-Welle-Konterpass")
     ).toBeVisible();

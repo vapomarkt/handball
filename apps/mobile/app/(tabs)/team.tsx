@@ -49,12 +49,24 @@ export default function TeamScreen() {
                 {item.firstName} {item.lastName}
               </Text>
               <Muted>
-                {[MEMBER_ROLE_LABELS[item.role] ?? item.role, item.primaryPosition]
+                {[
+                  item.role !== "PLAYER"
+                    ? (MEMBER_ROLE_LABELS[item.role] ?? item.role)
+                    : null,
+                  item.primaryPosition,
+                ]
                   .filter(Boolean)
-                  .join(" · ")}
+                  .join(" · ") || "Spieler"}
               </Muted>
             </View>
-            <View style={[styles.dot, { backgroundColor: AVAILABILITY_COLOR[item.availabilityStatus] }]} />
+            {item.availabilityStatus !== "FIT" ? (
+              <View
+                style={[
+                  styles.dot,
+                  { backgroundColor: AVAILABILITY_COLOR[item.availabilityStatus] },
+                ]}
+              />
+            ) : null}
           </View>
         )}
       />

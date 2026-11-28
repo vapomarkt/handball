@@ -31,6 +31,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageHeader } from "@/components/ui/page-header";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ClubDTO, TeamDTO } from "@/domain/schemas/club";
 import type { SeasonCatalogDTO } from "@/domain/schemas/season-catalog";
 import { cn } from "@/lib/utils";
@@ -75,6 +78,9 @@ export default function AdminSeasonsPage() {
   const isAdmin = Boolean(activeTeam?.isClubAdmin);
   const clubId = activeTeam?.clubId ?? null;
 
+  const [adminTab, setAdminTab] = useState<"club" | "teams" | "seasons">("club");
+  const [deleteSeasonTarget, setDeleteSeasonTarget] =
+    useState<SeasonCatalogDTO | null>(null);
   const [seasons, setSeasons] = useState<SeasonCatalogDTO[]>([]);
   const [clubInfo, setClubInfo] = useState<ClubDTO | null>(null);
   const [clubTeams, setClubTeams] = useState<TeamDTO[]>([]);
@@ -470,11 +476,13 @@ export default function AdminSeasonsPage() {
     }
   }
 
-  async function handleDelete(season: SeasonCatalogDTO) {
-    const confirmed = window.confirm(
-      `Saison „${season.name}“ wirklich aus dem Auswahl-Katalog entfernen? Bereits angelegte Mannschaften bleiben unverändert.`
-    );
-    if (!confirmed) return;
+  function handleDelete(season: SeasonCatalogDTO) {
+    setDeleteSeasonTarget(season);
+  }
+
+  async function confirmDeleteSeason() {
+    if (!deleteSeasonTarget) return;
+    const season = deleteSeasonTarget;
 
     setBusyId(season.id);
     setError(null);
@@ -518,30 +526,44 @@ export default function AdminSeasonsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight">
-            Vereins- &amp; Saison-Verwaltung
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Lege weitere Mannschaften in deinem Verein an und pflege die
-            verfügbaren Spielzeiten.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {activeTeam && (
+    <div className="space-y-5">
+      <PageHeader
+        title="Verwaltung"
+        subtitle={clubInfo?.name ?? activeTeam?.clubName ?? "Verein & Saisons"}
+        actions={
+          adminTab === "teams" && activeTeam ? (
             <Button type="button" onClick={() => setCreateTeamOpen(true)}>
               <Plus className="h-4 w-4" />
-              Weitere Mannschaft anlegen
+              Mannschaft anlegen
             </Button>
-          )}
-          <Button type="button" variant="outline" onClick={openCreateDialog}>
-            <Plus className="h-4 w-4" />
-            Neue Saison anlegen
-          </Button>
-        </div>
-      </div>
+          ) : adminTab === "seasons" ? (
+            <Button type="button" onClick={openCreateDialog}>
+              <Plus className="h-4 w-4" />
+              Neue Saison
+            </Button>
+          ) : undefined
+        }
+      />
+
+      <Tabs
+        value={adminTab}
+        onValueChange={(v) => setAdminTab(v as "club" | "teams" | "seasons")}
+      >
+        <TabsList>
+          <TabsTrigger value="club">
+            <ImageIcon className="h-4 w-4" />
+            Verein &amp; Logo
+          </TabsTrigger>
+          <TabsTrigger value="teams">
+            <Users className="h-4 w-4" />
+            Mannschaften ({clubTeams.length})
+          </TabsTrigger>
+          <TabsTrigger value="seasons">
+            <CalendarRange className="h-4 w-4" />
+            Saisons ({seasons.length})
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {error && (
         <div
@@ -563,7 +585,7 @@ export default function AdminSeasonsPage() {
       )}
 
       {/* Vereinslogo (nur Vereins-Admins) */}
-      {activeTeam && (
+      {adminTab === "club" && activeTeam && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -700,28 +722,17 @@ export default function AdminSeasonsPage() {
       )}
 
       {/* Mannschaften im Verein */}
-      {activeTeam && (
+      {adminTab === "teams" && activeTeam && (
         <Card>
-          <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Users className="h-4 w-4 text-primary" />
-                Mannschaften · {activeTeam.clubName} ({clubTeams.length})
-              </CardTitle>
-              <CardDescription>
-                Füge weitere Mannschaften hinzu und übernehme deren Kader direkt
-                aus nuLiga-Spielberichten.
-              </CardDescription>
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setCreateTeamOpen(true)}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Mannschaft hinzufügen
-            </Button>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Users className="h-4 w-4 text-primary" />
+              Mannschaften · {activeTeam.clubName} ({clubTeams.length})
+            </CardTitle>
+            <CardDescription>
+              Wechsle direkt in den Kader oder lege neue Mannschaften über den
+              Button oben an.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {loadingTeams ? (
@@ -787,6 +798,7 @@ export default function AdminSeasonsPage() {
         </Card>
       )}
 
+      {adminTab === "seasons" && (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -929,6 +941,22 @@ export default function AdminSeasonsPage() {
           )}
         </CardContent>
       </Card>
+      )}
+
+      <ConfirmDialog
+        open={deleteSeasonTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteSeasonTarget(null);
+        }}
+        title="Saison entfernen?"
+        description={
+          deleteSeasonTarget
+            ? `Saison „${deleteSeasonTarget.name}“ wirklich aus dem Auswahl-Katalog entfernen? Bereits angelegte Mannschaften bleiben unverändert.`
+            : undefined
+        }
+        confirmLabel="Saison entfernen"
+        onConfirm={confirmDeleteSeason}
+      />
 
       {/* Anlegen / Bearbeiten Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

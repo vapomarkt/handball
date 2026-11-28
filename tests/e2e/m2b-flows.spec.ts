@@ -98,14 +98,14 @@ test.describe("Meilenstein 2b – Liga-Import, Sync-Schutz & Fahrgemeinschaften"
     await page.goto("/termine");
 
     // Tab Liga-Import & Sync zeigt Quelle & Change-Log
-    await page.getByRole("button", { name: /Liga-Import & Sync/ }).click();
+    await page.getByRole("tab", { name: /Liga-Import & Sync/ }).click();
     await expect(
       page.getByText("nuLiga Verbandsliga Herren 1 (iCal)").first()
     ).toBeVisible();
     await expect(page.getByText(/Liga-Änderungsprotokoll/)).toBeVisible();
 
     // Zurück zu Terminen -> Auswärtsspiel per Klick auf die gesamte Kachel öffnen -> Fahrgemeinschaft prüfen
-    await page.getByRole("button", { name: /^Termine/ }).click();
+    await page.getByRole("tab", { name: /^Termine/ }).click();
     await page
       .locator('[data-testid="event-card-event-h1-match-away"]')
       .click();

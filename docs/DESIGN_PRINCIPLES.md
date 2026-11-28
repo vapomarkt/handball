@@ -136,19 +136,21 @@ Um schleichende Überladung („Feature Creep“) frühzeitig zu stoppen, gelten
 
 ---
 
-## 4. Konkrete Bestandsaufnahme & Maßnahmenplan für ThrowOff (IST → SOLL)
+## 4. Umgesetzte Zielarchitektur in ThrowOff
 
-Die folgenden konkreten Überladungen im aktuellen Stand liefern eine direkte Roadmap für die schrittweise Entschlackung:
+Die folgenden Leitplanken sind in der App-Architektur (Web, PWA & Mobile) verbindlich umgesetzt und müssen bei künftigen Erweiterungen erhalten bleiben:
 
-| Bereich / Datei | Aktuelle Überladung (IST) | Zielbild nach Prinzipien (SOLL) |
-| --- | --- | --- |
-| **App-Shell & Navigation**<br>`src/components/layout/app-shell.tsx` | 6 gedrängte Mobile-Bottom-Tabs (`10px`); Mobile-Header mit bis zu 7 Icons/Controls (`Logo`, `Team-Select`, `+`, `Settings`, `Profil`, `Tour`, `Theme`, `Logout`); permanenter Button *„Weitere Mannschaft“* in der Sidebar. | **Max. 5 Mobile-Tabs** (z. B. `Start`, `Termine`, `Team`, `Dienste`, `Mehr` – oder rollenbasiert); Mobile-Header auf **3 Elemente** reduzieren (Team-Switcher-Button, Benachrichtigungen/Kontext, Profil/Menü); *„Weitere Mannschaft“* in den Team-Switcher-Popover oder `Verwaltung` verschieben. |
-| **Dashboard**<br>`src/app/(app)/dashboard/page.tsx` | Redundante Header-Buttons (`Termine`, `Zum Kader`); 4 KPI-Karten für alle Rollen (auch Eltern/Spieler sehen *„Offene Profile“*); `Nächster Termin` und `Nächstes Punktspiel` oft doppelt; komplette `Deine Mannschaften`-Liste dupliziert den Team-Switcher. | **Fokus-Dashboard nach Rolle:** Oben 1 Hero-Karte *„Nächster Termin“* mit direktem 1-Klick-RSVP (keine Dopplung, wenn nächster Termin = Punktspiel); darunter nur offene eigene Aufgaben (z. B. Trikotwäsche, fällige Rückmeldungen); KPI-Zeile kompakt und nur für Staff relevant; doppelte Header-Buttons & Team-Liste entfernen. |
-| **Team / Kader**<br>`src/app/(app)/team/page.tsx` | 3 Header-Buttons (`Aus Spielberichten`, `Einladungen`, `Spieler hinzufügen`); inline Harz-Toggle im Subtitle; 8 umgebrochene Positions-Filter-Buttons; pro Mitgliederkarte bis zu 7 Badges + eingebettete graue Box *„Geschützte Profildaten“* + mehrere Inline-Buttons. | **1 Primär-CTA** (`+ Hinzufügen` mit Menü/Dialog für manuell & nuLiga-Import) + `Einladen`; Positionen als kompakter Filter-Dropdown/Scroll-Chip; Harz-Einstellung in Team-Einstellungen; ruhige Kaderzeilen (Nummer, Name, Position, Status-Punkt bei Abweichung); sensible Daten & Einladungslinks im Mitglieds-Detail-Sheet. |
-| **Termine**<br>`src/app/(app)/termine/page.tsx` | 4 grelle Tab-Buttons + 4 Typ-Filter + Checkbox + Sync-Button; bis zu 6 Badges pro Terminkarte; Lösch-Button direkt auf der Karte. | Ruhige Segmented/Underline-Tabs (Hallen & Liga-Sync für Staff unter *Verwalten/Einstellungen* bündeln); max. 2–3 Badges pro Event-Karte (z. B. Typ/Heim-Auswärts + nur abweichender Status wie Harzverbot/Abgesagt); Löschen ins Detail-Sheet/`···`-Menü. |
-| **Dienste & Trainingsplaner**<br>`src/app/(app)/dienste/page.tsx` | 4 sehr unterschiedliche Module auf einer Seite (*Dienste*, *Arbeitsstunden*, *Trainingsplaner*, *Übungsbibliothek*); Spieler/Eltern sehen Trainer-Tabs. | Rollen-Trennung: *Trainingsplaner & Übungsbibliothek* nur für Staff (oder fachlich bei *Taktik & Training* ansiedeln); für Spieler/Eltern klarer Fokus auf *Meine Dienste* & *Offene Dienste*. |
-| **Kasse & Schwarzes Brett**<br>`src/app/(app)/kasse/page.tsx` | Navigationspunkt heißt `Kasse`, startet aber auf `Schwarzes Brett & Umfragen`; Tab-Stil weicht von anderen Seiten ab. | Klare Benennung/Trennung (z. B. Team-News auf Dashboard/Team-Feed oder klarer Bereich `Team-Pinnwand` vs. `Kasse`); einheitliche `<Tabs>`-Komponente wie im Rest der App. |
-| **Taktik & Verwaltung**<br>`src/app/(app)/taktik/page.tsx`<br>`src/app/(app)/verwaltung/page.tsx` | Taktik ist für Nicht-Staff sichtbar, obwohl primär Trainer-Tool; Verwaltung mischt 2 Header-CTAs + Logo-Upload + nuLiga-Import + Teams + Saisons auf einer langen Seite. | Taktik für Spieler/Eltern im reinen, aufgeräumten „Playbook ansehen“-Modus (ohne Editor-Ballast); Verwaltung klar in übersichtliche Sektionen/Tabs (`Verein & Logo`, `Mannschaften`, `Saisons`) gliedern. |
+| Bereich / Datei | Verbindliche UX-Architektur |
+| --- | --- |
+| **UI-Fundament**<br>`src/components/ui/` | Einheitliche Primitives: ruhige `<Tabs>` (`segmented`/`underline`, nie `bg-primary`), `<DropdownMenu>` (`···`), `<ConfirmDialog>` (0 `window.confirm()`), `<PageHeader>`, `<EmptyState>`, `<CardListSkeleton>` und einzeilige `<FilterChips>`. |
+| **App-Shell & Navigation**<br>`src/components/layout/app-shell.tsx` | **Max. 5 Mobile-Tabs** (`Start`, `Termine`, `Team`, `Dienste`, `Mehr`-Sheet); 2-Elemente-Mobile-Header (Team-Switcher-Menü + Profil); *„Weitere Mannschaft anlegen“* im Team-Switcher-Menü statt als permanenter Sidebar-Button. |
+| **Dashboard**<br>`src/app/(app)/dashboard/page.tsx` | Rollenadaptives Fokus-Dashboard ohne doppelte Nav-Buttons oder doppelte Teamliste; Hero *„Nächster Termin“* mit 1-Klick-RSVP (separates Punktspiel nur, falls abweichend); kompakte 3er-Kennzahlenleiste exklusiv für Staff. |
+| **Team / Kader**<br>`src/app/(app)/team/page.tsx` | Max. 2 Header-Aktionen (`Spieler hinzufügen` + `···`-Menü für Einladungen, nuLiga-Import & Harz-Regel); Suche + Positions-Dropdown in 1 Zeile; scanbare Kaderzeilen (max. 2–3 Abweichungs-Badges, 0 Inline-Detailboxen); geschützte Profildaten im `MemberDetailDialog`. |
+| **Termine**<br>`src/app/(app)/termine/page.tsx` | Ruhige Segmented-Tabs (`Statistik` & `Liga-Sync` exklusiv für Staff); einzeilige `FilterChips`; max. 2–3 Badges pro Event-Karte; Löschen über `···`-Menü + `ConfirmDialog`. |
+| **Dienste**<br>`src/app/(app)/dienste/page.tsx` | Fachlich sauber fokussiert auf `Dienste` & `Arbeitsstunden-Konto`; max. 2–3 Badges pro Dienstkarte; ruhige sekundäre Übernehmen-Buttons statt konkurrierender Primär-CTAs. |
+| **Taktik & Training**<br>`src/app/(app)/taktik/page.tsx` | Fachlich vereint: `Playbook` & `Matchplan`/`Scouting` für alle (read-only für Spieler/Eltern), `Trainingsplaner` & `Übungsbibliothek` exklusiv für Staff. |
+| **Pinnwand & Kasse / Verwaltung / Profil**<br>`kasse`, `verwaltung`, `profil` | Einheitliche `<Tabs>` und `<PageHeader>`, max. 1 Primär-CTA pro aktivem Tab, strukturierte Sektionen statt langer Scroll-Wände, 0 `window.confirm()`. |
+| **Mobile-Parität**<br>`apps/mobile/app/(tabs)/` | 5 konsistente Tabs (`Start`, `Termine`, `Team`, `Playbook`, `Dienste`), lokalisierte Kategorie-Labels, ausgeblendete Standardzustände (`Spieler`/`Fit`) und sekundäre Listen-Buttons. |
 
 ---
 

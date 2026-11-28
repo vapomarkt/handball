@@ -30,9 +30,11 @@ test.describe("Meilenstein 1 – Kritische E2E-Flows", () => {
     await page.goto("/team");
     await expect(page.getByText("Lukas Hartmann")).toBeVisible();
     await expect(page.getByText("Jonas Keller")).toBeVisible();
-    // Trainer sieht DSGVO-geschützte Daten (Passnummer & Verletzungsnotiz)
+    // Trainer öffnet Detail-Dialog (Progressive Disclosure) -> sieht DSGVO-geschützte Daten (Passnummer & Verletzungsnotiz)
+    await page.getByRole("button", { name: /Jonas Keller/ }).click();
     await expect(page.getByText("DHB-2026-10407")).toBeVisible();
     await expect(page.getByText(/Bänderdehnung/)).toBeVisible();
+    await page.getByRole("button", { name: "Schließen" }).click();
 
     // Neuen entkoppelten Spieler anlegen
     const uniqueLast = `E2E${Date.now().toString().slice(-4)}`;
@@ -47,10 +49,14 @@ test.describe("Meilenstein 1 – Kritische E2E-Flows", () => {
     await expect(page.getByText(`Paul ${uniqueLast}`)).toBeVisible();
     await expect(page.getByText("Noch ohne Login").first()).toBeVisible();
 
-    // Aufräumen: angelegten Test-Spieler wieder entfernen
-    page.once("dialog", (dialog) => dialog.accept());
+    // Aufräumen: angelegten Test-Spieler über Overflow-Menü & ConfirmDialog entfernen
     await page
-      .getByRole("button", { name: `Paul ${uniqueLast} entfernen` })
+      .getByRole("button", { name: `Aktionen für Paul ${uniqueLast}` })
+      .click();
+    await page.getByRole("menuitem", { name: "Aus Kader entfernen" }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Aus Kader entfernen" })
       .click();
     await expect(page.getByText(`Paul ${uniqueLast}`)).toHaveCount(0);
   });
@@ -62,9 +68,11 @@ test.describe("Meilenstein 1 – Kritische E2E-Flows", () => {
     await page.goto("/team");
 
     await expect(page.getByText("Jonas Keller")).toBeVisible();
-    // Jonas Kellers Verletzungsnotiz & Passnummer dürfen für Lukas Hartmann NICHT sichtbar sein
+    // Jonas Kellers Verletzungsnotiz & Passnummer dürfen auch im Detail-Dialog für Lukas Hartmann NICHT sichtbar sein
+    await page.getByRole("button", { name: /Jonas Keller/ }).click();
     await expect(page.getByText("DHB-2026-10407")).toHaveCount(0);
     await expect(page.getByText(/Bänderdehnung/)).toHaveCount(0);
+    await page.getByRole("button", { name: "Schließen" }).click();
 
     // Direkter REST-API-Check auf /api/v1/teams/team-herren-1/members
     const res = await page.request.get("/api/v1/teams/team-herren-1/members");
@@ -100,9 +108,12 @@ test.describe("Meilenstein 1 – Kritische E2E-Flows", () => {
     await page.goto("/team");
     await expect(page.getByText("Leo Weber")).toBeVisible();
     await expect(page.getByText("Dein Kind")).toBeVisible();
-    // Sensible Daten des eigenen Kindes sind sichtbar
+    // Sensible Daten des eigenen Kindes sind im Detail-Dialog sichtbar
+    await page.getByRole("button", { name: /Leo Weber/ }).click();
     await expect(page.getByText("DHB-JUG-2026-4414")).toBeVisible();
+    await page.getByRole("button", { name: "Schließen" }).click();
     // Sensible Daten von fremdem Jugendspieler (Ben Schulz) sind geschützt
+    await page.getByRole("button", { name: /Ben Schulz/ }).click();
     await expect(page.getByText("DHB-JUG-2026-4401")).toHaveCount(0);
   });
 

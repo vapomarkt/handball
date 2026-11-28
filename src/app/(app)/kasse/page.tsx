@@ -33,7 +33,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageHeader } from "@/components/ui/page-header";
 import { SelectNative } from "@/components/ui/select-native";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ANNOUNCEMENT_AUDIENCE_LABELS,
   CASH_ENTRY_STATUS_LABELS,
@@ -324,71 +326,63 @@ export default function KasseUndNewsPage() {
   if (!activeTeam || !me) return null;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-            {activeTeam.clubName} · {activeTeam.teamName}
-          </p>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Team-News & Mannschaftskasse
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Schwarzes Brett, schnelle Umfragen und transparentes Kassenbuch inkl.
-            Handball-Strafenkatalog
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {tab === "news" && isStaff && (
+    <div className="space-y-5">
+      {/* Kompakter Header (max. 2 Aktionen je aktivem Tab) */}
+      <PageHeader
+        title="Pinnwand & Kasse"
+        subtitle={activeTeam.teamName}
+        actions={
+          tab === "news" && isStaff ? (
             <>
-              <Button size="sm" variant="outline" onClick={() => setPollOpen(true)}>
-                <BarChart3 className="h-4 w-4 mr-1.5" />
-                Neue Umfrage
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setPollOpen(true)}
+              >
+                <BarChart3 className="h-4 w-4" />
+                Umfrage
               </Button>
               <Button size="sm" onClick={() => setAnnOpen(true)}>
-                <Plus className="h-4 w-4 mr-1.5" />
-                Neue Ankündigung
+                <Plus className="h-4 w-4" />
+                Ankündigung
               </Button>
             </>
-          )}
-          {tab === "cashbox" && canManageCashbox && (
+          ) : tab === "cashbox" && canManageCashbox ? (
             <>
-              <Button size="sm" variant="outline" onClick={() => setCatOpen(true)}>
-                <Receipt className="h-4 w-4 mr-1.5" />
-                Katalog-Eintrag
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setCatOpen(true)}
+              >
+                <Receipt className="h-4 w-4" />
+                Katalog
               </Button>
               <Button size="sm" onClick={() => setEntryOpen(true)}>
-                <Plus className="h-4 w-4 mr-1.5" />
-                Neue Buchung / Strafe
+                <Plus className="h-4 w-4" />
+                Buchung
               </Button>
             </>
-          )}
-        </div>
-      </div>
+          ) : undefined
+        }
+      />
 
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-2 border-b border-border pb-2">
-        <Button
-          variant={tab === "news" ? "default" : "ghost"}
-          size="sm"
-          onClick={() => setTab("news")}
-          data-testid="tab-news"
-        >
-          <Megaphone className="h-4 w-4 shrink-0" />
-          Schwarzes Brett &amp; Umfragen ({announcements.length})
-        </Button>
-        <Button
-          variant={tab === "cashbox" ? "default" : "ghost"}
-          size="sm"
-          onClick={() => setTab("cashbox")}
-          data-testid="tab-cashbox"
-        >
-          <Wallet className="h-4 w-4 shrink-0" />
-          Mannschaftskasse
-          {cashbox ? ` (${formatCentsEur(cashbox.summary.balanceCents)})` : ""}
-        </Button>
-      </div>
+      {/* Ruhige Segmented Tabs */}
+      <Tabs
+        value={tab}
+        onValueChange={(v) => setTab(v as "news" | "cashbox")}
+      >
+        <TabsList>
+          <TabsTrigger value="news" data-testid="tab-news">
+            <Megaphone className="h-4 w-4 shrink-0" />
+            Pinnwand &amp; Umfragen ({announcements.length})
+          </TabsTrigger>
+          <TabsTrigger value="cashbox" data-testid="tab-cashbox">
+            <Wallet className="h-4 w-4 shrink-0" />
+            Mannschaftskasse
+            {cashbox ? ` (${formatCentsEur(cashbox.summary.balanceCents)})` : ""}
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {loading ? (
         <div className="flex items-center justify-center py-12 text-muted-foreground">
@@ -625,7 +619,7 @@ export default function KasseUndNewsPage() {
                       {canManageCashbox && entry.type === "FINE" && (
                         <Button
                           size="sm"
-                          variant={entry.status === "OPEN" ? "default" : "outline"}
+                          variant={entry.status === "OPEN" ? "outline" : "ghost"}
                           onClick={() =>
                             handleTogglePaid(
                               entry.id,

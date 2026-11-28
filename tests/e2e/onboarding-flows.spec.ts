@@ -22,12 +22,18 @@ test.describe("Onboarding, Login-PIN, Kurzcode-Einladung, Betreuer & App-Tour", 
 
     await expect(page.getByText(/Betreuer/).first()).toBeVisible();
 
-    // Kader-Seite: Betreuer sieht sensible Daten & kann Einladungen öffnen
+    // Kader-Seite: Betreuer kann Einladungen über das Overflow-Menü öffnen & sieht sensible Daten im Detail-Dialog
     await page.goto("/team");
+    await page
+      .getByRole("button", { name: "Weitere Kader-Aktionen" })
+      .click();
     await expect(
-      page.getByRole("button", { name: /Einladungen/i }).first()
+      page.getByRole("menuitem", { name: /Einladungen/i })
     ).toBeVisible();
-    await expect(page.getByText(/Geschützte Profildaten/i).first()).toBeVisible();
+    await page.keyboard.press("Escape");
+    await page.locator('[data-testid^="member-card-"]').first().click();
+    await expect(page.getByText(/Geschützte Profildaten/i)).toBeVisible();
+    await page.getByRole("button", { name: "Schließen" }).click();
 
     // Taktik- und Trainingsplan-Schreibzugriffe müssen für TEAM_MANAGER mit 403 blockiert werden
     const meRes = await page.request.get("/api/v1/me");

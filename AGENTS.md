@@ -8,6 +8,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## UI/UX & Design-Prinzipien
+
+- Verbindliche Design- und UX-Leitlinien für Web, PWA und Mobile stehen in `docs/DESIGN_PRINCIPLES.md` (vor jeder UI-Änderung beachten).
+- **Kern-Leitplanken:** Maximal **1 Primär-CTA** (`bg-primary`) pro Viewport, max. **2 Aktionen** im Page-Header (weitere ins `···`-Menü), max. **2–3 Badges** pro Listenkarte (nur abweichende/handlungsrelevante Zustände), max. **5 Mobile Bottom-Tabs**, ruhige Tabs (Segmented Control / Underline statt `bg-primary`-Buttons), Progressive Disclosure (Details & seltene Admin-Aktionen in Sheets/Dialoge/Einstellungen), strikte Rollen-Adaptivität (`PLAYER`/`PARENT` nicht mit Staff-Tools überladen) und keine `window.confirm()`-Aufrufe.
+
 ## Git-Workflow
 
 - Nach jeder erfolgreich getesteten Änderung (Lint, Typecheck, Tests/Build) immer direkt ein sauberes `git commit` und `git push` durchführen.

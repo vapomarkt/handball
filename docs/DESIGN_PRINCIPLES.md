@@ -1,0 +1,166 @@
+# ThrowOff – Design-Prinzipien & UX-Leitlinien
+
+> **Design-Nordstern:** **„Klarheit in 3 Sekunden – Tiefe auf Abruf.“**
+>
+> ThrowOff wird nicht am ruhigen Büro-Schreibtisch benutzt, sondern **in der lauten Sporthalle**, **am Spielfeldrand**, **zwischen Tür und Angel auf dem Smartphone** oder **abends auf der Couch**. Jede Ansicht muss sofort verständlich sein – für neue Eltern und Jugendspieler genauso wie für erfahrene Trainer und Vereins-Admins.
+
+Dieses Dokument ist die verbindliche UX- und Design-Referenz für **Web, PWA (`src/`) und Mobile (`apps/mobile/`)**. Jede neue Seite, Komponente oder Funktion muss sich an diesen Prinzipien und Budgets messen lassen.
+
+---
+
+## 1. Die 8 Kernprinzipien
+
+### 1.1 One Screen, One Job (Ein Fokus pro Ansicht)
+Jede Seite beantwortet genau **eine** zentrale Nutzerfrage.
+- **Dashboard:** *„Was steht als Nächstes an und was braucht meine Reaktion?“*
+- **Termine:** *„Wann spielen oder trainieren wir – und bin ich dabei?“*
+- **Team:** *„Wer gehört zur Mannschaft?“*
+- **Dienste:** *„Welche Aufgaben sind offen oder mir zugewiesen?“*
+
+**Regel:** Keine Sammelbecken-Seiten für fachfremde Module. Wenn zwei Themen unterschiedliche Nutzerziele verfolgen (z. B. *Mannschaftskasse* vs. *Schwarzes Brett* oder *Heimspieltag-Dienste* vs. *Übungsbibliothek*), werden sie klar getrennt statt unter einem irreführenden Navigationspunkt versteckt.
+
+---
+
+### 1.2 Progressive Disclosure (Tiefe auf Abruf statt alles sofort)
+Zeige auf der obersten Ebene nur Informationen und Aktionen, die **80 % der Nutzer in 80 % der Fälle** brauchen. Alles andere gehört eine Ebene tiefer (Detail-Sheet, Drawer, `···`-Menü oder Unterseite).
+- **Listen & Karten sind zum Scannen da** – nicht zum Bearbeiten sämtlicher Detailfelder.
+- **Seltene Admin-/Setup-Aktionen** (z. B. *nuLiga-Spielbericht-Import*, *Halle anlegen*, *Weitere Mannschaft erstellen*, *Harz-Regel umschalten*, *Liga-Sync konfigurieren*) gehören in sekundäre Menüs oder Team-Einstellungen, nicht permanent in den Hauptfluss.
+- **Sensible oder ausführliche Daten** (z. B. Pass-Nr., Notfallkontakt, Verletzungshinweis, komplette RSVP-Aufschlüsselung) öffnen sich beim Klick auf die Karte im Detail-Dialog/Sheet – nicht dauerhaft ausgeklappt auf jeder einzelnen Listenkarte.
+
+---
+
+### 1.3 Rollen- & Aufgabenadaptivität
+ThrowOff hat vier sehr unterschiedliche Zielgruppen mit eigenem Informationsbedarf:
+
+| Rolle | Primäre Aufgaben (Alltag) | Was bewusst **nicht** im Vordergrund stehen darf |
+| --- | --- | --- |
+| **Spieler (`PLAYER`)** | Zu-/Absagen (RSVP), nächster Termin & Treffpunkt, eigene Dienste, Team-News | Admin-KPIs, Liga-Sync, Kader-Import, Trainingsplaner-Verwaltung |
+| **Eltern (`PARENT`)** | Rückmeldung fürs Kind, Abfahrt/Halle/Fahrgemeinschaft, Trikotwäsche & Dienste | Taktik-Editor, Gegner-Scouting, Vereinsverwaltung, „Offene Profile“ |
+| **Trainer / Staff (`COACH`)** | Rückmeldequote, Kaderpflege, Spieltag & Taktik, Trainingsplanung | Vereinsweite Saison-/Logo-Administration im Tagesgeschäft |
+| **Vereins-Admin (`CLUB_ADMIN`)** | Vereinslogo, Mannschaften, Saisons, Rollen & Übergaben | Vermischung von Vereins-Setup mit täglichem Mannschaftsbetrieb |
+
+**Regel:** Neue Nutzer – insbesondere Spieler und Eltern – erleben eine ruhige, reduzierte Oberfläche. Profi-Funktionen (Taktikboard, Scouting, Liga-Sync, Importe) bleiben für Staff leicht erreichbar, ohne Gelegenheitsnutzer zu erschlagen.
+
+---
+
+### 1.4 Strenge Aktions-Hierarchie (Maximal 1 Primäraktion)
+Wenn alles hervorgehoben ist, ist nichts hervorgehoben. Jeder Screen hat eine eindeutige visuelle Rangfolge:
+
+1. **Primäraktion (`variant="default"`, `bg-primary`):** Maximal **1×** pro sichtbarem Bereich für die wichtigste Hauptaktion (z. B. `+ Termin` oder `Zusagen`).
+2. **Sekundäraktion (`variant="outline"` oder `secondary`):** Maximal **1×** direkt daneben, nur wenn sie im Alltag gleichwertig häufig genutzt wird.
+3. **Tertiär- & Expertenaktionen (`ghost` / `DropdownMenu` `···`):** Alle weiteren Aktionen (Importieren, Teilen, Exportieren, Einstellungen) wandern in ein klares `···`-Menü oder einen Split-Button.
+4. **Destruktive Aktionen (`destructive`):** Niemals direkt neben Primäraktionen oder ungeschützt auf Listenkarten. Immer ins Overflow-Menü oder den Detail-Dialog – und immer mit einem eigenen Bestätigungsdialog (oder Undo-Toast), **niemals** mit `window.confirm()`.
+
+---
+
+### 1.5 Schlanke Navigation ohne Doppelstrukturen
+Nutzer sollen sofort wissen, wo sie sind und wie sie weiterkommen – ohne doppelte Wege oder verschachtelte Navigationsstapel.
+- **Mobile Bottom-Tab-Bar:** Maximal **4 bis 5 Tabs** (Apple HIG / Material 3 Standard). Bei mehr Bereichen wird ein sauberer `Mehr`-Tab (mit Profil, Kasse, Verwaltung, Einstellungen) verwendet statt 6 gequetschter Spalten mit 10px-Labels.
+- **Kein Navigations-Duplikat im Inhalt:** Wenn `Termine`, `Team` und der `Team-Switcher` bereits dauerhaft in Header/Sidebar/Tab-Bar stehen, werden sie auf dem Dashboard nicht zusätzlich als Button-Leiste oder komplette Teamliste wiederholt.
+- **Maximal 2 Steuerungsebenen pro Seite:** Vermeide den Dreifach-Stapel aus *Seiten-Tabs + Filter-Buttons + Checkboxen/Toggles*. Filter werden bei mehr als 4 Optionen als horizontal scrollbare Chip-Leiste oder kompaktes Filter-Popover umgesetzt – niemals als mehrzeilige Button-Wand.
+
+---
+
+### 1.6 Visuelle Ruhe, Whitespace & Signal-to-Noise
+Hochwertige Apps wirken ruhig, weil sie mit wenigen, klaren Signalen arbeiten:
+- **Markenfarbe (`--primary` / `#d95d24`) ist Signal-Farbe, keine Deko:** Reserviert für den aktiven Fokus (Primary CTA, aktiver Nav-Zustand, dringender Handlungsbedarf). **Nicht** gleichzeitig für alle aktiven Tabs, Filter-Pills, Badges und Icons nutzen.
+- **Tabs sind Navigation, keine Buttons:** Tabs innerhalb einer Seite nutzen einen ruhigen **Segmented Control** (dezenter `bg-muted`-Container mit aktiver weißer/Card-Fläche) oder eine **Underline-Tab-Bar** – keine grellen, umrandeten Button-Reihen.
+- **Keine Badge-Flut:** Maximal **2–3 Badges pro Karte**. Redundante Informationen (z. B. Rolle „Spieler“ bei jedem Spieler im Kader, oder „Heimspiel“ + „Punktspiel“ + „Status“ + „Ergebnis“ + „Harz“ gleichzeitig) werden reduziert, priorisiert oder als ruhige Metazeile mit `·`-Trenner dargestellt.
+- **Großzügiger Weißraum:** Lieber mehr Abstand zwischen Gruppen (`space-y-6` / `gap-4`) und weniger Rahmen in Rahmen (keine verschachtelten Karten in Karten mit grauen Innenboxen).
+
+---
+
+### 1.7 Mobile-First & Daumenzone (Hallen-Tauglichkeit)
+Der Haupt-Anwendungsfall ist das Smartphone mit einer Hand:
+- **Touch-Targets:** Interaktive Elemente mindestens **44×44 px** (ausreichend Abstand zwischen benachbarten Buttons, kein versehentliches Antippen).
+- **Wichtigstes zuerst (Above the Fold):** Auf einem 390px-Smartphone muss der eigentliche Inhalt (z. B. der nächste Termin oder der erste Spieler) sofort sichtbar sein – ohne erst durch 3 Header-Zeilen, 2 Banner, 4 Tabs und 8 Filter-Buttons zu scrollen.
+- **Klare Typografie-Hierarchie:** Maximal **3 Textebenen pro Karte**:
+  1. Titel / Name (primär, fett)
+  2. Kern-Metadaten in einer ruhigen Zeile (Zeit · Ort oder Position · Status)
+  3. Optional ein prägnanter Zustand oder 1-Klick-Interaktion (z. B. RSVP)
+- **Konsistenz zwischen Web & Expo Mobile:** Dieselbe Informationsarchitektur, dieselben Begriffe und dieselbe visuelle Priorisierung in `src/` und `apps/mobile/`.
+
+---
+
+### 1.8 Geführter Einstieg, ehrliche Zustände & knappe Sprache
+Neue Nutzer sollen sich ab der ersten Sekunde sicher fühlen:
+- **Knappe Microcopy:** Kurze, präzise Titel (`Kader` statt `Kader · männliche D-Jugend` mit Eyebrow `Verein · Saison` und 2-zeiliger Feature-Aufzählung). Das aktive Team steht bereits prominent im Header/Switcher.
+- **Hilfreiche Empty States:** Ein leerer Zustand zeigt 1 ruhiges Icon, 1 klaren Satz zum Nutzen und **genau 1** Primäraktion (z. B. *„Kader importieren“* + dezenter Textlink *„oder manuell anlegen“*).
+- **Ruhige Ladezustände:** Konsistente Skeleton-Platzhalter statt springender `"Lade…"`-Textzeilen.
+- **Sofortiges Feedback:** Optimistische UI-Updates bei häufigen Aktionen (z. B. RSVP-Klick, Abstimmung) und dezente Toasts statt blockierender Banner oder Browser-Alerts.
+
+---
+
+## 2. Messbare UX-Budgets (Verbindliche Leitplanken)
+
+Um schleichende Überladung („Feature Creep“) frühzeitig zu stoppen, gelten für jede Seite und Komponente folgende **Maximalwerte**:
+
+| Bereich | Verbindliches Budget | Begründung |
+| --- | --- | --- |
+| **Primär-CTAs (`bg-primary`)** | **Max. 1** pro sichtbarem Viewport | Eindeutiger visueller Fokus; keine konkurrierenden Call-to-Actions |
+| **Aktionen im Page-Header** | **Max. 2** (1× Primary + optional 1× Secondary oder `···`-Menü) | Kein Button-Stau auf kleinen Viewports |
+| **Zeilen im Page-Header** | **Max. 2** (Titel + optional 1 knappe Kontextzeile) | Inhalt beginnt sofort *Above the Fold* |
+| **Mobile Bottom-Tabs** | **Max. 5** (ideal: 4–5) | Daumentauglich, lesbare Labels, HIG-/Material-konform |
+| **Inline-Tabs pro Seite** | **Max. 3–4** (als Segmented Control / Underline) | Bei mehr Ansichten: eigene Route oder Untermenü |
+| **Sichtbare Filter-Buttons** | **Max. 4–5** in einer Zeile (sonst horizontal scrollbar oder Filter-Popover) | Keine mehrzeiligen Filter-Blöcke vor der Liste |
+| **Badges pro Karte** | **Max. 2–3** (nur abweichende/handlungsrelevante Zustände) | Verhindert „Badge-Suppe“; Normalzustände brauchen kein Badge |
+| **Sichtbare Aktionen pro Listenkarte** | **Max. 1–2** (häufigste Kernaktion + `···`-Menü; Karte selbst öffnet Details) | Saubere, scanbare Listen statt überladener Werkzeugleisten |
+| **Textebenen pro Listenkarte** | **Max. 3** (Titel, Metazeile, Status/Kernaktion) | Erfassbarkeit in < 3 Sekunden |
+| **Inline-Detailboxen in Listen** | **0** (Details gehören in Sheet/Dialog oder Aufklapp-Sektion) | Keine „Box-in-Box“-Optik |
+
+> **Ausnahme-Regel:** Jede bewusste Überschreitung eines Budgets muss im PR / Commit kurz begründet werden (z. B. spezialisierter Taktikboard-Canvas für Trainer).
+
+---
+
+## 3. Komponenten- & Interaktions-Standards
+
+### 3.1 Einheitliche Page-Header
+- **Kompakt & konsistent:** `<h1>` mit kurzem Seitentitel (z. B. `Termine`, `Kader`, `Dienste`), optional 1 kurze Kontextzeile nur bei echtem Mehrwert.
+- **Kein wiederholter Club-/Saison-Eyebrow** auf jeder Unterseite (steht bereits im App-Shell-Header/Switcher).
+- **Keine Settings-Toggles im Header** (z. B. Harz-Einstellung gehört in Team-Einstellungen).
+
+### 3.2 Tabs & Filter
+- **Einheitliche `<Tabs>`-Komponente** statt unterschiedlich gestylter `<button>`- oder `<Button>`-Varianten pro Seite:
+  - *Segmented Control* (`bg-muted p-1 rounded-xl`, aktiver Tab `bg-card text-foreground shadow-xs`) oder *Underline-Tabs* (`border-b-2 border-primary text-foreground`).
+  - Tabs nutzen **nie** vollflächiges `bg-primary`, damit der eigentliche Primary CTA visuell klar führt.
+- **Filter:** Wenn mehr als 4 Werte existieren (z. B. 7 Handball-Positionen), ein kompaktes `<Select>` / Filter-Popover mit Zähler-Badge (`Filter (1)`) oder eine einzeilige horizontal scrollbare Leiste (`overflow-x-auto no-scrollbar`) einsetzen.
+
+### 3.3 Karten & Listen
+- **Klickbare Karte = Detailansicht:** Die gesamte Karte öffnet Details (wie bereits mit `Card interactive` vorbereitet). Dadurch entfallen separate „Details“- oder „Bearbeiten“-Buttons auf der Karte.
+- **Normalzustand = unsichtbar:** Zeige Badges nur für **Abweichungen oder Relevanz** (z. B. `Verletzt`, `Abwesend`, `Harzverbot`, `Abgesagt`, `Noch ohne Login` für Staff) – nicht für jeden Standardzustand (`Spieler`, `Fit`, `Aktiv`) auf jeder einzelnen Zeile.
+- **Overflow-Menü (`···`):** Sekundäre und destruktive Karten-Aktionen (Einladungslink, Eltern-Link, Bearbeiten, Löschen) werden in einem konsistenten `DropdownMenu` gebündelt.
+
+### 3.4 Dialoge, Sheets & Bestätigungen
+- **Mobile-first Sheets/Dialoge:** Auf Smartphones fühlen sich Bottom-Sheets/Dialoge mit klarer Fußzeile (1× Abbrechen, 1× Speichern) natürlich an.
+- **Keine `window.confirm()` / `window.alert()`:** Einheitliche Confirm-Dialoge mit klarem Verb (z. B. *„Termin löschen“* statt *„OK“*) und rotem `destructive`-Button.
+
+---
+
+## 4. Konkrete Bestandsaufnahme & Maßnahmenplan für ThrowOff (IST → SOLL)
+
+Die folgenden konkreten Überladungen im aktuellen Stand liefern eine direkte Roadmap für die schrittweise Entschlackung:
+
+| Bereich / Datei | Aktuelle Überladung (IST) | Zielbild nach Prinzipien (SOLL) |
+| --- | --- | --- |
+| **App-Shell & Navigation**<br>`src/components/layout/app-shell.tsx` | 6 gedrängte Mobile-Bottom-Tabs (`10px`); Mobile-Header mit bis zu 7 Icons/Controls (`Logo`, `Team-Select`, `+`, `Settings`, `Profil`, `Tour`, `Theme`, `Logout`); permanenter Button *„Weitere Mannschaft“* in der Sidebar. | **Max. 5 Mobile-Tabs** (z. B. `Start`, `Termine`, `Team`, `Dienste`, `Mehr` – oder rollenbasiert); Mobile-Header auf **3 Elemente** reduzieren (Team-Switcher-Button, Benachrichtigungen/Kontext, Profil/Menü); *„Weitere Mannschaft“* in den Team-Switcher-Popover oder `Verwaltung` verschieben. |
+| **Dashboard**<br>`src/app/(app)/dashboard/page.tsx` | Redundante Header-Buttons (`Termine`, `Zum Kader`); 4 KPI-Karten für alle Rollen (auch Eltern/Spieler sehen *„Offene Profile“*); `Nächster Termin` und `Nächstes Punktspiel` oft doppelt; komplette `Deine Mannschaften`-Liste dupliziert den Team-Switcher. | **Fokus-Dashboard nach Rolle:** Oben 1 Hero-Karte *„Nächster Termin“* mit direktem 1-Klick-RSVP (keine Dopplung, wenn nächster Termin = Punktspiel); darunter nur offene eigene Aufgaben (z. B. Trikotwäsche, fällige Rückmeldungen); KPI-Zeile kompakt und nur für Staff relevant; doppelte Header-Buttons & Team-Liste entfernen. |
+| **Team / Kader**<br>`src/app/(app)/team/page.tsx` | 3 Header-Buttons (`Aus Spielberichten`, `Einladungen`, `Spieler hinzufügen`); inline Harz-Toggle im Subtitle; 8 umgebrochene Positions-Filter-Buttons; pro Mitgliederkarte bis zu 7 Badges + eingebettete graue Box *„Geschützte Profildaten“* + mehrere Inline-Buttons. | **1 Primär-CTA** (`+ Hinzufügen` mit Menü/Dialog für manuell & nuLiga-Import) + `Einladen`; Positionen als kompakter Filter-Dropdown/Scroll-Chip; Harz-Einstellung in Team-Einstellungen; ruhige Kaderzeilen (Nummer, Name, Position, Status-Punkt bei Abweichung); sensible Daten & Einladungslinks im Mitglieds-Detail-Sheet. |
+| **Termine**<br>`src/app/(app)/termine/page.tsx` | 4 grelle Tab-Buttons + 4 Typ-Filter + Checkbox + Sync-Button; bis zu 6 Badges pro Terminkarte; Lösch-Button direkt auf der Karte. | Ruhige Segmented/Underline-Tabs (Hallen & Liga-Sync für Staff unter *Verwalten/Einstellungen* bündeln); max. 2–3 Badges pro Event-Karte (z. B. Typ/Heim-Auswärts + nur abweichender Status wie Harzverbot/Abgesagt); Löschen ins Detail-Sheet/`···`-Menü. |
+| **Dienste & Trainingsplaner**<br>`src/app/(app)/dienste/page.tsx` | 4 sehr unterschiedliche Module auf einer Seite (*Dienste*, *Arbeitsstunden*, *Trainingsplaner*, *Übungsbibliothek*); Spieler/Eltern sehen Trainer-Tabs. | Rollen-Trennung: *Trainingsplaner & Übungsbibliothek* nur für Staff (oder fachlich bei *Taktik & Training* ansiedeln); für Spieler/Eltern klarer Fokus auf *Meine Dienste* & *Offene Dienste*. |
+| **Kasse & Schwarzes Brett**<br>`src/app/(app)/kasse/page.tsx` | Navigationspunkt heißt `Kasse`, startet aber auf `Schwarzes Brett & Umfragen`; Tab-Stil weicht von anderen Seiten ab. | Klare Benennung/Trennung (z. B. Team-News auf Dashboard/Team-Feed oder klarer Bereich `Team-Pinnwand` vs. `Kasse`); einheitliche `<Tabs>`-Komponente wie im Rest der App. |
+| **Taktik & Verwaltung**<br>`src/app/(app)/taktik/page.tsx`<br>`src/app/(app)/verwaltung/page.tsx` | Taktik ist für Nicht-Staff sichtbar, obwohl primär Trainer-Tool; Verwaltung mischt 2 Header-CTAs + Logo-Upload + nuLiga-Import + Teams + Saisons auf einer langen Seite. | Taktik für Spieler/Eltern im reinen, aufgeräumten „Playbook ansehen“-Modus (ohne Editor-Ballast); Verwaltung klar in übersichtliche Sektionen/Tabs (`Verein & Logo`, `Mannschaften`, `Saisons`) gliedern. |
+
+---
+
+## 5. UX-Review-Checkliste (Vor jedem UI-Commit)
+
+Prüfe bei jeder neuen oder überarbeiteten Ansicht diese 8 Fragen:
+
+1. **3-Sekunden-Test:** Ist sofort klar, was der Hauptzweck dieser Seite ist und welche Aktion die wichtigste ist?
+2. **Ein Primär-CTA:** Gibt es pro sichtbarem Bereich höchstens **einen** vollflächigen `bg-primary`-Button?
+3. **Rollen-Check:** Sieht ein neuer Spieler oder ein Elternteil hier nichts, was ihn überfordert oder gar nicht betrifft?
+4. **Progressive Disclosure:** Kann mindestens ein Element, Button oder Feld in ein `···`-Menü, ein Detail-Sheet oder die Einstellungen wandern?
+5. **Badge-Diät:** Hat jede Karte höchstens 2–3 Badges – und zeigt sie nur echte Signale statt Standardzustände?
+6. **Above the Fold (390 px):** Ist der erste echte Inhalt auf dem Smartphone sofort sichtbar, ohne an Tabs/Filtern/Bannern vorbeizuscrollen?
+7. **Konsistenz:** Werden einheitliche UI-Primitives (Tabs, Dialoge, Menüs, Buttons) verwendet – ohne `window.confirm()` und ohne doppelte Navigation?
+8. **Weniger ist mehr:** Welches Element können wir noch entfernen, ohne dass der Nutzer etwas vermisst?

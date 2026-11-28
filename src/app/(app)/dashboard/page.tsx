@@ -3,16 +3,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  Activity,
   Calendar,
   ChevronRight,
   Clock,
+  Coins,
+  ExternalLink,
   MapPin,
-  Shirt,
-  Sparkles,
   Trophy,
   UserCheck,
 } from "lucide-react";
+import { PlayerAvailabilitySwitcher } from "@/components/dashboard/player-availability-switcher";
+import { PlayerDutiesCard } from "@/components/dashboard/player-duties-card";
+import {
+  QuickRsvpList,
+  type DashboardRsvpTarget,
+} from "@/components/dashboard/quick-rsvp-list";
+import { TeamPulseSection } from "@/components/dashboard/team-pulse-section";
 import {
   EventTypeBadge,
   MatchLocationBadge,
@@ -34,98 +40,115 @@ import {
 } from "@/components/ui/card";
 import { CardListSkeleton, EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { cn } from "@/lib/utils";
-import { formatGermanDateTime } from "@/domain/date-time";
+import { formatGermanDateTime, formatGermanTime } from "@/domain/date-time";
+import type {
+  CashboxOverviewDTO,
+  TeamAnnouncementDTO,
+  TeamPollDTO,
+} from "@/domain/schemas/community";
 import type { WorkDutyDTO } from "@/domain/schemas/duty";
-import type { EventDTO } from "@/domain/schemas/event";
+import type {
+  EventAttendanceResponseDTO,
+  EventDTO,
+} from "@/domain/schemas/event";
 import {
-  AVAILABILITY_STATUS_LABELS,
   formatMemberRoles,
-  HANDBALL_POSITION_LABELS,
   hasMemberRole,
   isStaffMember,
   type RsvpStatus,
 } from "@/domain/schemas/handball";
 import type { TeamMemberResponseDTO } from "@/domain/schemas/member";
+import { formatCentsEur } from "@/domain/services/cashbox-service";
+import {
+  applyOptimisticRsvpToEvents,
+  buildVenueMapsHref,
+  getDashboardAnnouncements,
+  getMemberRsvpStatus,
+  getOpenUnvotedPolls,
+  getPersonalUpcomingDuties,
+  getUpcomingEvents,
+  isAnyMemberNominated,
+} from "@/domain/services/player-dashboard";
+import { cn } from "@/lib/utils";
 
 function formatEventDateTime(iso: string) {
   return formatGermanDateTime(iso, { includeWeekday: true, includeUhr: true });
 }
 
 export default function DashboardPage() {
-  const { me, activeTeam } = useAppContext();
+  const { me, activeTeam, refreshMe } = useAppContext();
   const [members, setMembers] = useState<TeamMemberResponseDTO[]>([]);
   const [events, setEvents] = useState<EventDTO[]>([]);
   const [duties, setDuties] = useState<WorkDutyDTO[]>([]);
+  const [announcements, setAnnouncements] = useState<TeamAnnouncementDTO[]>([]);
+  const [polls, setPolls] = useState<TeamPollDTO[]>([]);
+  const [cashbox, setCashbox] = useState<CashboxOverviewDTO | null>(null);
   const [loadingData, setLoadingData] = useState(true);
 
-  const reloadDashboard = useCallback(async () => {
-    if (!activeTeam) return;
-    try {
-      const [mRes, eRes, dRes] = await Promise.all([
-        fetch(
-          `/api/v1/teams/${encodeURIComponent(activeTeam.teamId)}/members`,
-          { cache: "no-store" }
-        ),
-        fetch(
-          `/api/v1/teams/${encodeURIComponent(activeTeam.teamId)}/events`,
-          { cache: "no-store" }
-        ),
-        fetch(
-          `/api/v1/clubs/${encodeURIComponent(activeTeam.clubId)}/duties?teamId=${encodeURIComponent(activeTeam.teamId)}`,
-          { cache: "no-store" }
-        ),
-      ]);
-      if (mRes.ok) setMembers((await mRes.json()).members ?? []);
-      if (eRes.ok) setEvents((await eRes.json()).events ?? []);
-      if (dRes.ok) setDuties((await dRes.json()).duties ?? []);
-    } finally {
-      setLoadingData(false);
-    }
-  }, [activeTeam]);
+  const isStaff = isStaffMember(activeTeam);
 
   useEffect(() => {
     if (!activeTeam) return;
     let active = true;
-    Promise.all([
-      fetch(`/api/v1/teams/${encodeURIComponent(activeTeam.teamId)}/members`, {
-        cache: "no-store",
-      }),
-      fetch(`/api/v1/teams/${encodeURIComponent(activeTeam.teamId)}/events`, {
-        cache: "no-store",
-      }),
+    const base = `/api/v1/teams/${encodeURIComponent(activeTeam.teamId)}`;
+
+    const requests: Promise<Response | null>[] = [
+      fetch(`${base}/events`, { cache: "no-store" }),
       fetch(
         `/api/v1/clubs/${encodeURIComponent(activeTeam.clubId)}/duties?teamId=${encodeURIComponent(activeTeam.teamId)}`,
         { cache: "no-store" }
       ),
-    ])
-      .then(async ([mRes, eRes, dRes]) => {
+      fetch(`${base}/announcements`, { cache: "no-store" }),
+      fetch(`${base}/polls`, { cache: "no-store" }),
+      fetch(`${base}/cashbox`, { cache: "no-store" }),
+      isStaff
+        ? fetch(`${base}/members`, { cache: "no-store" })
+        : Promise.resolve(null),
+    ];
+
+    Promise.all(requests)
+      .then(async ([eRes, dRes, aRes, pRes, cRes, mRes]) => {
         if (!active) return;
-        if (mRes.ok) setMembers((await mRes.json()).members ?? []);
-        if (eRes.ok) setEvents((await eRes.json()).events ?? []);
-        if (dRes.ok) setDuties((await dRes.json()).duties ?? []);
+        if (eRes?.ok) setEvents((await eRes.json()).events ?? []);
+        if (dRes?.ok) setDuties((await dRes.json()).duties ?? []);
+        if (aRes?.ok) setAnnouncements((await aRes.json()).announcements ?? []);
+        if (pRes?.ok) setPolls((await pRes.json()).polls ?? []);
+        if (cRes?.ok) setCashbox(await cRes.json());
+        if (mRes?.ok) {
+          setMembers((await mRes.json()).members ?? []);
+        } else if (!isStaff) {
+          setMembers([]);
+        }
       })
       .finally(() => {
         if (active) setLoadingData(false);
       });
+
     return () => {
       active = false;
     };
-  }, [activeTeam]);
+  }, [activeTeam, isStaff]);
 
-  const rsvpTargets = useMemo(() => {
+  const rsvpTargets = useMemo<DashboardRsvpTarget[]>(() => {
     if (!me || !activeTeam) return [];
-    const targets: Array<{ memberId: string; label?: string }> = [];
+    const targets: DashboardRsvpTarget[] = [];
     const own = me.memberships.find(
       (m) => m.team.id === activeTeam.teamId && hasMemberRole(m, "PLAYER")
     );
-    if (own) targets.push({ memberId: own.memberId });
+    if (own) {
+      targets.push({
+        memberId: own.memberId,
+        label: "Ich",
+        isOwn: true,
+      });
+    }
     for (const g of me.guardianLinks.filter(
       (l) => l.teamId === activeTeam.teamId
     )) {
       targets.push({
         memberId: g.childMemberId,
         label: `${g.childFirstName} ${g.childLastName}`,
+        isOwn: false,
       });
     }
     return targets;
@@ -133,24 +156,93 @@ export default function DashboardPage() {
 
   const [nowMs] = useState(() => Date.now());
 
-  const upcomingEvents = useMemo(() => {
-    const cutoff = nowMs - 2 * 60 * 60 * 1000;
-    return events.filter(
-      (e) => !e.isCancelled && new Date(e.startAt).getTime() >= cutoff
-    );
-  }, [events, nowMs]);
+  const upcomingEvents = useMemo(
+    () => getUpcomingEvents(events, nowMs),
+    [events, nowMs]
+  );
 
   const nextEvent = upcomingEvents[0] ?? null;
-  const nextMatch = upcomingEvents.find((e) => e.type === "MATCH") ?? null;
-  const showSeparateNextMatch = Boolean(
-    nextMatch && nextMatch.matchDetails && nextMatch.id !== nextEvent?.id
+  const followUpEvents = useMemo(
+    () => upcomingEvents.slice(1),
+    [upcomingEvents]
   );
+  const nextMatch = useMemo(
+    () => upcomingEvents.find((e) => e.type === "MATCH") ?? null,
+    [upcomingEvents]
+  );
+  const showSeparateNextMatch = Boolean(
+    isStaff &&
+      rsvpTargets.length === 0 &&
+      nextMatch &&
+      nextMatch.matchDetails &&
+      nextMatch.id !== nextEvent?.id
+  );
+
+  const myMembership = useMemo(() => {
+    if (!me || !activeTeam) return undefined;
+    return me.memberships.find((m) => m.team.id === activeTeam.teamId);
+  }, [me, activeTeam]);
+
+  const personalDuties = useMemo(() => {
+    if (!me) return [];
+    const linkedChildIds = new Set(
+      me.guardianLinks.map((g) => g.childMemberId)
+    );
+    return getPersonalUpcomingDuties(duties, {
+      userId: me.user.id,
+      memberId: myMembership?.memberId,
+      linkedChildIds,
+      nowMs,
+    });
+  }, [duties, me, myMembership, nowMs]);
+
+  const openUnvotedPolls = useMemo(() => getOpenUnvotedPolls(polls), [polls]);
+  const highlightedAnnouncements = useMemo(
+    () => getDashboardAnnouncements(announcements, 2),
+    [announcements]
+  );
+
+  const handleOptimisticRsvp = useCallback(
+    (eventId: string, memberId: string, nextStatus: RsvpStatus) => {
+      setEvents((prev) =>
+        applyOptimisticRsvpToEvents(prev, {
+          eventId,
+          memberId,
+          status: nextStatus,
+        })
+      );
+    },
+    []
+  );
+
+  const handleConfirmedRsvp = useCallback(
+    (
+      eventId: string,
+      memberId: string,
+      attendance?: EventAttendanceResponseDTO
+    ) => {
+      if (!attendance) return;
+      setEvents((prev) =>
+        applyOptimisticRsvpToEvents(prev, {
+          eventId,
+          memberId,
+          status: attendance.status,
+          attendance,
+        })
+      );
+    },
+    []
+  );
+
+  const handlePollUpdated = useCallback((updatedPoll: TeamPollDTO) => {
+    setPolls((prev) =>
+      prev.map((p) => (p.id === updatedPoll.id ? updatedPoll : p))
+    );
+  }, []);
 
   if (!me || !activeTeam) {
     return null;
   }
-
-  const isStaff = isStaffMember(activeTeam);
 
   const players = members.filter((m) => hasMemberRole(m, "PLAYER"));
   const fitCount = players.filter((m) => m.availabilityStatus === "FIT").length;
@@ -162,26 +254,6 @@ export default function DashboardPage() {
   ).length;
   const unclaimedCount = players.filter((m) => !m.isClaimed).length;
 
-  const myMembership = me.memberships.find(
-    (m) => m.team.id === activeTeam.teamId
-  );
-
-  const myLinkedChildIds = new Set(
-    me.guardianLinks.map((g) => g.childMemberId)
-  );
-  const myLaundryDuties = duties.filter(
-    (d) =>
-      d.category === "JERSEY_LAUNDRY" &&
-      d.assignments.some(
-        (a) =>
-          (a.status === "ASSIGNED" || a.status === "SWAP_REQUESTED") &&
-          (a.assignedMemberUserId === me.user.id ||
-            a.assignedMemberId === myMembership?.memberId ||
-            (a.assignedMemberId !== null &&
-              myLinkedChildIds.has(a.assignedMemberId)))
-      )
-  );
-
   const nextEventResponded = nextEvent
     ? nextEvent.summary.accepted +
       nextEvent.summary.declined +
@@ -192,8 +264,18 @@ export default function DashboardPage() {
       ? Math.min(100, Math.round((nextEventResponded / players.length) * 100))
       : 0;
 
+  const nextEventMapsHref = nextEvent
+    ? buildVenueMapsHref(nextEvent.venue)
+    : null;
+  const rsvpTargetMemberIds = rsvpTargets.map((t) => t.memberId);
+  const nextEventNominated = nextEvent
+    ? isAnyMemberNominated(nextEvent, rsvpTargetMemberIds)
+    : false;
+  const myOpenFinesCents = cashbox?.summary.myOpenFinesCents ?? 0;
+  const myOpenFinesCount = cashbox?.summary.myOpenFinesCount ?? 0;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Kompakter 2-zeiliger Header ohne doppelte Nav-Buttons */}
       <PageHeader
         leading={
@@ -217,49 +299,42 @@ export default function DashboardPage() {
         }
       />
 
+      {/* Kompakter Fitness-Status-Umschalter für Spieler (ersetzt statische Profilkarte) */}
+      {myMembership && hasMemberRole(activeTeam, "PLAYER") && (
+        <PlayerAvailabilitySwitcher
+          teamId={activeTeam.teamId}
+          membership={myMembership}
+          onStatusSaved={refreshMe}
+        />
+      )}
+
       {/* Schnelle Profil-Vervollständigung (nur wenn unvollständig & nicht ausgeblendet) */}
       <ProfileCompletionBanner />
 
-      {/* Persönlicher Hinweis: Zugewiesene Trikotwäsche */}
-      {myLaundryDuties.length > 0 && (
-        <Card className="border-sky-300/80 bg-sky-50/70 dark:border-sky-800 dark:bg-sky-950/35">
-          <CardContent className="p-4 space-y-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Shirt className="h-4 w-4 text-sky-700 dark:text-sky-300 shrink-0" />
-                <h2 className="text-sm font-bold text-sky-950 dark:text-sky-100">
-                  Deine Trikotwäsche
-                </h2>
-              </div>
-              <Link
-                href="/dienste"
-                className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-0.5 shrink-0"
-              >
-                Zu den Diensten
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
-            </div>
-            {myLaundryDuties.map((duty) => (
-              <div key={duty.id} className="text-xs space-y-1">
-                <p className="font-semibold text-foreground">
-                  {duty.title}
-                  {duty.jerseySet
-                    ? ` · ${duty.jerseySet.name} (${duty.jerseySet.colors})`
-                    : ""}
-                </p>
-                {duty.jerseySet?.careInstructions && (
-                  <p className="text-sky-950/90 dark:text-sky-100/90 flex items-start gap-1.5 whitespace-pre-line">
-                    <Sparkles className="h-3.5 w-3.5 shrink-0 mt-0.5 text-sky-600 dark:text-sky-300" />
-                    <span>{duty.jerseySet.careInstructions}</span>
-                  </p>
-                )}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+      {/* Akuter Kassen-Hinweis (nur sichtbar bei offenen eigenen Strafen > 0 €) */}
+      {myOpenFinesCents > 0 && (
+        <Link
+          href="/kasse?tab=cashbox"
+          className="group flex items-center justify-between gap-3 rounded-xl border border-amber-300/80 bg-amber-50/75 px-4 py-3 transition-colors hover:border-amber-400 dark:border-amber-800/80 dark:bg-amber-950/35"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Coins className="h-4 w-4 text-amber-700 dark:text-amber-300 shrink-0" />
+            <p className="text-xs sm:text-sm font-semibold text-amber-950 dark:text-amber-100 truncate">
+              Mannschaftskasse: {myOpenFinesCount}{" "}
+              {myOpenFinesCount === 1 ? "offene Strafe" : "offene Strafen"} ·{" "}
+              <span className="font-mono">
+                {formatCentsEur(myOpenFinesCents)}
+              </span>
+            </p>
+          </div>
+          <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-amber-900 dark:text-amber-200 group-hover:text-primary shrink-0">
+            Zur Kasse
+            <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+          </span>
+        </Link>
       )}
 
-      {/* Hero-Fokus: Nächster Termin (+ separates nächstes Punktspiel nur falls unterschiedlich) */}
+      {/* Hero-Fokus: Nächster Termin (Above the Fold) */}
       {loadingData ? (
         <CardListSkeleton count={2} />
       ) : !nextEvent ? (
@@ -308,26 +383,56 @@ export default function DashboardPage() {
                   ) : (
                     <EventTypeBadge type={nextEvent.type} />
                   )}
+                  {nextEventNominated && (
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                    >
+                      Nominiert
+                    </Badge>
+                  )}
                   <ChevronRight
                     className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
                     aria-hidden="true"
                   />
                 </div>
               </div>
-              <CardDescription className="font-medium text-foreground">
+              <CardDescription className="font-semibold text-foreground">
                 {nextEvent.title}
               </CardDescription>
             </CardHeader>
+
             <CardContent className="space-y-3">
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
-                  <Clock className="h-3.5 w-3.5 text-primary" />
+                  <Clock className="h-3.5 w-3.5 text-primary shrink-0" />
                   {formatEventDateTime(nextEvent.startAt)}
                 </span>
+                {nextEvent.meetingAt && (
+                  <span className="font-medium text-foreground/90">
+                    Treffpunkt:{" "}
+                    {formatGermanTime(nextEvent.meetingAt, { includeUhr: true })}
+                  </span>
+                )}
                 {nextEvent.venue && (
                   <span className="inline-flex items-center gap-1">
-                    <MapPin className="h-3.5 w-3.5 text-primary" />
-                    {nextEvent.venue.name}
+                    <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span>{nextEvent.venue.name}</span>
+                    {nextEventMapsHref && (
+                      <a
+                        href={nextEventMapsHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className={cn(
+                          CARD_ACTION_LAYER_CLASS,
+                          "ml-1 inline-flex items-center gap-0.5 font-semibold text-primary hover:underline"
+                        )}
+                      >
+                        Route
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
                   </span>
                 )}
                 {activeTeam.usesResin &&
@@ -336,6 +441,17 @@ export default function DashboardPage() {
                     <ResinBadge policy={nextEvent.venue.resinPolicy} />
                   )}
               </div>
+
+              {nextEvent.matchDetails?.jerseyColor && (
+                <p className="text-xs text-muted-foreground">
+                  Trikot:{" "}
+                  <span className="font-semibold text-foreground">
+                    {nextEvent.matchDetails.jerseySet
+                      ? `${nextEvent.matchDetails.jerseySet.name} (${nextEvent.matchDetails.jerseyColor})`
+                      : nextEvent.matchDetails.jerseyColor}
+                  </span>
+                </p>
+              )}
 
               {isStaff && (
                 <p className="text-xs text-muted-foreground">
@@ -351,20 +467,32 @@ export default function DashboardPage() {
               {rsvpTargets.length > 0 && (
                 <div className={cn(CARD_ACTION_LAYER_CLASS, "pt-1 space-y-2")}>
                   {rsvpTargets.map((t) => {
-                    const existing = nextEvent.attendances.find(
-                      (a) => a.memberId === t.memberId
-                    );
-                    const status: RsvpStatus = existing?.status ?? "PENDING";
+                    const status = getMemberRsvpStatus(nextEvent, t.memberId);
                     return (
                       <RsvpControls
                         key={t.memberId}
                         teamId={activeTeam.teamId}
                         eventId={nextEvent.id}
                         memberId={t.memberId}
-                        memberLabel={t.label}
+                        memberLabel={t.isOwn ? undefined : t.label}
                         currentStatus={status}
                         requireDeclineReason={nextEvent.requireDeclineReason}
-                        onUpdated={reloadDashboard}
+                        rsvpDeadlineAt={nextEvent.rsvpDeadlineAt}
+                        isCancelled={nextEvent.isCancelled}
+                        isStaff={isStaff}
+                        onOptimisticStatus={(nextStatus) =>
+                          handleOptimisticRsvp(
+                            nextEvent.id,
+                            t.memberId,
+                            nextStatus
+                          )
+                        }
+                        onRollbackStatus={() =>
+                          handleOptimisticRsvp(nextEvent.id, t.memberId, status)
+                        }
+                        onUpdated={(att) =>
+                          handleConfirmedRsvp(nextEvent.id, t.memberId, att)
+                        }
                       />
                     );
                   })}
@@ -373,6 +501,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
+          {/* Separates nächstes Punktspiel nur für reine Staff-Nutzer ohne eigene Schnell-RSVP-Liste */}
           {showSeparateNextMatch && nextMatch && nextMatch.matchDetails && (
             <Card interactive>
               <CardHeader className="pb-3">
@@ -435,7 +564,20 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Staff-Kennzahlen (kompakt, nur für Trainer/Betreuer/Admins) */}
+      {/* Kommende Termine & Schnell-RSVP für Spieler & Eltern (1-Klick pro Zeile) */}
+      {!loadingData && rsvpTargets.length > 0 && followUpEvents.length > 0 && (
+        <QuickRsvpList
+          teamId={activeTeam.teamId}
+          events={followUpEvents}
+          rsvpTargets={rsvpTargets}
+          isStaff={isStaff}
+          onOptimisticRsvp={handleOptimisticRsvp}
+          onRollbackRsvp={handleOptimisticRsvp}
+          onConfirmedRsvp={handleConfirmedRsvp}
+        />
+      )}
+
+      {/* Staff-Kennzahlen (kompakt, exklusiv für Trainer/Betreuer/Admins) */}
       {isStaff && !loadingData && (
         <div className="grid grid-cols-3 gap-3">
           <Card interactive>
@@ -518,7 +660,20 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Rollen-Fokus für Eltern & Spieler (ohne doppelte Teamliste) */}
+      {/* Persönliche Dienste (alle Kategorien inkl. Trikotwäsche-Pflegehinweis) */}
+      {!loadingData && <PlayerDutiesCard duties={personalDuties} />}
+
+      {/* Offene Umfragen (1-Klick-Vote) & aktuelle Team-News */}
+      {!loadingData && (
+        <TeamPulseSection
+          teamId={activeTeam.teamId}
+          announcements={highlightedAnnouncements}
+          openPolls={openUnvotedPolls}
+          onPollUpdated={handlePollUpdated}
+        />
+      )}
+
+      {/* Eltern-Übersicht verknüpfter Kinder */}
       {me.guardianLinks.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
@@ -548,52 +703,6 @@ export default function DashboardPage() {
                 />
               </Link>
             ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {myMembership && hasMemberRole(activeTeam, "PLAYER") && (
-        <Card interactive>
-          <CardContent className="p-4 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-secondary-foreground font-mono text-base font-bold">
-                {myMembership.jerseyNumber ? `#${myMembership.jerseyNumber}` : "–"}
-              </div>
-              <div className="min-w-0">
-                <Link
-                  href="/team"
-                  className={cn(
-                    CARD_OVERLAY_TRIGGER_CLASS,
-                    "block font-bold text-sm truncate transition-colors group-hover:text-primary"
-                  )}
-                >
-                  {myMembership.firstName} {myMembership.lastName}
-                </Link>
-                <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                  <Activity className="h-3 w-3 text-primary shrink-0" />
-                  {myMembership.primaryPosition
-                    ? `${myMembership.primaryPosition} · ${HANDBALL_POSITION_LABELS[myMembership.primaryPosition].full}`
-                    : "Position im Profil ergänzen"}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {myMembership.availabilityStatus !== "FIT" && (
-                <Badge
-                  variant={
-                    myMembership.availabilityStatus === "INJURED"
-                      ? "injured"
-                      : "unavailable"
-                  }
-                >
-                  {AVAILABILITY_STATUS_LABELS[myMembership.availabilityStatus]}
-                </Badge>
-              )}
-              <ChevronRight
-                className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
-                aria-hidden="true"
-              />
-            </div>
           </CardContent>
         </Card>
       )}

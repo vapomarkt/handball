@@ -19,6 +19,8 @@ export * from "../../../src/domain/schemas/jersey-set";
 export * from "../../../src/domain/schemas/onboarding-state";
 export * from "../../../src/domain/schemas/phone";
 export * from "../../../src/domain/services/onboarding-state-service";
+export * from "../../../src/domain/services/player-dashboard";
+export { formatCentsEur } from "../../../src/domain/services/cashbox-service";
 export {
   buildInviteShareText,
   formatShortCode,

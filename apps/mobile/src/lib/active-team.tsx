@@ -2,6 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   deriveSelectableTeams,
+  hasMemberRole,
+  type MeMembershipDTO,
   type MePayloadDTO,
   type SelectableTeamDTO,
 } from "@throwoff/shared";
@@ -18,13 +20,23 @@ import { queryKeys } from "./query-client";
 
 const STORAGE_KEY = "throwoff_active_team_id";
 
+export interface MobileRsvpTarget {
+  memberId: string;
+  label: string;
+  isOwn: boolean;
+}
+
 interface ActiveTeamContextValue {
   me: MePayloadDTO | undefined;
   loading: boolean;
   teams: SelectableTeamDTO[];
   activeTeam: SelectableTeamDTO | null;
+  /** Membership of the viewer in the active team (if any). */
+  activeMembership: MeMembershipDTO | null;
   /** memberId of the viewer in the active team (for RSVP/duty claims). */
   activeMemberId: string | null;
+  /** All members the viewer can submit RSVP for in the active team (self as PLAYER + linked children). */
+  rsvpTargets: MobileRsvpTarget[];
   setActiveTeamId: (teamId: string) => void;
 }
 
@@ -47,9 +59,36 @@ export function ActiveTeamProvider({ children }: { children: React.ReactNode }) 
   const activeTeam =
     teams.find((t) => t.teamId === storedTeamId) ?? teams[0] ?? null;
 
-  const activeMemberId =
-    meQuery.data?.memberships.find((m) => m.team.id === activeTeam?.teamId)
-      ?.memberId ?? null;
+  const activeMembership = useMemo(
+    () =>
+      meQuery.data?.memberships.find((m) => m.team.id === activeTeam?.teamId) ??
+      null,
+    [meQuery.data, activeTeam]
+  );
+
+  const activeMemberId = activeMembership?.memberId ?? null;
+
+  const rsvpTargets = useMemo<MobileRsvpTarget[]>(() => {
+    if (!meQuery.data || !activeTeam) return [];
+    const targets: MobileRsvpTarget[] = [];
+    if (activeMembership && hasMemberRole(activeMembership, "PLAYER")) {
+      targets.push({
+        memberId: activeMembership.memberId,
+        label: "Ich",
+        isOwn: true,
+      });
+    }
+    for (const g of meQuery.data.guardianLinks.filter(
+      (l) => l.teamId === activeTeam.teamId
+    )) {
+      targets.push({
+        memberId: g.childMemberId,
+        label: `${g.childFirstName} ${g.childLastName}`,
+        isOwn: false,
+      });
+    }
+    return targets;
+  }, [meQuery.data, activeTeam, activeMembership]);
 
   // Offline-Vorrat: Spielplan, Kader & Taktiken des aktiven Teams vorab laden.
   useEffect(() => {
@@ -81,7 +120,9 @@ export function ActiveTeamProvider({ children }: { children: React.ReactNode }) 
         loading: meQuery.isPending,
         teams,
         activeTeam,
+        activeMembership,
         activeMemberId,
+        rsvpTargets,
         setActiveTeamId,
       }}
     >

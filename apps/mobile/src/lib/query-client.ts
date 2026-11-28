@@ -61,5 +61,8 @@ export const queryKeys = {
   announcements: (teamId: string) =>
     ["teams", teamId, "announcements"] as const,
   polls: (teamId: string) => ["teams", teamId, "polls"] as const,
+  cashbox: (teamId: string) => ["teams", teamId, "cashbox"] as const,
   duties: (clubId: string) => ["clubs", clubId, "duties"] as const,
+  teamDuties: (clubId: string, teamId: string) =>
+    ["clubs", clubId, "duties", teamId] as const,
 };

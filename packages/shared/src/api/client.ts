@@ -5,11 +5,13 @@ import type {
 } from "../schemas/push";
 import type { CarpoolDTO } from "../../../../src/domain/schemas/carpool";
 import type {
+  CashboxOverviewDTO,
   TeamAnnouncementDTO,
   TeamPollDTO,
 } from "../../../../src/domain/schemas/community";
 import type { WorkDutyDTO } from "../../../../src/domain/schemas/duty";
 import type {
+  EventAttendanceResponseDTO,
   EventDTO,
   SubmitRsvpInput,
 } from "../../../../src/domain/schemas/event";
@@ -134,8 +136,8 @@ export class ThrowOffApiClient {
     teamId: string,
     eventId: string,
     input: SubmitRsvpInput
-  ): Promise<{ attendance: unknown }> {
-    return this.request<{ attendance: unknown }>(
+  ): Promise<{ attendance: EventAttendanceResponseDTO }> {
+    return this.request<{ attendance: EventAttendanceResponseDTO }>(
       `/api/v1/teams/${encodeURIComponent(teamId)}/events/${encodeURIComponent(eventId)}/rsvp`,
       {
         method: "PUT",
@@ -191,15 +193,27 @@ export class ThrowOffApiClient {
     );
   }
 
+  getCashboxOverview(teamId: string): Promise<CashboxOverviewDTO> {
+    return this.request<CashboxOverviewDTO>(
+      `/api/v1/teams/${encodeURIComponent(teamId)}/cashbox`
+    );
+  }
+
   listTactics(teamId: string): Promise<{ plays: TacticPlayDTO[] }> {
     return this.request<{ plays: TacticPlayDTO[] }>(
       `/api/v1/teams/${encodeURIComponent(teamId)}/tactics`
     );
   }
 
-  listClubDuties(clubId: string): Promise<{ duties: WorkDutyDTO[] }> {
+  listClubDuties(
+    clubId: string,
+    params?: { teamId?: string }
+  ): Promise<{ duties: WorkDutyDTO[] }> {
+    const query = new URLSearchParams();
+    if (params?.teamId) query.set("teamId", params.teamId);
+    const qs = query.toString();
     return this.request<{ duties: WorkDutyDTO[] }>(
-      `/api/v1/clubs/${encodeURIComponent(clubId)}/duties`
+      `/api/v1/clubs/${encodeURIComponent(clubId)}/duties${qs ? `?${qs}` : ""}`
     );
   }
 
@@ -269,7 +283,7 @@ export class ThrowOffApiClient {
   }
 
   updateMyProfile(
-    input: QuickProfileUpdateInput
+    input: Partial<QuickProfileUpdateInput>
   ): Promise<{ member: unknown; child: unknown }> {
     return this.request<{ member: unknown; child: unknown }>(
       "/api/v1/me/profile",

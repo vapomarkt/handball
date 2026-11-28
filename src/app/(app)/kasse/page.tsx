@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   BarChart3,
   CheckCircle2,
@@ -57,10 +58,13 @@ import { formatCentsEur } from "@/domain/services/cashbox-service";
 
 type HubTab = "news" | "cashbox";
 
-export default function KasseUndNewsPage() {
+function KasseUndNewsContent() {
   const { me, activeTeam } = useAppContext();
+  const searchParams = useSearchParams();
+  const initialTab: HubTab =
+    searchParams.get("tab") === "cashbox" ? "cashbox" : "news";
 
-  const [tab, setTab] = useState<HubTab>("news");
+  const [tab, setTab] = useState<HubTab>(initialTab);
   const [loading, setLoading] = useState(true);
   const [announcements, setAnnouncements] = useState<TeamAnnouncementDTO[]>([]);
   const [polls, setPolls] = useState<TeamPollDTO[]>([]);
@@ -951,5 +955,13 @@ export default function KasseUndNewsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function KasseUndNewsPage() {
+  return (
+    <Suspense fallback={null}>
+      <KasseUndNewsContent />
+    </Suspense>
   );
 }

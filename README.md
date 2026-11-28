@@ -102,7 +102,7 @@ npm run mobile:typecheck
 - **Push senden:** Job in die pg-boss-Queue `push-notifications` legen (`{ userIds, title, body, data: { kind, url: "throwoff://…" } }`). RSVP-Erinnerungen laufen täglich um 18:00 Uhr automatisch.
 
 ### Builds & Store-Releases (EAS)
-Einmalig: Expo-Account, `cd apps/mobile && npx eas init` (setzt `extra.eas.projectId`, nötig für Push), GitHub-Secret `EXPO_TOKEN`, Apple Developer Program, Google Play Console + FCM-Credentials (`eas credentials`).
+Einmalig: Expo-Account, `cd apps/mobile && npx eas-cli login && npx eas-cli init` (setzt `extra.eas.projectId`, nötig für Push), GitHub-Secret `EXPO_TOKEN`, Apple Developer Program, Google Play Console + FCM-Credentials (`npx eas-cli credentials`).
 
 - GitHub Actions → **Mobile CI** → *Run workflow* (`preview`/`production`) startet `eas build`.
 - Git-Tag `mobile-v*` → Production-Build + `eas submit` (TestFlight / Play Internal Testing).
